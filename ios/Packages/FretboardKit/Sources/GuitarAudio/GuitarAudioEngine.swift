@@ -60,8 +60,10 @@ public final class GuitarAudioEngine {
   /// Your own correction on top of the measured latency, in seconds.
   public var latencyOffset: Double = 0
 
-  /// Called for every note the tracker hears (on the main actor).
+  /// Called for every note the tracker hears (on the main actor). Screens set it with
+  /// setNoteHandler(owner:_:), so one leaving can't clear the handler of the one that replaced it.
   @ObservationIgnored public var onNote: ((NoteEvent) -> Void)?
+  @ObservationIgnored private weak var noteOwner: AnyObject?
   /// Called for every analysis frame, 100 a second (for bends).
   @ObservationIgnored public var onFrame: ((PitchFrame) -> Void)?
 
@@ -72,6 +74,19 @@ public final class GuitarAudioEngine {
   @ObservationIgnored private var metronomeConfig: (bpm: Double, start: Double, perBar: Int)?
 
   public init() {}
+
+  /// Send the notes heard to `handler`, on behalf of `owner`.
+  public func setNoteHandler(owner: AnyObject, _ handler: @escaping (NoteEvent) -> Void) {
+    noteOwner = owner
+    onNote = handler
+  }
+
+  /// Stop sending notes, if `owner` still has the handler.
+  public func clearNoteHandler(owner: AnyObject) {
+    guard noteOwner === owner else { return }
+    noteOwner = nil
+    onNote = nil
+  }
 
   /// The host clock, the time base of note events and the metronome.
   public nonisolated func now() -> Double { HostClock.now() }

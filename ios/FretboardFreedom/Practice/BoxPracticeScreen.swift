@@ -26,14 +26,14 @@ struct BoxPracticeScreen: View {
     .onAppear {
       let m = model ?? BoxPracticeModel(audio: audio, progress: progress, coach: coach)
       model = m
-      audio.onNote = { [weak m] e in m?.heard(e) }
+      audio.setNoteHandler(owner: m) { [weak m] e in m?.heard(e) }
       #if DEBUG
       if ProcessInfo.processInfo.arguments.contains("-FFDemo") { m.runDemo() }
       #endif
     }
     .onDisappear {
       model?.stop()
-      audio.onNote = nil
+      if let model { audio.clearNoteHandler(owner: model) }
     }
   }
 }
@@ -356,8 +356,20 @@ struct BeatLights: View {
   }
 }
 
+/// A line under a title: what just happened, or what to do.
+struct PracticeMessage: Equatable {
+  enum Kind { case ok, warn, bad, info, hint }
+  var kind: Kind
+  var title: String
+  var detail: String
+}
+
 struct MessageLine: View {
-  let message: BoxPracticeModel.Message?
+  let message: PracticeMessage?
+  var placeholder = "Pick a box and press Start, or tap the notes on the neck."
+  var lineLimit = 2
+  /// Keep the room for every line, so the layout doesn't move as messages come and go.
+  var reservesSpace = false
 
   var body: some View {
     Group {
@@ -367,20 +379,21 @@ struct MessageLine: View {
           Text("\(Text(m.title).fontWeight(.semibold).foregroundStyle(color(m.kind)))  \(Text(m.detail).foregroundStyle(Palette.muted))")
         }
       } else {
-        Text("Pick a box and press Start, or tap the notes on the neck.")
+        Text(placeholder)
           .foregroundStyle(Palette.faint)
       }
     }
     .font(.subheadline)
-    .lineLimit(2)
+    .lineLimit(lineLimit, reservesSpace: reservesSpace)
   }
 
-  func color(_ kind: BoxPracticeModel.Message.Kind) -> Color {
+  func color(_ kind: PracticeMessage.Kind) -> Color {
     switch kind {
     case .ok: Palette.teal
     case .warn: Palette.third
     case .bad: Palette.root
     case .info: Palette.text
+    case .hint: Palette.pearl
     }
   }
 }

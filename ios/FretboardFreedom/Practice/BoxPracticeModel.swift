@@ -11,12 +11,7 @@ import PracticeEngine
 
 @Observable
 final class BoxPracticeModel {
-  struct Message: Equatable {
-    enum Kind { case ok, warn, bad, info }
-    var kind: Kind
-    var title: String
-    var detail: String
-  }
+  typealias Message = PracticeMessage
 
   struct Flash: Identifiable {
     let id = UUID()

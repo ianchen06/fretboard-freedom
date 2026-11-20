@@ -19,7 +19,20 @@ public struct FretDot: Identifiable, Hashable, Sendable {
     case outside
     /// A wrong note, where it most likely was.
     case wrong
+    /// Find any note: found here.
+    case found
+    /// Find any note: missed; this is where it was.
+    case missed
+    /// A hint: a landmark or an anchor note to count from.
+    case anchor
+    /// A hint: where the note is.
+    case reveal
+    /// The speed map: colored by how fast it was found, or dark if never practiced.
+    case heat(HeatTone?)
   }
+
+  /// The speed map's colors: under 2 s, 2–3.5 s, slower.
+  public enum HeatTone: Hashable, Sendable { case fast, ok, slow }
 
   public var position: FretPosition
   public var label: String
@@ -45,17 +58,20 @@ public struct FretboardView: View {
   public var dots: [FretDot]
   /// The shape's fret window, lit a little.
   public var window: ClosedRange<Int>?
+  /// A string to light up (the one to find a note on).
+  public var highlightString: Int?
   public var onTap: ((FretPosition) -> Void)?
 
   static let inlays: Set<Int> = [3, 5, 7, 9, 15, 17, 19, 21]
   static let doubles: Set<Int> = [12, 24]
 
   public init(tuning: Tuning = .standard, frets: ClosedRange<Int> = 0...15, dots: [FretDot], window: ClosedRange<Int>? = nil,
-              onTap: ((FretPosition) -> Void)? = nil) {
+              highlightString: Int? = nil, onTap: ((FretPosition) -> Void)? = nil) {
     self.tuning = tuning
     self.frets = frets
     self.dots = dots
     self.window = window
+    self.highlightString = highlightString
     self.onTap = onTap
   }
 
@@ -112,7 +128,8 @@ public struct FretboardView: View {
 
   var accessibilityValue: String {
     let next = dots.first { $0.style == .next }
-    return next.map { "Next: \(tuning.stringLongName($0.position.string)) string, fret \($0.position.fret), \($0.label)" } ?? ""
+    if let next { return "Next: \(tuning.stringLongName(next.position.string)) string, fret \(next.position.fret), \(next.label)" }
+    return highlightString.map { "\(tuning.stringLongName($0)) string" } ?? ""
   }
 
   func drawBoard(_ ctx: inout GraphicsContext, _ g: Geometry) {
@@ -128,6 +145,12 @@ public struct FretboardView: View {
         let r = CGRect(x: g.fretLineX(lo - g.first), y: g.top, width: CGFloat(hi - lo + 1) * g.cellW, height: g.boardH)
         ctx.fill(Path(r), with: .color(.white.opacity(0.06)))
       }
+    }
+    // The string to play on: an amber band along it, under the frets.
+    if let s = highlightString {
+      let x0 = g.hasOpen ? g.labelW : g.bx
+      let band = CGRect(x: x0, y: g.y(s) - g.sp / 2 + 3, width: g.bx + g.bw - x0, height: g.sp - 6)
+      ctx.fill(Path(roundedRect: band, cornerRadius: 5), with: .color(Palette.third.opacity(0.13)))
     }
 
     let inlayR = min(g.cellW, g.sp) * 0.16
@@ -157,8 +180,15 @@ public struct FretboardView: View {
       var p = Path()
       p.move(to: CGPoint(x: g.labelW + 4, y: g.y(s)))
       p.addLine(to: CGPoint(x: g.bx + g.bw, y: g.y(s)))
-      ctx.stroke(p, with: .color(Palette.string.opacity(0.85)), lineWidth: widths[s - 1])
-      ctx.draw(Text(tuning.stringName(s)).font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(Palette.muted),
+      let lit = s == highlightString
+      if lit {
+        var glow = ctx
+        glow.addFilter(.blur(radius: 4))
+        glow.stroke(p, with: .color(Palette.third.opacity(0.55)), lineWidth: 6)
+      }
+      ctx.stroke(p, with: .color(lit ? Color(hex: 0xF7E7C0) : Palette.string.opacity(0.85)), lineWidth: widths[s - 1] + (lit ? 0.6 : 0))
+      ctx.draw(Text(tuning.stringName(s)).font(.system(size: lit ? 15 : 13, weight: lit ? .heavy : .semibold, design: .monospaced))
+                 .foregroundStyle(lit ? Palette.third : Palette.muted),
                at: CGPoint(x: g.labelW / 2, y: g.y(s)))
     }
     // Fret numbers.
@@ -207,6 +237,39 @@ public struct FretboardView: View {
       ctx.fill(circle(r * 0.95), with: .color(Color(hex: 0x2A1810)))
       ctx.stroke(circle(r * 0.95), with: .color(Palette.root), style: StrokeStyle(lineWidth: 2.5, dash: [4, 3]))
       label(dot.label, Palette.root, size: 0.7)
+    case .found:
+      ctx.fill(circle(r), with: .color(Palette.root))
+      ctx.stroke(circle(r), with: .color(Color(hex: 0xF87171)), lineWidth: 2)
+      label(dot.label, .white)
+    case .missed:
+      ctx.fill(circle(r * 0.95), with: .color(Palette.woodEdge))
+      ctx.stroke(circle(r * 0.95), with: .color(Palette.root), style: StrokeStyle(lineWidth: 2.5, dash: [4, 3]))
+      label(dot.label, Color(hex: 0xFCA5A5), size: 0.75)
+    case .anchor:
+      ctx.fill(circle(r * 0.95), with: .color(Palette.woodEdge))
+      ctx.stroke(circle(r * 0.95), with: .color(Palette.pearl), lineWidth: 2)
+      label(dot.label, Palette.pearl, size: 0.75)
+    case .reveal:
+      ctx.fill(circle(r), with: .color(Palette.third.opacity(0.2)))
+      ctx.stroke(circle(r), with: .color(Palette.third), style: StrokeStyle(lineWidth: 2.5, dash: [4, 3]))
+      label(dot.label, Palette.third, size: 0.8)
+    case .heat(let tone):
+      let rr = r * 0.88
+      switch tone {
+      case .none:
+        ctx.fill(circle(rr), with: .color(Palette.woodEdge))
+        ctx.stroke(circle(rr), with: .color(Color(hex: 0x6B5848)), lineWidth: 1.5)
+        label(dot.label, Color(hex: 0x8B7A6A), size: 0.66)
+      case .some(let t):
+        let (fill, edge): (Color, UInt32) = switch t {
+        case .fast: (Palette.teal, 0x5EEAD4)
+        case .ok: (Palette.third, 0xFCD34D)
+        case .slow: (Palette.root, 0xF87171)
+        }
+        ctx.fill(circle(rr), with: .color(fill))
+        ctx.stroke(circle(rr), with: .color(Color(hex: edge)), lineWidth: 1.5)
+        label(dot.label, Color(hex: 0x111111), size: 0.7)
+      }
     }
   }
 }

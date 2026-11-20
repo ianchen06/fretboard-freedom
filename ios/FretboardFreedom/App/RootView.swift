@@ -1,5 +1,6 @@
-// The app shell: every practice page of the web app in a sidebar. Box practice is built; the rest
-// are listed with what they'll do, in the order they're planned.
+// The app shell: every practice page of the web app in a sidebar. Box practice and Find any note
+// are built; the rest are listed with what they'll do, in the order they're planned. The app opens
+// on the page you had open last.
 import FretboardUI
 import SwiftUI
 
@@ -32,7 +33,7 @@ enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
     }
   }
 
-  var isReady: Bool { self == .boxes }
+  var isReady: Bool { self == .boxes || self == .findNote }
 
   var blurb: String {
     switch self {
@@ -48,11 +49,12 @@ enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
 }
 
 struct RootView: View {
-  @State private var selection: PracticeModule? = .boxes
+  /// The page open last. A launch argument sets it too: `-ff.page findNote`.
+  @AppStorage("ff.page") private var page: PracticeModule = .boxes
 
   var body: some View {
     NavigationSplitView {
-      List(selection: $selection) {
+      List(selection: Binding<PracticeModule?>(get: { page }, set: { if let p = $0 { page = p } })) {
         Section("Practice") {
           ForEach(PracticeModule.allCases) { m in
             NavigationLink(value: m) {
@@ -70,8 +72,9 @@ struct RootView: View {
       }
       .navigationTitle("Fretboard Freedom")
     } detail: {
-      switch selection ?? .boxes {
+      switch page {
       case .boxes: BoxPracticeScreen()
+      case .findNote: FindNoteScreen()
       case let other: PlannedModuleView(module: other)
       }
     }
