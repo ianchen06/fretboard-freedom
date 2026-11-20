@@ -224,14 +224,43 @@ struct HearingPanel: View {
 
   @ViewBuilder var mic: some View {
     switch audio.micState {
+    case .listening where audio.inputs.count < 2 && audio.inputChannelCount < 2:
+      // Nothing to choose: one tap closes the mic.
+      Button { audio.stopMic() } label: { listeningLabel }
+        .buttonStyle(.glass)
+        .controlSize(.small)
+        .tint(Palette.teal)
+        .help("Listening. Tap to close the mic.")
     case .listening:
-      Button { audio.stopMic() } label: {
-        Label(audio.inputName.isEmpty ? "Listening" : audio.inputName, systemImage: "mic.fill").lineLimit(1)
-      }
+      // More than one input (the iPad's mic, a USB interface or amp) or channel: tap to choose, or
+      // to close the mic.
+      Menu {
+        if audio.inputs.count > 1 {
+          Section("Listen to") {
+            Picker("Listen to", selection: Binding(get: { audio.currentInput?.id ?? "" }, set: { audio.selectInput($0) })) {
+              ForEach(audio.inputs) { input in
+                Label(input.name, systemImage: input.symbol).tag(input.id)
+              }
+            }
+            .pickerStyle(.inline)
+          }
+        }
+        if audio.inputChannelCount >= 2 {
+          Section("Channel") {
+            Picker("Channel", selection: Binding(get: { audio.channel }, set: { audio.channel = $0 })) {
+              ForEach(InputChannel.allCases) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.inline)
+          }
+        }
+        Section {
+          Button("Stop listening", systemImage: "mic.slash") { audio.stopMic() }
+        }
+      } label: { listeningLabel }
       .buttonStyle(.glass)
       .controlSize(.small)
       .tint(Palette.teal)
-      .help("Listening. Tap to close the mic.")
+      .help("Listening to \(audio.inputName.isEmpty ? "the mic" : audio.inputName). Tap to change the input or close the mic.")
     case .starting:
       ProgressView().controlSize(.small)
     case .denied:
@@ -247,11 +276,29 @@ struct HearingPanel: View {
     }
   }
 
+  var listeningLabel: some View {
+    Label(audio.inputName.isEmpty ? "Listening" : audio.inputName, systemImage: audio.currentInput?.symbol ?? "mic.fill")
+      .lineLimit(1)
+  }
+
   var status: String {
     switch audio.micState {
     case .denied: "The mic is off for this app. Turn it on in Settings › Privacy & Security › Microphone."
     case .failed(let why): why
+    case .listening where audio.currentInput?.isCable == true:
+      "By cable, it hears only the guitar. A clean sound with few effects gives the surest notes."
     default: "It hears pitch, not strings. Use headphones so it doesn’t hear the click."
+    }
+  }
+}
+
+extension GuitarAudioEngine.AudioInput {
+  var symbol: String {
+    switch kind {
+    case .builtInMic: "mic.fill"
+    case .usb, .line: "cable.connector"
+    case .headset: "headphones"
+    case .other: "waveform"
     }
   }
 }

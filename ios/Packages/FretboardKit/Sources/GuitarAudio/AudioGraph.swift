@@ -181,6 +181,8 @@ final class AudioGraph: @unchecked Sendable {
   private var outputFormat: AVAudioFormat?
 
   var outputSampleRate: Double { outputFormat?.sampleRate ?? 48000 }
+  /// Channels the input delivers (0 without input). A USB interface or amp often has 2.
+  private(set) var inputChannelCount = 0
 
   /// Build the graph. withInput: also listen to the mic (needs permission).
   func build(withInput: Bool, continuation: AsyncStream<AnalysisOutput>.Continuation) throws {
@@ -205,6 +207,7 @@ final class AudioGraph: @unchecked Sendable {
       let input = engine.inputNode
       let format = input.outputFormat(forBus: 0)
       guard format.sampleRate > 0, format.channelCount > 0 else { throw AudioError.noInput }
+      inputChannelCount = Int(format.channelCount)
       ring.reset()
       let sinkNode = Self.makeSinkNode(ring: ring, input: self.input, sampleRate: format.sampleRate)
       engine.attach(sinkNode)

@@ -21,13 +21,34 @@ public final class GuitarAudioEngine {
     public var freq: Double
   }
 
+  /// Something the iPad can listen to: its own mic, a headset, or a USB audio interface or amp
+  /// (an amp like the BOSS KATANA:GO shows up as a USB input with its own name).
+  public struct AudioInput: Identifiable, Equatable, Sendable {
+    public enum Kind: Sendable { case builtInMic, usb, headset, line, other }
+    public var id: String
+    public var name: String
+    public var kind: Kind
+    /// A cable from the guitar's signal, so the input hears only the guitar and not the room.
+    public var isCable: Bool { kind == .usb || kind == .line }
+  }
+
   public private(set) var micState: MicState = .off
   /// Input level in dBFS, smoothed for the meter.
   public private(set) var levelDb: Double = -120
   public private(set) var livePitch: LivePitch?
   public private(set) var isRunning = false
-  public private(set) var inputName = ""
   public private(set) var sampleRate: Double = 48000
+
+  /// The inputs to choose from. iPadOS lists them only while the mic is open.
+  public private(set) var inputs: [AudioInput] = []
+  /// The input the tracker is listening to, while the mic is open.
+  public private(set) var currentInput: AudioInput?
+  /// How many channels the current input delivers. `channel` matters only when it's 2 or more.
+  public private(set) var inputChannelCount = 0
+  /// The input you picked, or nil to let iPadOS choose. iPadOS uses the device connected last, so
+  /// plugging in a USB interface switches to it, and unplugging it goes back to the iPad's mic.
+  public private(set) var preferredInputID: String?
+  public var inputName: String { currentInput?.name ?? "" }
 
   /// Noise gate, dBFS. Raise it if the room's noise triggers notes; lower it if soft notes are missed.
   public var gateDb: Double = -50 { didSet { pushSettings() } }
@@ -100,6 +121,14 @@ public final class GuitarAudioEngine {
     levelDb = -120
   }
 
+  /// Listen to this input (an id from `inputs`), or nil to let iPadOS choose. Rebuilds the graph,
+  /// since the new input can have another sample rate or number of channels.
+  public func selectInput(_ id: String?) {
+    preferredInputID = id
+    if let id, id == currentInput?.id { return }
+    restart()
+  }
+
   public func shutdown() {
     consumer?.cancel()
     consumer = nil
@@ -136,8 +165,11 @@ public final class GuitarAudioEngine {
     try? session.setPreferredSampleRate(48000)
     try? session.setPreferredIOBufferDuration(0.005)
     try session.setActive(true)
-    if withInput, let input = session.preferredInput ?? session.currentRoute.inputs.first {
-      inputName = input.portName
+    if withInput {
+      // Changes the route right away, so the input node below already has the new device's format.
+      let port = preferredInputID.flatMap { id in session.availableInputs?.first { $0.uid == id } }
+      if port == nil { preferredInputID = nil }
+      try? session.setPreferredInput(port)
     }
     #endif
 
@@ -150,6 +182,8 @@ public final class GuitarAudioEngine {
     try g.start()
     graph = g
     sampleRate = g.outputSampleRate
+    inputChannelCount = g.inputChannelCount
+    refreshInputs()
     isRunning = true
     if let m = metronomeConfig { startMetronome(bpm: m.bpm, at: m.start, beatsPerBar: m.perBar) }
 
@@ -197,6 +231,31 @@ public final class GuitarAudioEngine {
       let ended = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.ended.rawValue
       MainActor.assumeIsolated { if ended { self?.restart() } }
     })
+    // A device plugged in or out: update the list. Only update it, because configure() changes the
+    // category itself, which posts this too. The configuration change above does the rebuilding.
+    observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] note in
+      let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt).flatMap(AVAudioSession.RouteChangeReason.init)
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        // Plugging something in means "use this": drop an earlier pick so iPadOS switches to it.
+        if reason == .newDeviceAvailable, self.preferredInputID != nil, self.micState == .listening {
+          self.preferredInputID = nil
+          self.restart()
+        } else {
+          self.refreshInputs()
+        }
+      }
+    })
+    #endif
+  }
+
+  private func refreshInputs() {
+    #if os(iOS)
+    let session = AVAudioSession.sharedInstance()
+    let listening = graph?.worker != nil
+    inputs = listening ? (session.availableInputs ?? []).map(AudioInput.init) : []
+    currentInput = listening ? session.currentRoute.inputs.first.map(AudioInput.init) : nil
+    if let id = preferredInputID, listening, !inputs.contains(where: { $0.id == id }) { preferredInputID = nil }
     #endif
   }
 
@@ -238,3 +297,18 @@ public final class GuitarAudioEngine {
     graph?.pluck(midi: midi)
   }
 }
+
+#if os(iOS)
+extension GuitarAudioEngine.AudioInput {
+  init(_ port: AVAudioSessionPortDescription) {
+    let kind: Kind = switch port.portType {
+    case .builtInMic: .builtInMic
+    case .usbAudio: .usb
+    case .headsetMic: .headset
+    case .lineIn: .line
+    default: .other
+    }
+    self.init(id: port.uid, name: port.portName, kind: kind)
+  }
+}
+#endif

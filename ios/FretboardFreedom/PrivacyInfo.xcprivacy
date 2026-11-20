@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The app's privacy manifest. App Store Connect rejects an upload that uses a "required reason" API
+  without saying why here.
+
+  - Nothing is collected or tracked: the mic is analyzed on the iPad and never recorded or sent, the
+    coach runs on the on-device model, and progress stays in Application Support.
+  - UserDefaults (CA92.1): the box practice screen remembers its own settings (key, scale, box,
+    pattern, tempo) for this app only.
+  - System boot time (35F9.1): GuitarAudio's host clock reads mach_absolute_time() to time notes
+    against the click, i.e. to measure time between events inside the app.
+
+  Add an entry here whenever new code reads file timestamps, disk space, keyboards, or another
+  category in Apple's list.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
