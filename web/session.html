@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Session · Fretboard Freedom</title>
+  <meta name="description" content="A generated 60–120 minute practice session: scales, sequences, arpeggios and improvising, checked by the microphone and adapted to how you play.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/session.css?v=2">
+  <link rel="stylesheet" href="css/rhythm.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html" aria-current="page">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="card day-strip" aria-label="Today's session">
+      <div class="day-head">
+        <div>
+          <div class="card-kicker" id="dayKicker">Today</div>
+          <div class="day-title" id="dayTitle">Daily session</div>
+        </div>
+        <div class="day-clock">
+          <span class="day-played" id="dayPlayed">0 of 90 min</span>
+          <button class="link-btn" id="planJump" type="button">Plan and settings ↓</button>
+          <button class="btn btn-ghost gen-btn" id="genBtn" type="button" title="Today’s plan is generated from the date and your progress, and kept if you reload. This draws a different one.">↻ Generate new session</button>
+        </div>
+      </div>
+      <div class="timeline" id="timeline" role="list" aria-label="Session timeline"></div>
+    </section>
+
+    <section class="stage">
+      <div class="card ex-card" id="exCard" data-state="ready">
+        <div class="ex-top">
+          <div class="card-kicker" id="exKicker">Warm-up · 1 of 16</div>
+          <div class="beats" id="beats" aria-hidden="true"><i class="beat"></i><i class="beat"></i><i class="beat"></i><i class="beat"></i></div>
+        </div>
+        <div class="ex-head">
+          <span class="focus-badge" id="focusBadge" hidden>Today’s focus</span>
+          <h1 class="ex-title" id="exTitle">Loading…</h1>
+        </div>
+        <div class="ex-chips" id="exChips"></div>
+        <p class="ex-how" id="exHow"></p>
+        <details class="ex-why-wrap">
+          <summary>Why this matters</summary>
+          <p class="ex-why" id="exWhy"></p>
+        </details>
+        <div class="ex-chord" id="exChord" hidden>
+          <span class="chord-label">Chord</span><span class="chord-name" id="chordNow">–</span><span class="chord-next" id="chordNext"></span>
+        </div>
+        <div class="ex-cue" id="exCue"></div>
+
+        <div class="ex-timer">
+          <div class="timer-bar"><div class="timer-fill" id="slotFill"></div></div>
+          <span class="timer-text" id="slotText">5:00</span>
+          <button class="link-btn" id="extendBtn" type="button" title="Two more minutes on this exercise">+2 min</button>
+        </div>
+
+        <div class="stats" id="stats"></div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+
+        <div class="rate" id="rateRow" hidden>
+          <span class="rate-q" id="rateQ">How did it go?</span>
+          <div class="seg" id="rateSeg" role="radiogroup" aria-label="Rate this exercise">
+            <button type="button" data-value="0.35">Struggled</button>
+            <button type="button" data-value="0.7">Solid</button>
+            <button type="button" data-value="0.95">Too easy</button>
+          </div>
+        </div>
+
+        <div class="ex-controls">
+          <button class="btn btn-start" id="goBtn" type="button">Start <kbd>Space</kbd></button>
+          <div class="tempo" id="tempoBox">
+            <button class="btn btn-ghost tempo-btn" id="slower" type="button" aria-label="Slower">−</button>
+            <div class="tempo-val"><span id="bpm">72</span><small>bpm</small></div>
+            <button class="btn btn-ghost tempo-btn" id="faster" type="button" aria-label="Faster">+</button>
+          </div>
+          <div class="toggles">
+            <button class="chip-btn" id="clickBtn" type="button" aria-pressed="true" title="Metronome (M)">Click</button>
+            <button class="chip-btn" id="backBtn" type="button" aria-pressed="true" title="Drone or chords (D)" hidden>Backing</button>
+          </div>
+          <div class="nav-btns">
+            <button class="btn btn-ghost" id="prevBtn" type="button" title="Previous exercise (P)" aria-label="Previous exercise">←</button>
+            <button class="btn" id="nextBtn" type="button">Next <kbd>N</kbd></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Hearing</div>
+        <div class="heard" id="heard" data-on="false">
+          <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+        </div>
+        <div class="tuner" aria-hidden="true">
+          <div class="tuner-zone"></div>
+          <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tuner-needle" id="tunerNeedle"></div>
+        </div>
+        <div class="tuner-text" id="tunerText">Doubles as a tuner: tune up before you start.</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+        <p class="fine" id="micNote">Headphones help: the click and the backing are in the guitar’s range.</p>
+      </div>
+    </section>
+
+    <section class="card board-card lane-card" id="laneCard" hidden>
+      <div class="board-head">
+        <span class="board-title" id="laneTitle">Rhythm</span>
+        <span class="tab-note" id="laneNote"></span>
+      </div>
+      <svg id="lane" class="lane" role="img" aria-label="The pattern. Your hits appear as dots: left of a line is early, right is late."></svg>
+      <div class="lane-legend" aria-hidden="true">
+        <span><i class="lg good"></i>within 25 ms</span>
+        <span><i class="lg meh"></i>within 45 ms</span>
+        <span><i class="lg bad"></i>further off</span>
+        <span><i class="lg extra"></i>extra hit</span>
+        <span><i class="lg miss"></i>missed</span>
+        <span class="lane-scale">dots are spread 3× wider than real time</span>
+      </div>
+      <div class="now-row">
+        <div class="now-hit" id="nowHit">
+          <span class="now-val" id="nowVal">–</span>
+          <span class="now-sub" id="nowSub">your last hit</span>
+        </div>
+        <svg id="tstrip" class="tstrip" viewBox="0 0 600 54" role="img" aria-label="Where your recent hits landed, from 60 ms early to 60 ms late"></svg>
+      </div>
+    </section>
+
+    <section class="card board-card" id="boardCard">
+      <div class="board-head">
+        <span class="board-title" id="boardTitle">Shape</span>
+        <span class="board-legend">
+          <span><i class="lg-root"></i>Root</span>
+          <span><i class="lg-third"></i>3rd</span>
+          <span><i class="lg-fifth"></i>5th</span>
+          <span><i class="lg-seventh"></i>7th</span>
+          <span><i class="lg-flavor"></i>Flavor / blue note</span>
+          <span><i class="lg-now"></i>Next note</span>
+        </span>
+        <div class="seg seg-sm" id="labelSeg" role="radiogroup" aria-label="Dot labels">
+          <button type="button" data-value="deg">Degrees</button>
+          <button type="button" data-value="note">Notes</button>
+        </div>
+      </div>
+      <div class="board-scroll"><svg id="board" class="fretboard"></svg></div>
+      <div class="board-foot" id="boardFoot">No guitar handy? Click the fretboard to play a note.</div>
+    </section>
+
+    <section class="card tab-card" id="tabCard">
+      <div class="board-head">
+        <span class="board-title" id="tabTitle">Sequence</span>
+        <span class="tab-note" id="tabNote"></span>
+      </div>
+      <div class="stab-scroll" id="tabScroll"><svg id="tab" class="stab" role="img" aria-label="Tab of the exercise"></svg></div>
+    </section>
+
+    <section class="card panel plan-panel" id="planPanel">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">Today’s plan</div>
+          <h2 class="results-title" id="planTitle">90 minutes</h2>
+        </div>
+        <div class="results-actions">
+          <button class="btn btn-ghost" id="shuffleBtn" type="button" title="A different session with the same settings">↻ Generate new session</button>
+        </div>
+      </div>
+      <ol class="plan-list" id="planList"></ol>
+
+      <div class="setup">
+        <div class="setup-main">
+          <div class="field">
+            <div class="field-label">Length</div>
+            <div class="seg" data-name="minutes" role="radiogroup">
+              <button type="button" data-value="60">60</button>
+              <button type="button" data-value="75">75</button>
+              <button type="button" data-value="90">90</button>
+              <button type="button" data-value="105">105</button>
+              <button type="button" data-value="120">120 min</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Where are you now?</div>
+            <div class="seg seg-pace" data-name="start" role="radiogroup">
+              <button type="button" data-value="box1">Box 1<small>one pentatonic shape</small></button>
+              <button type="button" data-value="boxes">5 boxes<small>all pentatonic shapes</small></button>
+              <button type="button" data-value="scales">Full scales<small>positions, arpeggios</small></button>
+            </div>
+            <p class="field-help">Only a starting guess. Your grades take over as you play.</p>
+          </div>
+          <div class="field field-wide">
+            <div class="field-label">Focus</div>
+            <div class="seg" id="focusSeg" role="group" aria-label="Focus">
+              <button type="button" data-value="pent">Pentatonic &amp; blues</button>
+              <button type="button" data-value="scales">Scales &amp; modes</button>
+              <button type="button" data-value="arps">Arpeggios &amp; triads</button>
+              <button type="button" data-value="metal">Metal</button>
+              <button type="button" data-value="tech">Technique</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Keys</div>
+            <div class="seg" data-name="keyMode" role="radiogroup">
+              <button type="button" data-value="rotate">Key of the day</button>
+              <button type="button" data-value="fixed">One key</button>
+            </div>
+            <select id="keySelect" hidden></select>
+            <p class="field-help" id="keyHelp">The key of the day moves up a 4th each day. Blues exercises also use A, metal ones E.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">Options</div>
+            <label class="check"><input type="checkbox" id="autoTempo"> <span><b>Tempo ladder.</b> After clean passes in a row, go 3–4 bpm faster. Two bad passes, go slower.</span></label>
+            <label class="check"><input type="checkbox" id="strictOctave"> <span><b>Check the octave.</b> Turn off if your mic keeps hearing the wrong octave.</span></label>
+            <label class="opt"><span>Click volume</span><input type="range" id="clickVol" min="0" max="100" step="5"></label>
+            <label class="opt"><span>Backing volume</span><input type="range" id="backVol" min="0" max="100" step="5"></label>
+          </div>
+          <div class="setup-foot">
+            <button class="btn btn-start" id="rebuildBtn" type="button" hidden>Build a new session with these settings</button>
+            <p class="fine" id="rebuildNote">Changes apply to the next session you build. What you’ve played today stays in your progress.</p>
+          </div>
+        </div>
+        <aside class="method" aria-label="How the session is built">
+          <div class="method-title">How it’s built</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>Blocks.</b> Warm-up, technique, fretboard, scales, arpeggios, connecting the neck, improvising, review. A 2-minute break about every 30 minutes.</div></li>
+            <li><span class="badge third">2</span><div><b>Rules pick each exercise.</b> The next shape on your path is always in. The rest are what you’re ready for but haven’t nailed, what’s due for review, and never the same thing twice in a row.</div></li>
+            <li><span class="badge fifth">3</span><div><b>Theory builds the notes.</b> Every shape is computed from the scale, in any key, so no dot is wrong.</div></li>
+            <li><span class="badge seventh">4</span><div><b>Your playing steers it.</b> The mic grades each exercise. That moves your skill map, the tempo ladder and when each shape comes back.</div></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card panel progress-panel" id="progressPanel">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">Progress</div>
+          <h2 class="results-title" id="progTitle">Your skill map</h2>
+        </div>
+        <div class="results-actions">
+          <button class="link-btn" id="exportBtn" type="button">Back up</button>
+          <label class="link-btn file-link">Restore<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+          <button class="link-btn danger" id="resetBtn" type="button">Reset progress</button>
+        </div>
+      </div>
+      <div class="tiles" id="progTiles"></div>
+      <div class="skillmap" id="skillMap"></div>
+      <p class="fine">Each cell is a shape. The color is how well you play it, from the mic grades: gray not started, red shaky, amber getting there, teal solid. Hover for tempo and last practice.</p>
+      <ol class="history" id="dayHistory"></ol>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=3"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/fretboard.js?v=3"></script>
+  <script src="js/micpanel.js?v=3"></script>
+  <script src="js/scales.js?v=2"></script>
+  <script src="js/rhythm.js?v=3"></script>
+  <script src="js/rhythmplay.js?v=2"></script>
+  <script src="js/sessiongen.js?v=4"></script>
+  <script src="js/pad.js?v=1"></script>
+  <script src="js/seqtab.js?v=1"></script>
+  <script src="js/session-app.js?v=3"></script>
+</body>
+</html>

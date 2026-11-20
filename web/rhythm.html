@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rhythm · Fretboard Freedom</title>
+  <meta name="description" content="Strumming, palm-muting and inner-clock drills. Every attack is timed against the click to the millisecond, and the page shows where you rush, drag or scatter.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/session.css?v=2">
+  <link rel="stylesheet" href="css/rhythm.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html" aria-current="page">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card ex-card rx-card" id="rxCard" data-state="ready" data-block="time">
+        <div class="ex-top">
+          <div class="card-kicker" id="rxKicker">Time &amp; subdivisions</div>
+          <div class="beats" id="beats" aria-hidden="true"></div>
+        </div>
+        <div class="ex-head">
+          <h1 class="ex-title" id="rxTitle">Loading…</h1>
+        </div>
+        <div class="ex-chips" id="rxChips"></div>
+        <p class="ex-how" id="rxHow"></p>
+        <details class="ex-why-wrap">
+          <summary>Why this matters</summary>
+          <p class="ex-why" id="rxWhy"></p>
+        </details>
+        <div class="ex-cue" id="rxCue"></div>
+
+        <div class="lane-wrap">
+          <svg id="lane" class="lane" role="img" aria-label="The pattern. Your hits appear as dots: left of a line is early, right is late."></svg>
+          <div class="lane-legend" aria-hidden="true">
+            <span><i class="lg good"></i>within 25 ms</span>
+            <span><i class="lg meh"></i>within 45 ms</span>
+            <span><i class="lg bad"></i>further off</span>
+            <span><i class="lg extra"></i>extra hit</span>
+            <span><i class="lg miss"></i>missed</span>
+            <span class="lane-scale">dots are spread 3× wider than real time</span>
+          </div>
+        </div>
+
+        <div class="now-row">
+          <div class="now-hit" id="nowHit">
+            <span class="now-val" id="nowVal">–</span>
+            <span class="now-sub" id="nowSub">your last hit</span>
+          </div>
+          <svg id="tstrip" class="tstrip" viewBox="0 0 600 54" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Where your recent hits landed, from 60 ms early to 60 ms late"></svg>
+        </div>
+
+        <div class="stats" id="stats"></div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+
+        <div class="ex-controls">
+          <button class="btn btn-start" id="goBtn" type="button">Start <kbd>Space</kbd></button>
+          <div class="tempo" id="tempoBox">
+            <button class="btn btn-ghost tempo-btn" id="slower" type="button" aria-label="Slower">−</button>
+            <div class="tempo-val"><span id="bpm">80</span><small id="bpmUnit">bpm</small></div>
+            <button class="btn btn-ghost tempo-btn" id="faster" type="button" aria-label="Faster">+</button>
+          </div>
+          <div class="toggles">
+            <button class="chip-btn" id="ladderBtn" type="button" aria-pressed="true" title="After clean passes in a row, go a little faster; after two rough ones, slower (L)">Tempo ladder</button>
+            <button class="chip-btn" id="soundBtn" type="button" aria-pressed="false" title="Play a drum groove instead of the click (D)">Drums</button>
+          </div>
+        </div>
+        <div class="click-row">
+          <span class="io-label">Click</span>
+          <div class="seg seg-sm click-seg" id="clickSeg" role="radiogroup" aria-label="Where the click plays">
+            <button type="button" data-value="all">Every beat</button>
+            <button type="button" data-value="gap22">Gap 2 on, 2 off</button>
+            <button type="button" data-value="gap13">Gap 1 on, 3 off</button>
+            <button type="button" data-value="24">2 &amp; 4</button>
+            <button type="button" data-value="one">Beat 1</button>
+            <button type="button" data-value="off">The “&amp;”</button>
+          </div>
+          <label class="vol"><span>Volume</span><input type="range" id="vol" min="0" max="100" step="5"></label>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="card listen-card">
+          <div class="card-kicker">Hearing</div>
+          <div class="hits-light">
+            <span class="hit-dot" id="hitDot" aria-hidden="true"></span>
+            <span><b id="hitCount">0</b> attacks heard</span>
+            <span class="hit-db" id="hitDb"></span>
+          </div>
+          <div class="sens-row">
+            <label for="hitSens" title="How small an attack still counts. Raise it if soft strums are missed; lower it if one strum counts twice or noise counts.">Hit sensitivity</label>
+            <input type="range" id="hitSens" min="0" max="100" step="1">
+          </div>
+          <div class="heard" id="heard" data-on="false">
+            <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+          </div>
+          <div class="tuner" aria-hidden="true">
+            <div class="tuner-zone"></div>
+            <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="tuner-needle" id="tunerNeedle"></div>
+          </div>
+          <div class="tuner-text" id="tunerText">Doubles as a tuner.</div>
+          <div class="meter" title="Input level">
+            <div class="meter-fill" id="meterFill"></div>
+            <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+          </div>
+          <div class="sens-row">
+            <label for="sens">Noise gate</label>
+            <input type="range" id="sens" min="0" max="100" step="1">
+            <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+          </div>
+          <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+          <div class="io-row" id="channelRow" hidden>
+            <span class="io-label">Channel</span>
+            <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+              <button type="button" data-value="both">Both</button>
+              <button type="button" data-value="left">1 · Left</button>
+              <button type="button" data-value="right">2 · Right</button>
+            </div>
+          </div>
+          <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+          <p class="fine io-tip" id="ioTip" hidden></p>
+          <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+          <p class="fine" id="micNote">Use headphones, or the mic hears the click and counts it as your hits.</p>
+        </div>
+
+        <div class="card lat-card" id="latCard" data-state="estimate">
+          <div class="card-kicker">Timing offset</div>
+          <div class="lat-main">
+            <div class="lat-val"><span id="latVal">–</span><small>ms</small></div>
+            <div class="lat-nudge">
+              <button class="btn btn-ghost tempo-btn" id="latDown" type="button" aria-label="1 ms less">−</button>
+              <button class="btn btn-ghost tempo-btn" id="latUp" type="button" aria-label="1 ms more">+</button>
+            </div>
+          </div>
+          <p class="fine" id="latNote">Sound takes time to reach your ears and to come back through the input. This offset is taken off every hit.</p>
+          <div class="lat-btns">
+            <button class="btn" id="latPlay" type="button" title="Play muted strums with 16 clicks; the typical offset becomes the correction">Measure by playing</button>
+            <button class="btn btn-ghost" id="latLoop" type="button" title="Needs the input to hear the output: speakers into the mic, or an interface’s loopback">Loopback</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel report-panel" id="reportPanel">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker" id="repKicker">This run</div>
+          <h2 class="results-title" id="repTitle">Play a few bars to see your timing</h2>
+        </div>
+        <div class="results-actions">
+          <button class="link-btn" id="repClear" type="button" hidden>Clear</button>
+        </div>
+      </div>
+      <div class="tiles" id="repTiles"></div>
+      <div class="rep-grid">
+        <figure class="rep-fig">
+          <figcaption>Every hit over time <span class="fine">(above the line is late, below is early; shaded bars had no click)</span></figcaption>
+          <svg id="driftChart" class="drift" viewBox="0 0 1000 230" role="img" aria-label="Timing of every hit over the run"></svg>
+        </figure>
+        <figure class="rep-fig">
+          <figcaption>By place in the beat <span class="fine">(average, compared with the beat)</span></figcaption>
+          <div id="posChart" class="pos-chart"></div>
+        </figure>
+      </div>
+      <ul class="insights" id="repTips"></ul>
+      <details class="history-wrap">
+        <summary>Recent runs</summary>
+        <ol class="history rx-history" id="history"></ol>
+      </details>
+    </section>
+
+    <section class="card panel lib-panel">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">Exercises</div>
+          <h2 class="results-title">Pick a rhythm</h2>
+        </div>
+      </div>
+      <div class="seg cat-seg" id="catSeg" role="tablist" aria-label="Categories"></div>
+      <div class="lib-list" id="libList" role="list"></div>
+
+      <div class="setup">
+        <div class="setup-main how-grid">
+          <div class="field field-wide">
+            <div class="field-label">How it works</div>
+            <p class="field-help">Every attack the input hears (a strum, a chuck, a palm-muted chug) is timed to about a millisecond and lined up with the nearest step of the pattern. A hit on a step that should sound counts; one on a ghost stroke or in a rest is an extra; a step with nothing near it is missed. Timing is your offset from that step, after the timing offset on the right is taken off.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">Clean pass</div>
+            <p class="field-help">At least 95% of the hits, at most one extra, on average within ±20 ms of the beat, and a spread under ±20 ms. With the tempo ladder on, clean passes in a row move the tempo up about 4%; two rough ones move it down.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">Symbols</div>
+            <p class="field-help sym-help">↓ ↑ strum down / up · faint ↓ ↑ the hand moves but misses the strings · ✕ muted chuck · ⊓ V palm-muted pick down / up · ◆ open chord · • single note · <b>&gt;</b> accent · · rest</p>
+          </div>
+        </div>
+        <aside class="method" aria-label="Practice tips">
+          <div class="method-title">Practice tips</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>Measure the timing offset once</b> per setup (input and output device), or every hit reads early or late by the same amount.</div></li>
+            <li><span class="badge third">2</span><div><b>Start slower than you think.</b> Clean at 70 beats sloppy at 100. The ladder will move you up.</div></li>
+            <li><span class="badge fifth">3</span><div><b>Count out loud</b> and tap your foot. Your body is the clock the gap click tests.</div></li>
+            <li><span class="badge seventh">4</span><div><b>Headphones or an interface.</b> A mic that hears the click counts it as your hits.</div></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=3"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/micpanel.js?v=3"></script>
+  <script src="js/band.js?v=3"></script>
+  <script src="js/scales.js?v=2"></script>
+  <script src="js/rhythm.js?v=3"></script>
+  <script src="js/sessiongen.js?v=4"></script>
+  <script src="js/rhythmplay.js?v=2"></script>
+  <script src="js/rhythm-app.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Call &amp; Response · Fretboard Freedom</title>
+  <meta name="description" content="A blues backing band plays a lick over the chords; you play it back and the microphone checks it.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/licks.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html" aria-current="page">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card jam-card" id="jamCard" data-phase="idle">
+        <div class="jam-top">
+          <div class="card-kicker" id="jamKicker">Call &amp; response</div>
+          <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="jam-head">
+          <div class="phase" id="phase">Ready</div>
+          <div class="chord-now">
+            <span class="chord-label">Chord</span>
+            <span class="chord-name" id="chordNow">–</span>
+            <span class="chord-next" id="chordNext"></span>
+          </div>
+        </div>
+        <div class="bars" id="bars" aria-label="Progression"></div>
+        <div class="tab-wrap">
+          <svg id="tab" class="tab" role="img" aria-label="Tab of the current lick"></svg>
+        </div>
+        <div class="lick-info" id="lickInfo">The band plays a lick for two bars, then you play it back for two bars. The mic checks your notes.</div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Hearing</div>
+        <div class="heard" id="heard" data-on="false">
+          <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+        </div>
+        <div class="tuner" aria-hidden="true">
+          <div class="tuner-zone"></div>
+          <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tuner-needle" id="tunerNeedle"></div>
+        </div>
+        <div class="tuner-text" id="tunerText">Doubles as a tuner: tune up before you start.</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+        <p class="fine" id="micNote">Wear headphones: if the mic hears the band, it can’t tell your notes from the band’s.</p>
+      </div>
+    </section>
+
+    <section class="card board-card">
+      <div class="board-head">
+        <span class="board-title" id="boardTitle">Minor pentatonic, box 1</span>
+        <span class="board-legend">
+          <span><i class="lg-root"></i>Root</span>
+          <span><i class="lg-box"></i>Box 1</span>
+          <span><i class="lg-blue"></i>Blue note (♭5)</span>
+          <span><i class="lg-lick"></i>The lick, in order</span>
+        </span>
+      </div>
+      <div class="board-scroll"><svg id="board" class="fretboard"></svg></div>
+      <div class="board-foot" id="boardFoot">No guitar handy? Click the fretboard to answer.</div>
+    </section>
+
+    <section class="card panel" id="setupPanel">
+      <div class="setup">
+        <div class="setup-main">
+          <div class="field">
+            <label class="field-label" for="keySelect">Key</label>
+            <select id="keySelect"></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="tempo">Tempo <span class="field-value" id="tempoVal"></span></label>
+            <input type="range" id="tempo" min="50" max="140" step="2" class="wide-range">
+          </div>
+
+          <div class="field">
+            <div class="field-label">Progression</div>
+            <div class="seg" data-name="prog" role="radiogroup">
+              <button type="button" data-value="twelve">12-bar</button>
+              <button type="button" data-value="quick">Quick change</button>
+              <button type="button" data-value="vamp">One chord</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Level</div>
+            <div class="seg seg-pace" data-name="level" role="radiogroup">
+              <button type="button" data-value="1">1 · Starter<small>≤5 notes, no bends</small></button>
+              <button type="button" data-value="2">2 · Bluesy<small>bends, triplets</small></button>
+              <button type="button" data-value="3">3 · Busy<small>runs, 16ths</small></button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Licks</div>
+            <div class="seg" data-name="mode" role="radiogroup">
+              <button type="button" data-value="repeat">Repeat until I nail it</button>
+              <button type="button" data-value="fresh">New lick every time</button>
+            </div>
+            <p class="field-help">Repeat gives each lick up to 3 tries. When the chords change, it moves the last note so it still lands on a chord tone.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">On your turn</div>
+            <div class="seg" data-name="turn" role="radiogroup">
+              <button type="button" data-value="full">Full band</button>
+              <button type="button" data-value="drums">Drums only</button>
+            </div>
+            <p class="field-help" id="turnHelp">No headphones? Pick Drums only so the mic doesn’t hear the bass and guitar.</p>
+          </div>
+
+          <details class="field field-wide more" id="soundPanel">
+            <summary>Sound and amp</summary>
+            <div class="more-grid">
+              <div class="opt amp-opt">
+                <span>Lead guitar amp</span>
+                <div class="seg" data-name="amp" role="radiogroup">
+                  <button type="button" data-value="builtin">Built-in</button>
+                  <button type="button" data-value="nam">Neural (NAM)</button>
+                </div>
+                <div class="nam-row">
+                  <label class="btn btn-ghost file-btn">Load a .nam capture<input type="file" id="namFile" accept=".nam,application/json"></label>
+                  <span class="nam-status" id="namStatus">No capture loaded.</span>
+                </div>
+                <label class="check"><input type="checkbox" id="cabToggle"> <span><b>Add a cabinet.</b> For amp-only captures (no speaker in the capture).</span></label>
+                <label class="check"><input type="checkbox" id="monitor"> <span><b>Play my guitar through this amp.</b> For a dry signal from an audio interface (a KATANA:GO with its tuner on, say). Use headphones. You’ll hear a slight delay.</span></label>
+                <p class="fine monitor-note" id="monitorNote" hidden></p>
+                <p class="fine">Neural Amp Modeler captures of real amps are free at tone3000.com. Download one, then load it here. It stays in this browser.</p>
+              </div>
+              <div class="opt-stack">
+                <label class="opt"><span>Band volume</span><input type="range" id="bandVol" min="0" max="100" step="5"></label>
+                <label class="opt"><span>Lick volume</span><input type="range" id="leadVol" min="0" max="100" step="5"></label>
+                <label class="opt"><span>Drive (how hard the lick hits the amp)</span><input type="range" id="drive" min="0" max="100" step="5"></label>
+                <label class="check"><input type="checkbox" id="earMode"> <span><b>Ear training.</b> Hide the tab until you’ve answered.</span></label>
+                <label class="check"><input type="checkbox" id="strictOctave"> <span><b>Check the octave.</b> Turn off if your mic keeps hearing the wrong octave.</span></label>
+              </div>
+            </div>
+          </details>
+
+          <div class="setup-foot">
+            <button class="btn btn-start" id="startBtn" type="button">Start the band <kbd>Space</kbd></button>
+            <button class="btn btn-ghost" id="newBtn" type="button" hidden>New lick <kbd>N</kbd></button>
+            <p class="fine">One bar of count-in, then the band loops. <kbd>Space</kbd> start/stop · <kbd>N</kbd> new lick next time</p>
+          </div>
+        </div>
+
+        <aside class="method" aria-label="How to answer a lick">
+          <div class="method-title">How to answer</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>Listen first.</b> Hum the lick back in your head while the band plays it.</div></li>
+            <li><span class="badge third">2</span><div><b>Find the landing note.</b> Every lick ends on a chord tone. Aim for it, then fill in the way there.</div></li>
+            <li><span class="badge fifth">3</span><div><b>Copy the feel.</b> Bends, slides and vibrato matter as much as the notes. Play it like it’s yours.</div></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card panel session" id="sessionPanel">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">This session</div>
+          <h2 class="results-title" id="sessionTitle">No answers yet</h2>
+        </div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <ul class="insights" id="insights"></ul>
+      <ol class="history" id="history"></ol>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=2"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/fretboard.js?v=2"></script>
+  <script src="js/licks-blues.js?v=2"></script>
+  <script src="js/lickgen.js?v=2"></script>
+  <script src="js/band.js?v=2"></script>
+  <script src="js/tab.js?v=2"></script>
+  <script src="js/micpanel.js?v=2"></script>
+  <script src="js/licks-app.js?v=2"></script>
+</body>
+</html>

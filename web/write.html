@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Song Writing · Fretboard Freedom</title>
+  <meta name="description" content="Write Mandarin ballads, Mandopop and rock: chords, a band, melodies that follow your lyrics' tones, rhymes and a lead sheet.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/licks.css?v=3">
+  <link rel="stylesheet" href="css/write.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html" aria-current="page">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card song-card" id="songCard" data-playing="false">
+        <div class="song-top">
+          <input id="title" class="song-title" type="text" placeholder="歌名 · Song title" aria-label="Song title" maxlength="60">
+          <div class="song-pick">
+            <select id="songSelect" aria-label="Your songs"></select>
+            <button class="btn btn-ghost btn-sm" id="newSong" type="button">New</button>
+            <button class="link-btn danger" id="delSong" type="button">Delete</button>
+          </div>
+        </div>
+
+        <div class="song-controls">
+          <div class="field">
+            <div class="field-label">Style</div>
+            <div class="seg" data-name="style" role="radiogroup">
+              <button type="button" data-value="ballad">抒情 Ballad</button>
+              <button type="button" data-value="pop">流行 Mandopop</button>
+              <button type="button" data-value="rock">摇滚 Rock</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="keySelect">Key</label>
+            <select id="keySelect"></select>
+          </div>
+          <div class="field field-tempo">
+            <label class="field-label" for="tempo">Tempo <span class="field-value" id="tempoVal"></span></label>
+            <input type="range" id="tempo" min="50" max="170" step="2" class="wide-range">
+          </div>
+          <div class="field">
+            <div class="field-label">Melody sung by</div>
+            <div class="seg" data-name="voice" role="radiogroup">
+              <button type="button" data-value="voice">Guide voice</button>
+              <button type="button" data-value="guitar">Lead guitar</button>
+              <button type="button" data-value="off">Nobody</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn-start" id="playSong" type="button">Play the song <kbd>Space</kbd></button>
+          <button class="btn btn-ghost" id="loopSection" type="button">Loop this section</button>
+          <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="now-playing" id="nowPlaying"><span class="np-sec" id="npSec"></span><span class="np-chord" id="npChord"></span></div>
+        </div>
+
+        <div class="form-strip">
+          <div class="field-label">Song form <span class="fine-inline">click a part to edit it</span></div>
+          <div class="form-chips" id="formChips"></div>
+        </div>
+      </div>
+
+      <div class="side-col">
+        <div class="card listen-card">
+          <div class="card-kicker">Hearing</div>
+          <div class="heard" id="heard" data-on="false">
+            <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+          </div>
+          <div class="tuner" aria-hidden="true">
+            <div class="tuner-zone"></div>
+            <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="tuner-needle" id="tunerNeedle"></div>
+          </div>
+          <div class="tuner-text" id="tunerText">Play or hum a line, and the app writes it down.</div>
+          <div class="meter" title="Input level">
+            <div class="meter-fill" id="meterFill"></div>
+            <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+          </div>
+          <div class="sens-row">
+            <label for="sens">Sensitivity</label>
+            <input type="range" id="sens" min="0" max="100" step="1">
+            <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+          </div>
+          <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+          <div class="io-row" id="channelRow" hidden>
+            <span class="io-label">Channel</span>
+            <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+              <button type="button" data-value="both">Both</button>
+              <button type="button" data-value="left">1 · Left</button>
+              <button type="button" data-value="right">2 · Right</button>
+            </div>
+          </div>
+          <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+          <p class="fine io-tip" id="ioTip" hidden></p>
+          <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+          <p class="fine" id="micNote">Only needed to record a melody. Wear headphones, or record over drums only.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel editor" id="editor">
+      <div class="editor-head">
+        <div>
+          <div class="card-kicker" id="secKicker">Section</div>
+          <h2 class="sec-title" id="secTitle">Verse</h2>
+        </div>
+        <div class="editor-tools">
+          <div class="seg seg-sm" data-name="take" role="radiogroup" aria-label="Which lyrics to edit" id="takeSeg">
+            <button type="button" data-value="0">歌词 1st time</button>
+            <button type="button" data-value="1">2nd time</button>
+          </div>
+          <select id="progSelect" aria-label="Use a progression"></select>
+        </div>
+      </div>
+      <p class="prog-desc" id="progDesc"></p>
+
+      <div class="chords" id="chords" aria-label="Chords, one cell per bar"></div>
+      <div class="bar-tools">
+        <button class="link-btn" id="addBars" type="button">+ 2 bars</button>
+        <button class="link-btn" id="removeBars" type="button">− 2 bars</button>
+        <span class="fine-inline">Click a chord to swap it. Two chords in a bar: type them with a comma.</span>
+      </div>
+
+      <div class="lines" id="lines"></div>
+
+      <div class="editor-foot" id="editorFoot">
+        <button class="btn" id="suggestAll" type="button">✨ Suggest melodies for every line</button>
+        <label class="opt tone-opt">
+          <span>Follow the tones</span>
+          <div class="seg seg-sm" data-name="toneWeight" role="radiogroup">
+            <button type="button" data-value="0.4">Loosely</button>
+            <button type="button" data-value="1">Normally</button>
+            <button type="button" data-value="1.8">Strictly</button>
+          </div>
+        </label>
+        <label class="opt tone-opt">
+          <span>While recording</span>
+          <div class="seg seg-sm" data-name="recBand" role="radiogroup">
+            <button type="button" data-value="drums">Drums only</button>
+            <button type="button" data-value="full">Full band</button>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <section class="tools-row">
+      <div class="card panel rhyme-card">
+        <div class="card-kicker">押韵 · Rhyme</div>
+        <h3 class="tool-title">Line endings in this section</h3>
+        <ol class="rhyme-lines" id="rhymeLines"></ol>
+        <div class="field-label rb-label">十三辙 · the 13 rhyme groups</div>
+        <div class="seg seg-sm rhyme-groups" id="rhymeGroups"></div>
+        <p class="fine" id="rhymeNote"></p>
+        <div class="word-bank" id="wordBank"></div>
+        <p class="fine">Click a word to put it in the line you're writing.</p>
+      </div>
+
+      <div class="card panel spark-card">
+        <div class="card-kicker">灵感 · Spark</div>
+        <h3 class="tool-title">Stuck? Write from here</h3>
+        <dl class="spark" id="spark"></dl>
+        <button class="btn btn-ghost" id="newSpark" type="button">换一个 · New spark</button>
+        <div class="method">
+          <div class="method-title">How to use this page</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>Chords first.</b> Pick a style and a progression for each part. Play it and hum over it.</div></li>
+            <li><span class="badge third">2</span><div><b>Write a line, get a tune.</b> ✨ sets the words to the chords so the melody moves the way the tones do. Or ● record yourself playing or humming it.</div></li>
+            <li><span class="badge fifth">3</span><div><b>Fix the red.</b> A red link means the tune moves against the tones, so a word may be misheard (倒字). Move a note or change the word.</div></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel sheet-card">
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">Lead sheet · 简谱</div>
+          <h3 class="tool-title">The whole song as text</h3>
+        </div>
+        <div class="results-actions">
+          <button class="btn btn-ghost btn-sm" id="copySheet" type="button">Copy</button>
+          <button class="btn btn-ghost btn-sm" id="saveSheet" type="button">Download .txt</button>
+          <button class="btn btn-ghost btn-sm" id="exportJson" type="button">Back up (.json)</button>
+          <label class="btn btn-ghost btn-sm file-btn">Restore<input type="file" id="importJson" accept=".json,application/json"></label>
+        </div>
+      </div>
+      <pre class="sheet" id="sheet"></pre>
+      <p class="fine">简谱: 1 = do of the key. A dot below = lower octave, above = higher. 0 = rest, - = the note holds through the beat. Songs are saved in this browser.</p>
+    </section>
+  </main>
+
+  <div class="popover" id="popover" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=3"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/band.js?v=3"></script>
+  <script src="js/micpanel.js?v=3"></script>
+  <script src="js/pinyin-data.js?v=1"></script>
+  <script src="js/zh.js?v=1"></script>
+  <script src="js/songtheory.js?v=2"></script>
+  <script src="js/songband.js?v=2"></script>
+  <script src="js/write-app.js?v=3"></script>
+</body>
+</html>

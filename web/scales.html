@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scales · Fretboard Freedom</title>
+  <meta name="description" content="Scales across the whole neck: CAGED shapes in any key, routes up and down the neck, and a play-along band, with the mic checking every note.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/session.css?v=2">
+  <link rel="stylesheet" href="css/scales.css?v=3">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html" aria-current="page">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <!-- What to play: genre, key, scale, shape system -->
+    <section class="card sc-setup" aria-label="Key and scale">
+      <div class="sc-row">
+        <div class="field">
+          <div class="field-label">Genre</div>
+          <div class="seg seg-sm" id="genreSeg" role="radiogroup" aria-label="Genre"></div>
+        </div>
+        <div class="field sc-keys">
+          <div class="field-label">Key <span class="sc-hint">● common in this genre</span></div>
+          <div class="sc-keyrow">
+            <div class="seg seg-sm keys" id="keySeg" role="radiogroup" aria-label="Key"></div>
+            <button class="btn btn-ghost sc-up4" id="up4Btn" type="button" title="Move the key up a 4th, round the circle (K)">↻ Up a 4th</button>
+          </div>
+        </div>
+      </div>
+      <div class="sc-row">
+        <label class="field sc-scale">
+          <span class="field-label">Scale</span>
+          <select id="scaleSelect" class="device"></select>
+        </label>
+        <div class="field">
+          <div class="field-label">Shapes</div>
+          <div class="seg seg-sm" id="systemSeg" role="radiogroup" aria-label="Shape system">
+            <button type="button" data-value="caged">CAGED · 5 positions</button>
+            <button type="button" data-value="nps3">3 notes per string · 7</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Dots show</div>
+          <div class="seg seg-sm" id="labelSeg" role="radiogroup" aria-label="Dot labels">
+            <button type="button" data-value="deg">Degrees</button>
+            <button type="button" data-value="note">Notes</button>
+            <button type="button" data-value="none">Nothing</button>
+          </div>
+        </div>
+      </div>
+      <p class="sc-why" id="scaleWhy"></p>
+    </section>
+
+    <!-- The whole neck -->
+    <section class="card board-card neck-card">
+      <div class="board-head">
+        <div class="neck-titles">
+          <span class="board-title" id="neckTitle">Scale</span>
+          <span class="neck-sub" id="neckSub"></span>
+        </div>
+        <div class="toggles">
+          <button class="chip-btn" id="wholeBtn" type="button" aria-pressed="true" title="Show the scale's other notes across the neck, faded (W)">Whole neck</button>
+          <button class="chip-btn" id="gripBtn" type="button" aria-pressed="true" title="Ring the barre-chord grip the shape is built around (C)">Chord grip</button>
+        </div>
+      </div>
+      <div class="board-scroll neck-scroll">
+        <svg id="strip" class="caged-strip" role="group" aria-label="Shapes along the neck: click one to pick it"></svg>
+        <svg id="board" class="fretboard neck-board"></svg>
+      </div>
+      <div class="board-foot neck-foot">
+        <span class="board-legend">
+          <span><i class="lg-root"></i>Root</span>
+          <span><i class="lg-third"></i>3rd</span>
+          <span><i class="lg-fifth"></i>5th</span>
+          <span><i class="lg-seventh"></i>7th</span>
+          <span><i class="lg-flavor"></i>Flavor / blue note</span>
+          <span><i class="lg-grip"></i>Chord grip</span>
+          <span><i class="lg-live"></i>You played</span>
+        </span>
+        <span id="neckFoot">Click a shape above the neck to pick it. No guitar handy? Click the fretboard.</span>
+      </div>
+    </section>
+
+    <div class="mode-tabs" id="modeTabs" role="tablist" aria-label="Practice">
+      <button type="button" role="tab" data-value="shape">Learn a shape<small>one position, in sequences</small></button>
+      <button type="button" role="tab" data-value="neck">Up &amp; down the neck<small>ladders, diagonals, one string</small></button>
+      <button type="button" role="tab" data-value="jam">Play along<small>a band in your key, live on the neck</small></button>
+    </div>
+
+    <section class="stage">
+      <div class="card ex-card" id="exCard" data-state="ready" data-mode="shape">
+        <div class="ex-top">
+          <div class="card-kicker" id="exKicker">Learn a shape</div>
+          <div class="beats" id="beats" aria-hidden="true"><i class="beat"></i><i class="beat"></i><i class="beat"></i><i class="beat"></i></div>
+        </div>
+        <div class="ex-head">
+          <h1 class="ex-title" id="exTitle">Loading…</h1>
+        </div>
+        <div class="ex-chips" id="exChips"></div>
+
+        <!-- Learn a shape -->
+        <div class="opt-rows" id="shapeOpts">
+          <div class="opt-row">
+            <span class="io-label">Shape</span>
+            <div class="seg seg-sm shape-seg" id="shapeSeg" role="radiogroup" aria-label="Shape"></div>
+          </div>
+          <div class="opt-row">
+            <span class="io-label">Pattern</span>
+            <div class="seg seg-sm" id="seqSeg" role="radiogroup" aria-label="Pattern">
+              <button type="button" data-value="straight">Up &amp; down</button>
+              <button type="button" data-value="threes">In 3s</button>
+              <button type="button" data-value="fours">In 4s</button>
+              <button type="button" data-value="thirds">In 3rds</button>
+              <button type="button" data-value="sixes">Descending 6s</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Up & down the neck -->
+        <div class="opt-rows" id="neckOpts" hidden>
+          <div class="opt-row">
+            <span class="io-label">Route</span>
+            <div class="seg seg-sm" id="routeSeg" role="radiogroup" aria-label="Route">
+              <button type="button" data-value="ladder">Shape ladder</button>
+              <button type="button" data-value="diagonal">Diagonal</button>
+              <button type="button" data-value="string">One string</button>
+            </div>
+          </div>
+          <div class="opt-row" id="spanRow">
+            <span class="io-label">Shapes</span>
+            <div class="seg seg-sm" id="spanSeg" role="radiogroup" aria-label="How many shapes">
+              <button type="button" data-value="2">2 · link a pair</button>
+              <button type="button" data-value="3">3</button>
+              <button type="button" data-value="5">5 · the whole cycle</button>
+            </div>
+          </div>
+          <div class="opt-row" id="fromRow">
+            <span class="io-label" id="fromLabel">From</span>
+            <div class="seg seg-sm shape-seg" id="fromSeg" role="radiogroup" aria-label="Starting shape"></div>
+          </div>
+          <div class="opt-row" id="stringRow" hidden>
+            <span class="io-label">String</span>
+            <div class="seg seg-sm" id="stringSeg" role="radiogroup" aria-label="String">
+              <button type="button" data-value="1">high e</button>
+              <button type="button" data-value="2">B</button>
+              <button type="button" data-value="3">G</button>
+              <button type="button" data-value="4">D</button>
+              <button type="button" data-value="5">A</button>
+              <button type="button" data-value="6">low E</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Play along -->
+        <div class="opt-rows" id="jamOpts" hidden>
+          <div class="opt-row">
+            <span class="io-label">Backing</span>
+            <select id="backingSelect" class="device backing-select" aria-label="Backing"></select>
+          </div>
+          <div class="opt-row">
+            <span class="io-label">Neck</span>
+            <div class="seg seg-sm" id="moveSeg" role="radiogroup" aria-label="Where to play">
+              <button type="button" data-value="free" title="Play anywhere; the page shows where you went">Anywhere</button>
+              <button type="button" data-value="stay" title="Stay in the shape picked on the neck">Stay in one shape</button>
+              <button type="button" data-value="4" title="The shape moves up the neck every 4 bars, then back down">Move every 4 bars</button>
+              <button type="button" data-value="2" title="The shape moves every 2 bars">Every 2 bars</button>
+            </div>
+          </div>
+          <div class="ex-chord jam-chord" id="jamChord">
+            <span class="chord-label">Chord</span><span class="chord-name" id="chordNow">–</span><span class="chord-next" id="chordNext"></span>
+            <span class="shape-next" id="shapeNext"></span>
+          </div>
+        </div>
+
+        <p class="ex-how" id="exHow"></p>
+
+        <div class="stats" id="stats"></div>
+        <div class="recent-notes" id="recent" hidden></div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+
+        <div class="ex-controls">
+          <button class="btn btn-start" id="goBtn" type="button">Start <kbd>Space</kbd></button>
+          <div class="tempo" id="tempoBox">
+            <button class="btn btn-ghost tempo-btn" id="slower" type="button" aria-label="Slower">−</button>
+            <div class="tempo-val"><span id="bpm">72</span><small>bpm</small></div>
+            <button class="btn btn-ghost tempo-btn" id="faster" type="button" aria-label="Faster">+</button>
+          </div>
+          <div class="toggles">
+            <button class="chip-btn" id="clickBtn" type="button" aria-pressed="true" title="Metronome (M)">Click</button>
+            <button class="chip-btn" id="guideBtn" type="button" aria-pressed="false" title="The page plays the notes with you, in time (G)">Play along</button>
+            <button class="chip-btn" id="droneBtn" type="button" aria-pressed="false" title="A drone on the root, so you hear each degree against home (D)">Drone</button>
+            <button class="chip-btn" id="hideBtn" type="button" aria-pressed="false" title="Play the shape from memory: dots show as you find them (H)">From memory</button>
+            <button class="chip-btn" id="ladderBtn" type="button" aria-pressed="true" title="Clean passes in a row move the tempo up; two rough ones move it down (L)">Tempo ladder</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Hearing</div>
+        <div class="heard" id="heard" data-on="false">
+          <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+        </div>
+        <div class="tuner" aria-hidden="true">
+          <div class="tuner-zone"></div>
+          <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tuner-needle" id="tunerNeedle"></div>
+        </div>
+        <div class="tuner-text" id="tunerText">Doubles as a tuner: tune up before you start.</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+        <p class="fine" id="micNote">Use headphones: the click, the band and the play-along notes are in the guitar’s range, and a mic in the room would count them as yours.</p>
+        <div class="vol-rows">
+          <label class="vol"><span>Click</span><input type="range" id="clickVol" min="0" max="100" step="5"></label>
+          <label class="vol"><span>Band &amp; drone</span><input type="range" id="backVol" min="0" max="100" step="5"></label>
+          <label class="vol"><span>Play along</span><input type="range" id="guideVol" min="0" max="100" step="5"></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card tab-card" id="tabCard">
+      <div class="board-head">
+        <span class="board-title" id="tabTitle">Sequence</span>
+        <span class="tab-note" id="tabNote"></span>
+      </div>
+      <div class="stab-scroll" id="tabScroll"><svg id="tab" class="stab" role="img" aria-label="Tab of the exercise"></svg></div>
+    </section>
+
+    <section class="card panel jam-panel" id="jamPanel" hidden>
+      <div class="results-head">
+        <div>
+          <div class="card-kicker">This run</div>
+          <h2 class="results-title" id="jamTitle">Where you played</h2>
+        </div>
+        <div class="results-actions">
+          <button class="link-btn" id="jamClear" type="button">Clear</button>
+        </div>
+      </div>
+      <div class="shape-use" id="shapeUse"></div>
+      <figure class="rep-fig">
+        <figcaption>Notes per fret <span class="fine">(an estimate: the mic hears pitch, not strings, so each note is placed nearest where your hand has been)</span></figcaption>
+        <svg id="fretHeat" class="fret-heat" viewBox="0 0 1000 70" role="img" aria-label="How many notes you played at each fret"></svg>
+      </figure>
+      <ul class="insights" id="jamTips"></ul>
+    </section>
+
+    <section class="card panel">
+      <div class="setup">
+        <div class="setup-main how-grid">
+          <div class="field">
+            <div class="field-label">CAGED in one line</div>
+            <p class="field-help">Five open chords (C, A, G, E, D) moved up the neck as barre grips tile the whole fretboard, in that order, and every scale position is built around one of them. Know the grip, and the scale shape around it follows. The letters change place with the key; their order never does.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">How the mic grades</div>
+            <p class="field-help">Sequences are checked note by note, in order, with timing against the click. In Play along every note is checked against the scale, and the first note of each bar against the chord. The mic hears pitch, not which string: playing in the shape on the neck is up to you, and where-you-played is an estimate.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">Progress</div>
+            <p class="field-help">Single-shape sequences count in the Daily session’s skill map and tempo ladder, and so do one-string runs, two-shape ladders (minor pentatonic or natural minor, CAGED) and minor-pentatonic diagonals. The planner then knows what you’ve practiced here. Minutes count toward your streak.</p>
+          </div>
+          <div class="field">
+            <div class="field-label">Keys</div>
+            <p class="field-help"><kbd>K</kbd> moves the key up a 4th (C → F → B♭ …), the order the deck drills keys in. <kbd>←</kbd> <kbd>→</kbd> pick the shape below or above. <kbd>Space</kbd> starts and stops.</p>
+          </div>
+        </div>
+        <aside class="method" aria-label="Practice tips">
+          <div class="method-title">A week with a new scale</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>One shape a day.</b> Learn a shape, up and down, until the ladder moves you up twice.</div></li>
+            <li><span class="badge third">2</span><div><b>Link it.</b> A two-shape ladder with yesterday’s shape: the shift is the skill.</div></li>
+            <li><span class="badge fifth">3</span><div><b>From memory.</b> Hide the dots and play it back.</div></li>
+            <li><span class="badge seventh">4</span><div><b>Use it.</b> Play along, staying in the new shape, then let it move every 4 bars.</div></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=3"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/micpanel.js?v=3"></script>
+  <script src="js/fretboard.js?v=3"></script>
+  <script src="js/band.js?v=3"></script>
+  <script src="js/songtheory.js?v=2"></script>
+  <script src="js/songband.js?v=2"></script>
+  <script src="js/pad.js?v=1"></script>
+  <script src="js/seqtab.js?v=1"></script>
+  <script src="js/scales.js?v=2"></script>
+  <script src="js/sessiongen.js?v=4"></script>
+  <script src="js/scaleneck.js?v=3"></script>
+  <script src="js/scales-app.js?v=7"></script>
+</body>
+</html>

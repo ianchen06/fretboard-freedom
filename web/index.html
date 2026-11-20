@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Find Any Note · Fretboard Freedom</title>
+  <meta name="description" content="Interactive fretboard drill: the app names a note and a string, you play it, and the microphone checks it.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="session.html">Daily session</a>
+        <a href="index.html" aria-current="page">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card target-card" id="targetCard" data-state="idle">
+        <div class="card-kicker" id="targetKicker">Part 3 · Find any note</div>
+        <div class="target-main">
+          <div class="target-note" id="targetNote">?</div>
+          <div class="target-meta">
+            <div class="target-alt" id="targetAlt"></div>
+            <div class="target-string" id="targetString">Pick a drill below, then press <b>Start</b>.</div>
+            <div class="target-sub" id="targetSub">Play the note. Say its name out loud.</div>
+          </div>
+        </div>
+        <div class="clock" id="clock" hidden>
+          <div class="beats" id="beats"></div>
+          <div class="timer" id="timer">
+            <div class="timer-bar"><div class="timer-fill" id="timerFill"></div><div class="timer-goal" title="2-second checkpoint"></div></div>
+            <span class="timer-text" id="timerText">0.0 s</span>
+          </div>
+        </div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Hearing</div>
+        <div class="heard" id="heard" data-on="false">
+          <span class="heard-note" id="heardNote">–</span><span class="heard-oct" id="heardOct"></span>
+        </div>
+        <div class="tuner" aria-hidden="true">
+          <div class="tuner-zone"></div>
+          <div class="tuner-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tuner-needle" id="tunerNeedle"></div>
+        </div>
+        <div class="tuner-text" id="tunerText">Doubles as a tuner: tune up before you start.</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+        <p class="fine" id="micNote">The mic hears pitch, not which string you used. It catches wrong notes and wrong octaves; using the right string is up to you.</p>
+      </div>
+    </section>
+
+    <section class="card board-card">
+      <div class="board-head">
+        <span class="board-title" id="boardTitle">Your speed map</span>
+        <span class="board-legend" id="boardLegend"></span>
+      </div>
+      <div class="board-scroll"><svg id="board" class="fretboard"></svg></div>
+      <div class="board-foot" id="boardFoot"></div>
+    </section>
+
+    <section class="progress" id="progress" aria-label="Round progress" hidden></section>
+
+    <section class="card panel" id="setupPanel">
+      <div class="setup">
+        <div class="setup-main">
+          <div class="field">
+            <div class="field-label">Drill</div>
+            <div class="seg" data-name="mode" role="radiogroup">
+              <button type="button" data-value="everywhere">One note everywhere</button>
+              <button type="button" data-value="flash">Flash cards</button>
+            </div>
+            <p class="field-help" id="modeHelp"></p>
+          </div>
+
+          <div class="field" data-show="everywhere">
+            <label class="field-label" for="noteSelect">Note</label>
+            <select id="noteSelect"></select>
+          </div>
+          <div class="field" data-show="everywhere">
+            <div class="field-label">Direction</div>
+            <div class="seg" data-name="direction" role="radiogroup">
+              <button type="button" data-value="upback">Low E → high e → back</button>
+              <button type="button" data-value="up">Up only</button>
+            </div>
+          </div>
+
+          <div class="field" data-show="flash">
+            <div class="field-label">Notes</div>
+            <div class="seg" data-name="notes" role="radiogroup">
+              <button type="button" data-value="naturals">Naturals</button>
+              <button type="button" data-value="all">All 12 (♯/♭)</button>
+            </div>
+          </div>
+          <div class="field" data-show="flash">
+            <div class="field-label">Strings</div>
+            <div class="seg chips" id="stringChips"></div>
+          </div>
+          <div class="field" data-show="flash">
+            <div class="field-label">Cards</div>
+            <div class="seg" data-name="count" role="radiogroup">
+              <button type="button" data-value="10">10</button>
+              <button type="button" data-value="20">20</button>
+              <button type="button" data-value="40">40</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Frets</div>
+            <div class="seg" data-name="range" role="radiogroup">
+              <button type="button" data-value="0-12">0–12</button>
+              <button type="button" data-value="0-5">0–5</button>
+              <button type="button" data-value="5-12">5–12</button>
+            </div>
+          </div>
+
+          <div class="field field-wide">
+            <div class="field-label">Pace</div>
+            <div class="seg seg-pace" data-name="pace" role="radiogroup" id="paceSeg"></div>
+            <p class="field-help" id="paceHelp"></p>
+          </div>
+
+          <details class="field field-wide more">
+            <summary>More options</summary>
+            <div class="more-grid">
+              <label class="opt"><span>Tuning</span><select id="tuningSelect"></select></label>
+              <label class="opt"><span>Metronome volume</span><input type="range" id="clickVol" min="0" max="100" step="5"></label>
+              <label class="check"><input type="checkbox" id="strictOctave"> <span><b>Check the octave.</b> Only the octave on the target string counts. Turn this off if your mic keeps hearing the wrong octave.</span></label>
+              <label class="check"><input type="checkbox" id="autoHint"> <span><b>Auto-hint</b> after 5 s (Free pace only).</span></label>
+              <label class="check"><input type="checkbox" id="weakSpots"> <span><b>Focus on weak spots.</b> Flash cards pick your slow and missed notes more often.</span></label>
+              <button type="button" class="link-btn danger" id="resetStats">Reset speed map</button>
+            </div>
+          </details>
+
+          <div class="setup-foot">
+            <button class="btn btn-start" id="startBtn" type="button">Start <kbd>Space</kbd></button>
+            <p class="fine" id="startNote">Wear headphones so the mic doesn’t pick up the metronome. No guitar handy? Click the fretboard to answer.</p>
+          </div>
+        </div>
+
+        <aside class="method" aria-label="The 3-step method">
+          <div class="method-title">The 3-step method</div>
+          <ol>
+            <li><span class="badge root">1</span><div><b>Anchor.</b> Find it on the <b>low E</b> or <b>A</b> string using your landmarks.</div></li>
+            <li><span class="badge third">2</span><div><b>Octave shape.</b> Jump <b>2 strings, 2 frets</b>. Add a fret when you cross the <b>B</b> string.</div></li>
+            <li><span class="badge fifth">3</span><div><b>Name it.</b> Say the note <b>out loud</b> every time you play it.</div></li>
+          </ol>
+          <p class="fine keys-help">Keys: <kbd>Space</kbd> start · <kbd>H</kbd> hint · <kbd>S</kbd> skip · <kbd>Esc</kbd> stop</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card panel run-panel" id="runPanel" hidden>
+      <div class="run-info" id="runInfo"></div>
+      <div class="run-actions">
+        <button class="btn btn-ghost" id="hintBtn" type="button">Hint <kbd>H</kbd></button>
+        <button class="btn btn-ghost" id="skipBtn" type="button">Skip <kbd>S</kbd></button>
+        <button class="btn btn-ghost" id="stopBtn" type="button">Stop <kbd>Esc</kbd></button>
+      </div>
+    </section>
+
+    <section class="card panel results" id="resultsPanel" hidden>
+      <div class="results-head">
+        <div>
+          <div class="card-kicker" id="resultsKicker">Round complete</div>
+          <h2 class="results-title" id="resultsTitle"></h2>
+        </div>
+        <div class="results-actions">
+          <button class="btn btn-start" id="againBtn" type="button">Again <kbd>Space</kbd></button>
+          <button class="btn btn-ghost" id="nextNoteBtn" type="button" hidden></button>
+          <button class="btn btn-ghost" id="setupBtn" type="button">Change drill</button>
+        </div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <ul class="insights" id="insights"></ul>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=2"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/fretboard.js?v=2"></script>
+  <script src="js/drill.js?v=2"></script>
+  <script src="js/micpanel.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+</body>
+</html>

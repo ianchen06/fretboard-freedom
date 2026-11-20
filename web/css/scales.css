@@ -1,0 +1,112 @@
+/* Scales page: key and scale setup, the whole-neck board with its CAGED strip, mode tabs, play-along report. */
+
+/* ---------- setup ---------- */
+.sc-setup { padding: 16px 20px; display: grid; gap: 14px; }
+.sc-row { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-start; }
+.sc-setup .seg.seg-sm, .opt-row .seg.seg-sm { flex-wrap: wrap; }
+.sc-keys { flex: 1 1 420px; }
+.sc-keyrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sc-hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--faint); margin-left: 6px; }
+.keys button { min-width: 44px; position: relative; font-variant-numeric: tabular-nums; }
+.keys button.common::after {
+  content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: var(--third);
+}
+.sc-up4 { padding: 6px 12px; font-size: 13px; }
+.sc-scale { min-width: 240px; }
+.sc-scale select { font-size: 14px; padding: 7px 10px; }
+.sc-why { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; max-width: 90ch; }
+.sc-why b { color: var(--text); }
+
+/* ---------- the neck ---------- */
+.neck-card { padding-bottom: 8px; }
+.neck-titles { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.neck-card .board-title { font-size: 15px; color: var(--text); }
+.neck-sub { font-size: 13px; color: var(--muted); }
+.neck-card .toggles { margin-left: auto; }
+.neck-scroll .fretboard, .neck-scroll .caged-strip { min-width: 860px; }
+.caged-strip { display: block; width: 100%; height: auto; user-select: none; }
+.neck-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; justify-content: space-between; }
+.board-legend i.lg-grip { background: transparent; border: 2px solid var(--pearl); }
+.board-legend i.lg-live { background: #fafafa; box-shadow: 0 0 6px 2px rgba(250, 250, 250, 0.55); }
+
+.cs-band { cursor: pointer; }
+.cs-band rect { fill: rgba(233, 223, 200, 0.05); stroke: var(--line-2); stroke-width: 1.2; transition: fill 0.12s, stroke 0.12s; }
+.cs-band:hover rect { fill: rgba(233, 223, 200, 0.12); stroke: #77777f; }
+.cs-band text { font: 750 15px var(--font); fill: var(--muted); pointer-events: none; }
+.cs-band text.cs-num { font: 600 11px var(--font); fill: var(--faint); }
+.cs-band.on rect { fill: rgba(233, 223, 200, 0.16); stroke: var(--pearl); stroke-width: 2; }
+.cs-band.on text { fill: var(--pearl); }
+.cs-band.on text.cs-num { fill: rgba(233, 223, 200, 0.75); }
+.cs-band.route rect { fill: rgba(20, 184, 166, 0.1); stroke: rgba(20, 184, 166, 0.55); }
+.cs-band.route text { fill: #5eead4; }
+.cs-band.next rect { fill: rgba(245, 165, 36, 0.1); stroke: var(--third); stroke-dasharray: 5 3; }
+.cs-band.next text { fill: var(--third); }
+.cs-band.used rect { fill: rgba(20, 184, 166, calc(0.06 + var(--use, 0) * 0.4)); }
+.cs-band:focus-visible rect { stroke: var(--pearl); stroke-width: 2.5; }
+
+/* dots: a shape's notes outside the one being played, the grip ring, notes heard */
+.fb-dot.deg.dim { opacity: 0.4; }
+.fb-dot.deg.dim .fb-dot-bg { r: 9px; stroke-width: 1; }
+.fb-dot.deg.away { opacity: 0.55; }
+.fb-dot.grip .fb-dot-bg { fill: none; stroke: var(--pearl); stroke-width: 2.5; }
+.fb-dot.grip { transform-box: fill-box; }
+.fb-dot.grip .fb-dot-bg { r: 17.5px; }
+.fb-dot.chordtone .fb-dot-bg { fill: none; stroke: var(--third); stroke-width: 3; r: 17.5px; }
+.fb-dot.live .fb-dot-bg { fill: #fafafa; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85)); }
+.fb-dot.live .fb-dot-label { fill: #17171b; }
+.fb-dot.live.out .fb-dot-bg { fill: #52525b; stroke: var(--root); }
+.fb-dot.live.out .fb-dot-label { fill: #fecaca; }
+.fb-dot.trail .fb-dot-bg { fill: none; stroke: rgba(250, 250, 250, 0.55); stroke-width: 2; }
+
+/* ---------- mode tabs ---------- */
+.mode-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 640px) { .mode-tabs { grid-template-columns: 1fr; } }
+.mode-tabs button {
+  display: grid; gap: 2px; text-align: left; padding: 10px 14px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--muted);
+  font-size: 15px; font-weight: 700; transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.mode-tabs button small { font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.mode-tabs button:hover { color: var(--text); border-color: var(--line-2); }
+.mode-tabs button[aria-selected="true"] { color: var(--pearl); border-color: var(--pearl); background: rgba(233, 223, 200, 0.06); }
+.mode-tabs button[aria-selected="true"] small { color: rgba(233, 223, 200, 0.7); }
+
+/* ---------- the exercise card ---------- */
+.ex-card[data-mode="shape"] { --blk: var(--fifth); }
+.ex-card[data-mode="neck"] { --blk: var(--teal); }
+.ex-card[data-mode="jam"] { --blk: var(--third); }
+.opt-rows { display: grid; gap: 8px; }
+.opt-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.opt-row .io-label { min-width: 54px; }
+.shape-seg button { min-width: 48px; display: inline-flex; align-items: baseline; gap: 4px; justify-content: center; }
+.shape-seg button small { font-size: 10.5px; color: var(--faint); font-weight: 500; }
+.shape-seg button[aria-checked="true"] small { color: rgba(233, 223, 200, 0.7); }
+.backing-select { width: auto; min-width: 260px; max-width: 100%; }
+.jam-chord { flex-wrap: wrap; }
+.shape-next { margin-left: auto; font-size: 13.5px; font-weight: 650; color: var(--third); }
+.shape-next.soon { animation: nowpulse 0.6s ease-in-out infinite; }
+.ex-card .toggles { flex-wrap: wrap; }
+.stab-note.guide .stab-note-bg { stroke: var(--third); stroke-width: 2; }
+
+.vol-rows { display: grid; gap: 6px; margin-top: 4px; }
+.vol-rows .vol { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.vol-rows .vol input { width: 130px; accent-color: var(--third); }
+
+/* ---------- play-along report ---------- */
+.jam-panel { display: grid; gap: 14px; }
+.shape-use { display: flex; flex-wrap: wrap; gap: 8px; }
+.su {
+  display: grid; gap: 2px; min-width: 92px; padding: 8px 12px; border-radius: 10px;
+  background: var(--card-2); border: 1px solid var(--line);
+}
+.su b { font-size: 15px; }
+.su span { font-size: 12px; color: var(--muted); }
+.su .su-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.su .su-bar i { display: block; height: 100%; background: var(--teal); }
+.su.top { border-color: rgba(20, 184, 166, 0.55); }
+.fret-heat { display: block; width: 100%; height: auto; }
+.fh-bar { fill: var(--teal); }
+.fh-axis { font: 500 11px var(--font); fill: var(--faint); }
+.fh-axis.mark { fill: var(--muted); font-weight: 700; }
+.fh-base { stroke: var(--line-2); stroke-width: 1; }
