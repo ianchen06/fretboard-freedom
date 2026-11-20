@@ -3,3 +3,10 @@ node_modules/
 *.log
 .env
 .claude/settings.local.json
+
+# iPad app (ios/)
+ios/Packages/FretboardKit/.build/
+ios/Packages/FretboardKit/.swiftpm/
+xcuserdata/
+*.xcuserstate
+DerivedData/
