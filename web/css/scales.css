@@ -110,3 +110,8 @@
 .fh-axis { font: 500 11px var(--font); fill: var(--faint); }
 .fh-axis.mark { fill: var(--muted); font-weight: 700; }
 .fh-base { stroke: var(--line-2); stroke-width: 1; }
+
+/* ---------- stand mode (the shared layout is in style.css) ---------- */
+body.stand .caged-strip { display: none; }
+body.stand .neck-scroll .fretboard { min-width: 0; }
+body.stand .ex-card .recent-notes, body.stand .stand-view .recent-notes { min-height: 0; }

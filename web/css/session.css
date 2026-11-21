@@ -51,10 +51,10 @@
 .ex-card[data-state="timeup"] { border-color: rgba(245, 165, 36, 0.6); }
 .ex-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .ex-top .card-kicker { color: var(--blk, var(--faint)); }
-.ex-card .beats { gap: 7px; }
-.ex-card .beats i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line-2); transition: background 0.06s, border-color 0.06s; }
-.ex-card .beats i.on { background: var(--pearl); border-color: var(--pearl); }
-.ex-card .beats i.on.count { background: var(--third); border-color: var(--third); }
+:is(.ex-card, .stand-view) .beats { gap: 7px; }
+:is(.ex-card, .stand-view) .beats i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line-2); transition: background 0.06s, border-color 0.06s; }
+:is(.ex-card, .stand-view) .beats i.on { background: var(--pearl); border-color: var(--pearl); }
+:is(.ex-card, .stand-view) .beats i.on.count { background: var(--third); border-color: var(--third); }
 .ex-head { display: grid; gap: 6px; }
 .ex-title { margin: 0; font-size: clamp(22px, 3vw, 30px); line-height: 1.2; letter-spacing: -0.015em; font-weight: 780; }
 .focus-badge {
@@ -80,7 +80,7 @@
 .ex-timer { display: flex; align-items: center; gap: 12px; }
 .ex-timer .timer-bar { max-width: 460px; }
 .ex-timer .timer-fill { background: var(--blk, var(--teal)); transition: width 0.25s linear; }
-.ex-card[data-state="timeup"] .timer-fill { background: var(--third); }
+:is(.ex-card, .stand-view)[data-state="timeup"] .timer-fill { background: var(--third); }
 .timer-text { font: 600 14px var(--mono); color: var(--muted); min-width: 64px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -113,12 +113,6 @@
 .tempo-val small { font-size: 11px; color: var(--muted); }
 .tempo.fixed .tempo-btn { display: none; }
 .toggles { display: inline-flex; gap: 6px; }
-.chip-btn {
-  border: 1px solid var(--line-2); background: transparent; color: var(--faint); border-radius: 999px;
-  padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
-}
-.chip-btn[aria-pressed="true"] { color: var(--pearl); border-color: rgba(233, 223, 200, 0.6); background: rgba(233, 223, 200, 0.08); }
-.chip-btn:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
 
 /* ---------- fretboard dots for shapes ---------- */
 .board-head .seg { margin-left: auto; }
@@ -163,6 +157,8 @@
 .stab-note-bg { fill: var(--card); transition: fill 0.1s; }
 .stab-fret { font: 700 14px var(--mono); fill: var(--text); }
 .stab-tech { font: 600 10.5px var(--font); fill: var(--muted); }
+.stab-rest { fill: var(--faint); }
+.stab-note.now .stab-rest { fill: var(--pearl); }
 .stab-note.now .stab-note-bg { fill: var(--pearl); }
 .stab-note.now .stab-fret { fill: #17171b; }
 .stab-note.hit .stab-note-bg { fill: var(--teal); }
@@ -222,3 +218,7 @@
 /* ---------- rhythm exercises: the lane replaces the fretboard ---------- */
 .lane-card { display: grid; gap: 8px; }
 .lane-card[hidden] { display: none; }
+
+/* ---------- stand mode: the session's parts (the shared layout is in style.css) ---------- */
+body.stand #prevBtn,
+body.stand .rate { display: none !important; }

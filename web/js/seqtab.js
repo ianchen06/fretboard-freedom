@@ -1,5 +1,6 @@
 // Tab for an exercise's note sequence, wrapped into lines of whole beats: fret numbers on six lines
-// (high e on top), the count under the notes, bar lines, chord names, bends, and a state per note
+// (high e on top), the count under the notes, bar lines, chord names, bends, technique marks (~~~,
+// h, p, PM), rests, and a state per note
 // (now, hit, miss). Hidden notes show "?" until revealed.
 (function (root) {
   'use strict';
@@ -77,12 +78,21 @@
             el('text', { x: x - slot / 2 + 2, y: y0 - 14, class: 'stab-chord' }, g).textContent = chords[n.chord].name;
           }
           const ng = el('g', { class: 'stab-note' }, g);
+          if (n.rest) {
+            // A rest: a dash across the middle of the staff, no fret.
+            el('rect', { x: x - 7, y: y0 + 2 * SP + SP / 2 - 3, width: 14, height: 6, rx: 1.5, class: 'stab-rest' }, ng);
+            ng.dataset.label = '';
+            this.noteEls.push(ng);
+            continue;
+          }
           const label = hidden ? '?' : n.bend ? `${n.f}b` : String(n.f);
           const w = Math.max(15, label.length * 8 + 6);
           el('rect', { x: x - w / 2, y: y - 9, width: w, height: 18, rx: 5, class: 'stab-note-bg' }, ng);
           const t = el('text', { x, y: y + 4.5, 'text-anchor': 'middle', class: 'stab-fret' }, ng);
           t.textContent = label;
           if (n.bend && !hidden) el('text', { x, y: y - 12, 'text-anchor': 'middle', class: 'stab-tech' }, ng).textContent = n.bend === 2 ? 'full' : '½';
+          // Technique marks: ~~~ vibrato, h hammer-on, p pull-off, PM palm mute.
+          else if (n.mark && !hidden) el('text', { x, y: y - 12, 'text-anchor': 'middle', class: 'stab-tech' }, ng).textContent = n.mark;
           ng.dataset.label = n.bend ? `${n.f}b` : String(n.f);
           this.noteEls.push(ng);
         }
@@ -117,7 +127,15 @@
       const scale = sc.scrollHeight / this.H;
       const top = this.lineOf(i) * this.lineH * scale;
       const bottom = top + this.lineH * scale;
-      if (top < sc.scrollTop || bottom > sc.scrollTop + sc.clientHeight) sc.scrollTo({ top: Math.max(0, top - 6), behavior: 'smooth' });
+      const to = {};
+      if (top < sc.scrollTop || bottom > sc.scrollTop + sc.clientHeight) to.top = Math.max(0, top - 6);
+      // On a narrow screen the tab scrolls sideways too: keep the note away from the edges.
+      if (sc.scrollWidth > sc.clientWidth + 1) {
+        const rect = g.querySelector('rect');
+        const x = rect ? (Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2) * (sc.scrollWidth / W) : 0;
+        if (x < sc.scrollLeft + 40 || x > sc.scrollLeft + sc.clientWidth - 40) to.left = Math.max(0, x - sc.clientWidth / 3);
+      }
+      if (to.top != null || to.left != null) sc.scrollTo({ ...to, behavior: 'smooth' });
     }
   }
 

@@ -15,8 +15,9 @@
   }
 
   class Fretboard {
-    constructor(svg, { from = 0, to = 12, tuning = T.TUNINGS.standard, onPick = null } = {}) {
+    constructor(svg, { from = 0, to = 12, tuning = T.TUNINGS.standard, onPick = null, width = 1000 } = {}) {
       this.svg = svg;
+      this.width = width;
       this.from = from;
       this.to = to;
       this.tuning = tuning;
@@ -26,7 +27,9 @@
       this.render();
     }
 
-    configure({ from = this.from, to = this.to, tuning = this.tuning }) {
+    // width is the viewBox width: a narrower one draws a zoomed-in window of frets bigger.
+    configure({ from = this.from, to = this.to, tuning = this.tuning, width = this.width }) {
+      this.width = width;
       this.from = from;
       this.to = to;
       this.tuning = tuning;
@@ -36,7 +39,7 @@
     render() {
       const svg = this.svg;
       svg.innerHTML = '';
-      const W = 1000;
+      const W = this.width;
       const labelW = 30;
       const hasOpen = this.from === 0;
       const openW = hasOpen ? 50 : 0;
@@ -127,7 +130,7 @@
       const y = this.y(s);
       const { bx, labelW, hasOpen } = this.geom;
       el('rect', { x: hasOpen ? labelW : bx, y: y - this.geom.sp / 2 + 3, width: 1000 - 8 - (hasOpen ? labelW : bx), height: this.geom.sp - 6, class: 'fb-band', rx: 4 }, this.highlightLayer);
-      el('line', { x1: hasOpen ? labelW + 4 : bx, y1: y, x2: 992, y2: y, class: 'fb-glow', filter: 'url(#glow)' }, this.highlightLayer);
+      el('line', { x1: hasOpen ? labelW + 4 : bx, y1: y, x2: this.width - 8, y2: y, class: 'fb-glow', filter: 'url(#glow)' }, this.highlightLayer);
     }
 
     // dots: [{ s, f, label, kind }]; kind = found | missed | anchor | reveal | wrong | heat; heat dots take a `tone`.

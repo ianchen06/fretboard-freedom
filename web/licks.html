@@ -6,8 +6,8 @@
   <title>Call &amp; Response · Fretboard Freedom</title>
   <meta name="description" content="A blues backing band plays a lick over the chords; you play it back and the microphone checks it.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=6">
-  <link rel="stylesheet" href="css/licks.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/licks.css?v=3">
 </head>
 <body>
   <header class="topbar">
@@ -34,7 +34,10 @@
       <div class="card jam-card" id="jamCard" data-phase="idle">
         <div class="jam-top">
           <div class="card-kicker" id="jamKicker">Call &amp; response</div>
-          <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="ex-top-r">
+            <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <button class="chip-btn stand-btn" id="standBtn" type="button" aria-pressed="false" title="One screen, big and hands-free, for a phone or tablet on a music stand (F)">Stand mode</button>
+          </div>
         </div>
         <div class="jam-head">
           <div class="phase" id="phase">Ready</div>
@@ -50,6 +53,10 @@
         </div>
         <div class="lick-info" id="lickInfo">The band plays a lick for two bars, then you play it back for two bars. The mic checks your notes.</div>
         <div class="feedback" id="feedback" aria-live="polite"></div>
+        <div class="stand-opts" aria-label="Hands-free options">
+          <button class="chip-btn" id="playStartBtn" type="button" aria-pressed="true" title="Playing the key's root starts the band">Play to start</button>
+          <span class="stand-keys">Pedal: right = start / stop · left = new lick</span>
+        </div>
       </div>
 
       <div class="card listen-card">
@@ -210,12 +217,13 @@
   <script src="js/theory.js?v=4"></script>
   <script src="js/pitch.js?v=2"></script>
   <script src="js/audio.js?v=6"></script>
-  <script src="js/fretboard.js?v=2"></script>
+  <script src="js/fretboard.js?v=4"></script>
   <script src="js/licks-blues.js?v=2"></script>
   <script src="js/lickgen.js?v=2"></script>
   <script src="js/band.js?v=2"></script>
   <script src="js/tab.js?v=2"></script>
   <script src="js/micpanel.js?v=4"></script>
-  <script src="js/licks-app.js?v=2"></script>
+  <script src="js/stand.js?v=1"></script>
+  <script src="js/licks-app.js?v=3"></script>
 </body>
 </html>

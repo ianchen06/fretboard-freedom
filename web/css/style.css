@@ -373,3 +373,124 @@ button, a, select, label, [role="button"], .fretboard, svg { touch-action: manip
   .pages a { padding: 6px 9px; }
   .topbar > :not(.brand) { margin-left: auto; }
 }
+@media (max-height: 500px) and (orientation: landscape) {
+  /* a phone on its side: a sticky header would take a third of the screen */
+  .topbar { position: static; padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* toggle chips (Click, Drone, Stand mode …) */
+.chip-btn {
+  border: 1px solid var(--line-2); background: transparent; color: var(--faint); border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.chip-btn[aria-pressed="true"] { color: var(--pearl); border-color: rgba(233, 223, 200, 0.6); background: rgba(233, 223, 200, 0.08); }
+.chip-btn:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
+
+/* ---------- stand mode: one screen, big, hands-free ----------
+   js/stand.js moves the parts you need while playing into .stand-view (left: neck, tab, stats;
+   right: title, timer, feedback, controls; below: the Hearing strip and options) and back on exit. */
+.ex-top-r { display: inline-flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.stand-btn { white-space: nowrap; }
+.stand-opts { display: none; }
+.stand-pop, .stand-view { display: none; }
+
+body.stand .wrap > :not(.stand-view),
+body.stand .topbar,
+body.stand .focus-badge,
+body.stand .board-legend,
+body.stand .board-foot,
+body.stand .board-head,
+body.stand .stand-view kbd,
+body.stand .ex-controls .toggles,
+body.stand .stand-hide { display: none !important; }
+
+body.stand { overscroll-behavior: none; }
+body.stand .wrap {
+  max-width: 1280px; min-height: 100dvh;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+body.stand .stand-view { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.stand-l, .stand-r, .stand-b { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.stand-b { flex-direction: row; flex-wrap: wrap; align-items: center; }
+
+body.stand .ex-title { font-size: clamp(18px, 2.4vw, 26px); }
+body.stand .ex-top .card-kicker { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.stand .timer-text { font-size: 18px; color: var(--text); min-width: 0; }
+body.stand .ex-timer .timer-bar { max-width: none; }
+body.stand .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+body.stand .stat { padding: 6px 9px; }
+body.stand .stat-label { font-size: 12px; }
+body.stand .feedback { font-size: 17px; min-height: 2.6em; align-items: flex-start; line-height: 1.3; }
+body.stand .feedback .tag { font-size: 19px; }
+body.stand .ex-controls { gap: 8px; flex-wrap: nowrap; padding: 0; }
+body.stand .nav-btns { margin-left: 0; }
+body.stand .ex-controls .btn-start { flex: 1 1 auto; min-width: 0; min-height: 56px; font-size: 20px; }
+body.stand .nav-btns .btn { min-height: 56px; min-width: 56px; font-size: 18px; }
+body.stand .tempo-btn { width: 48px; height: 48px; }
+body.stand .tempo-val span { font-size: 26px; }
+body.stand .chip-btn { padding: 9px 14px; font-size: 14px; }
+body.stand .stand-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+body.stand .stand-keys { font-size: 12.5px; color: var(--faint); }
+
+body.stand .board-card { padding: 8px; }
+body.stand .fretboard { min-width: 0; }
+body.stand .tab-card { padding: 6px 8px; }
+/* one line of tab (155 of the tab's 860 units), scrolled to the line that's playing */
+body.stand .stab { min-width: 0; }
+body.stand .stab-scroll { max-height: none; aspect-ratio: 860 / 157; overflow: hidden; }
+
+/* the Hearing card shrinks to a strip: the note you played, the level, and the input switch */
+body.stand .listen-card { padding: 8px 12px; display: grid; grid-template-columns: auto minmax(80px, 1fr) auto; align-items: center; gap: 4px 14px; flex: 1 1 320px; }
+body.stand .listen-card > * { display: none; }
+body.stand .listen-card > .heard { display: flex; height: auto; }
+body.stand .listen-card .heard-note { font-size: 30px; }
+body.stand .listen-card > .meter { display: block; }
+body.stand .listen-card > .btn-mic { display: block; padding: 8px 14px; }
+
+.stand-pop {
+  position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(0.92); z-index: 50;
+  padding: 18px 28px; border-radius: 18px; font-size: clamp(26px, 6vw, 44px); font-weight: 800; letter-spacing: -0.02em;
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.18s, transform 0.18s;
+  background: var(--card-2); color: var(--text); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+body.stand .stand-pop { display: block; }
+.stand-pop.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.stand-pop.ok { background: #0f3d37; color: #5eead4; }
+.stand-pop.warn { background: #43300b; color: #fcd34d; }
+.stand-pop.bad { background: #4a1517; color: #fca5a5; }
+
+/* portrait: one column, in playing order */
+@media (orientation: portrait) {
+  body.stand .stand-l, body.stand .stand-r { display: contents; }
+  body.stand .stand-b { order: 99; }
+  /* the tab keeps its size and scrolls sideways to follow the next note */
+  body.stand .stab { min-width: 560px; }
+  body.stand .stab-scroll { aspect-ratio: auto; height: 103px; overflow-x: auto; overflow-y: hidden; }
+}
+/* on its side (phone landscape, tablet, laptop): the neck and tab on the left, the controls on the right */
+@media (orientation: landscape) {
+  body.stand .stand-view { grid-template-columns: minmax(0, 1fr) minmax(280px, 36%); column-gap: 14px; }
+  body.stand .stand-b { grid-column: 1 / -1; }
+  body.stand .ex-controls { flex-wrap: wrap; }
+  body.stand .ex-controls .btn-start { flex: 1 1 100%; }
+  body.stand .nav-btns { flex: 1 1 auto; }
+  body.stand .nav-btns #nextBtn { flex: 1 1 auto; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  /* a phone on its side: every pixel of height counts */
+  body.stand .stand-view, body.stand .stand-l, body.stand .stand-r { row-gap: 6px; }
+  body.stand .ex-top .beats i { width: 10px; height: 10px; }
+  body.stand .ex-title { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.stand .stat { padding: 4px 7px; grid-template-columns: auto auto; justify-content: space-between; align-items: baseline; gap: 6px; }
+  body.stand .stat-label { font-size: 10.5px; }
+  body.stand .stat-value { font-size: 16px; }
+  body.stand .feedback { font-size: 14px; min-height: 0; }
+  body.stand .feedback .tag { font-size: 15px; }
+  body.stand .ex-controls .btn-start, body.stand .nav-btns .btn { min-height: 44px; font-size: 18px; }
+  body.stand .tempo-btn { width: 40px; height: 40px; }
+  body.stand .listen-card .heard-note { font-size: 24px; }
+  body.stand .ex-chord .chord-name { font-size: 22px; }
+  /* the tab keeps a readable size and scrolls sideways to follow the next note */
+  body.stand .stab { min-width: 640px; }
+  body.stand .stab-scroll { aspect-ratio: auto; height: 117px; overflow-x: auto; overflow-y: hidden; }
+}

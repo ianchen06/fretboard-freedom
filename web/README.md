@@ -24,13 +24,33 @@ It prints `https://<IP>:8443/...` addresses. Open one on the phone (same Wi-Fi).
 
 On iPhone, sound plays even with the silent switch on (iOS 16.4+, or older iOS through a silent media track). Tap any button once if the sound stops after a call or after switching apps. With the mic on, use headphones so the mic doesn't hear the band.
 
+## Stand mode (a phone or tablet on a music stand)
+
+The Daily session, Scales and Call & response pages have a **Stand mode** (top right of the practice card, or **F**). It turns the page into one screen you can read from a music stand while both hands are on the guitar. Each page remembers it.
+
+- **Only what you need while playing.** The neck and the tab are on the left; the title, timer, stats, feedback and big buttons on the right. In portrait it's one column in playing order. The neck zooms in on the frets you're playing, and the tab shows one line, scrolling sideways to follow the next note. Passes, tempo changes and answers flash large across the screen ("Clean 2/3", "Slower · 68 bpm", "Nailed it"). Hearing folds into a strip: the note you played, the level meter, and the input switch. **Exit** or **Esc** brings back the full page.
+- **Pedals.** Bluetooth page-turner pedals (AirTurn, PageFlip and others) type arrow or page keys. In Stand mode, **right** (→, ↓, Page Down) and **left** (←, ↑, Page Up) do:
+
+  | Page | Right pedal | Left pedal |
+  |---|---|---|
+  | Daily session | Start, Pause, Resume; Next when the time is up | +2 min while playing or when the time is up; else skip to the next exercise |
+  | Scales | Start / Stop | The next shape along the neck |
+  | Call & response | Start / Stop the band | A new lick on the next call |
+
+  Outside Stand mode the arrow keys keep their normal job (on Scales, picking the shape).
+- **Play to start.** With the input on, playing the first note (any octave) starts it: the exercise's first note, or the key's root where there's no tab (a play-along, the band). A rhythm drill starts with any strum. Notes still ringing within 1.5 s of a stop don't count.
+- **Auto next** (Daily session). When the time is up, the next exercise comes after 8 seconds (left pedal for +2 min, right pedal to go now). The mic's grade stands in for the *How did it go?* rating. A break starts its timer on its own.
+- **Start turns the input on** the first time, since the Hearing card is folded away.
+
+Play to start and Auto next are under the controls, and shared by every page. With an interface on an iPhone, iOS routes both input and output through it. `js/stand.js` does the moving, the pedals and the flashes for all three pages; the layout is in `css/style.css`.
+
 ## Daily session (`session.html`)
 
 A practice session of 60 to 120 minutes, generated fresh every day: rhythm, scales, sequences, arpeggios, triads, technique and improvising. The mic grades every exercise, and the grades decide what comes back, how fast, and when.
 
 ### What a session looks like
 
-The minutes are split into blocks, in this order: **Warm-up** (chromatic finger patterns, then your best box), **Technique** (bends checked against the fretted pitch, pedal-point picking), **Rhythm** (one or two drills from the Rhythm page, about 10% of the session), **Fretboard** (every root or ♭3 in a box, one note on every string, guide tones over a blues), **Scales & sequences**, **Arpeggios & triads**, **Connect the neck** (linking two boxes, diagonal runs, one-string scales), **Apply it** (improvising under a rule, landing on the 3rd over the changes, a mode over a drone) and **Review**. Sessions of 60 minutes or more get a 2-minute break about every 30 minutes. A 90-minute session has about 17 exercises of 4 to 7 minutes each.
+The minutes are split into blocks, in this order: **Warm-up** (chromatic finger patterns, then your best box), **Technique** (bends checked against the fretted pitch, pedal-point picking, and vibrato, legato, palm muting and stops graded from the sound: see below), **Rhythm** (one or two drills from the Rhythm page, about 10% of the session), **Fretboard** (every root or ♭3 in a box, one note on every string, guide tones over a blues), **Scales & sequences**, **Arpeggios & triads**, **Connect the neck** (linking two boxes, diagonal runs, one-string scales), **Apply it** (improvising under a rule, landing on the 3rd over the changes, a mode over a drone) and **Review**. Sessions of 60 minutes or more get a 2-minute break about every 30 minutes. A 90-minute session has about 17 exercises of 4 to 7 minutes each.
 
 Rhythm exercises show the pattern lane instead of the fretboard and tab, as on the Rhythm page: every hit is a dot beside its step. They use the timing offset and Hit sensitivity you set on the Rhythm page, so measure the offset there once.
 
@@ -41,6 +61,17 @@ Every other exercise shows the shape on the fretboard, colored by degree as in t
 - **Plan.** The strip at the top is the whole session; click any part to jump there. In the list below it, ↻ swaps an exercise for another from the same block. ★ marks today's focus.
 - **Settings.** Length (60 to 120 minutes), focus (pentatonic & blues, scales & modes, arpeggios & triads, metal, technique), keys (*key of the day*, which moves up a 4th each day, or one fixed key), and *Where are you now?*, which only sets the starting guess.
 - **Progress.** A skill map (every box, position, pattern, arpeggio and triad set, colored by how well you play it), a 15-minute-a-day streak, minutes per day, and **Back up** / **Restore** as a .json file.
+
+### Electric-guitar technique
+
+The Technique block also has four exercises graded from the sound itself, not only the notes. They are made for an electric through an audio interface: a clean, dry signal shows the decay, the noise and the pitch curve. A mic works too, with headphones, close to the amp.
+
+- **Vibrato** (narrow, then wide). Hold each note for a bar with vibrato. Each held note's pitch curve gives the width (cents, peak to peak: a narrow vibrato is 20–60¢, a wide blues/rock one 70–160¢), the speed (aim for 5–7 a second), how even the cycles are, and whether the pitch comes back down to the note.
+- **Legato** (on the G, B or high e string). One pick a beat, then hammer-on, hammer-on, pull-off in 16ths. Notes are checked in order with timing, and the hammer-ons and pull-offs are compared with the picked note: within a few dB is even, 6 dB quieter or more is the usual fade. The notes come from the pitch frames, since the note tracker drops a pitch that rang a moment ago, which is what legato does.
+- **Palm mute vs open** (six chugs and two opens, then opens on the off-beats). Down-picked 8ths on the low root. The onset detector finds every pick, muted or not; each note's decay 150–180 ms later sorts the mutes from the opens, and the grade wants them clearly apart (7 dB or more) and each note on the right side.
+- **Stops.** Root and 5th in 8ths for two beats, then silence from beat 3. The grade measures how close to beat 3 the sound stops (±60 ms is clean), how quiet the rest is, and whether a string keeps ringing.
+
+They use the tempo ladder (vibrato has a fixed 72 bpm) and feed the skill map like any other exercise. The tab marks the technique: `~~~` vibrato, `h` and `p` hammer-on and pull-off, `PM` palm mute, and a dash for a rest. The analysis is in `js/technique.js`; `test/technique.test.js` runs synthetic electric-guitar audio through the real note tracker and onset detector.
 
 ### How exercises are generated
 
@@ -313,11 +344,15 @@ Tips:
 | `session.html`, `css/session.css`, `js/session-app.js` | Daily session page, styles and UI wiring |
 | `js/scales.js` | Scales, chords and shapes computed from pitches: pentatonic boxes, 7-note positions, 3-notes-per-string, arpeggios, triads on string sets (no DOM) |
 | `js/sessiongen.js` | Exercise families (rhythm included), sequences, the session planner and its rules, the learner model, sequence, free-play and rhythm graders (no DOM) |
-| `js/pad.js`, `js/seqtab.js` | The session's drone/chord pad and chime, and the wrapping sequence tab |
+| `js/pad.js`, `js/seqtab.js` | The session's drone/chord pad and chime, and the wrapping sequence tab (with technique marks and rests) |
+| `js/technique.js` | Vibrato, legato, palm-mute and stop graders, from the tracker's frames and the onset detector (no DOM) |
+| `js/stand.js` | Stand mode for the Daily session, Scales and Call & response: the one-screen view, pedals, play to start, the big flashes |
 | `scales.html`, `css/scales.css`, `js/scales-app.js` | Scales page, styles and UI wiring: setup, the whole-neck board and CAGED strip, drills, the play-along and its report |
 | `js/scaleneck.js` | CAGED letters and chord grips, every shape across the neck, ladders, diagonals and one-string routes, backings per genre, the hand-position estimate, play-along stats and tips (no DOM) |
 | `test/scaleneck.test.js` | Grips in every key, shapes cover the neck, routes, backings fit their scales, tracker and stats: `node web/test/scaleneck.test.js` |
 | `test/sessiongen.test.js` | Every shape in every key, sequences, every exercise family, plans, the learner, the graders: `node web/test/sessiongen.test.js` |
+| `test/technique.test.js` | Vibrato width and speed, legato level, palm mute vs open and stops on synthetic electric-guitar audio, through the real tracker and onset detector: `node web/test/technique.test.js` |
+| `test/stand.test.js` | Stand mode's pedal keys, start notes and zoomed fret windows: `node web/test/stand.test.js` |
 | `index.html`, `css/style.css` | Page and styles. The colors match the deck: root red, 3rd amber, 5th blue. |
 | `js/theory.js` | Notes, tunings and fret math (a port of `build/lib/theory.js`) |
 | `js/pitch.js` | YIN detector + `NoteTracker` (turns audio frames into note events) |

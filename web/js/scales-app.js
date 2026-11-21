@@ -125,10 +125,24 @@
   }
 
   let inputKind = null;
-  window.MicPanel.setup(engine, { store, preferFlat: () => !!(V && V.flat), onInputChange: (k) => { inputKind = k; idleFeedback(); } });
+  const mic = window.MicPanel.setup(engine, { store, preferFlat: () => !!(V && V.flat), onInputChange: (k) => { inputKind = k; idleFeedback(); } });
 
   // ---------- views ----------
   const board = new window.Fretboard($('board'), { from: 0, to: MAXF, tuning, onPick });
+  let stand = null; // stand mode (js/stand.js), set up below
+  let boardKey = '0:' + MAXF + ':1000';
+  // Stand mode zooms the neck in on what you're playing: the shape, the route, or the shape you stay in.
+  function applyBoard() {
+    let fs = [];
+    if (stand && stand.on && V) {
+      if (settings.mode === 'shape' && V.shape) fs = V.shape.notes.map((n) => n.f);
+      else if (settings.mode === 'neck' && V.ex) fs = V.ex.notes.map((n) => n.f);
+      else if (settings.mode === 'jam' && settings.move === 'stay' && V.shape) fs = V.shape.notes.map((n) => n.f);
+    }
+    const w = window.Stand.fretWindow(fs, MAXF) || { from: 0, to: MAXF, width: 1000 };
+    const key = `${w.from}:${w.to}:${w.width}`;
+    if (key !== boardKey) { boardKey = key; board.configure({ from: w.from, to: w.to, tuning, width: w.width }); }
+  }
   const tab = new window.SeqTab($('tab'), $('tabScroll'));
 
   // ---------- what's on the page: derived from the settings ----------
@@ -276,9 +290,14 @@
   }
 
   // ---------- running ----------
+  let standMicTried = false;
   async function start() {
     if (run) return;
     await ensureAudio();
+    if (stand && stand.on && !engine.micOn && !standMicTried) {
+      standMicTried = true;
+      try { await mic.enable(); } catch { /* the Hearing strip says why */ }
+    }
     if (settings.mode === 'jam') { await startJam(); return; }
     if (!V.ex) return;
     const ex = { ...V.ex, hidden: settings.hide };
@@ -388,6 +407,7 @@
     if (songBand) songBand.stop();
     for (const d of $('beats').children) d.classList.remove('on', 'count');
     releaseWakeLock();
+    if (stand) stand.stopped();
     finish(r);
     run = null;
     if (V) V.seg = 0;
@@ -454,7 +474,7 @@
   const tempoStep = () => (settings.mode === 'jam' ? 4 : G.tempoStep(V.ex ? V.ex.npb : 2));
 
   // ---------- hearing notes ----------
-  engine.on('note', (ev) => played(ev.midi, ev.playedAt, false, null, ev.id));
+  engine.on('note', (ev) => { if (stand && stand.heard(ev.midi)) return; played(ev.midi, ev.playedAt, false, null, ev.id); });
 
   // Where each note was played: placed at once from where the hand has been, then corrected from the
   // note's sound (js/stringid.js) about 0.2 s later. The string model is the one fitted to your
@@ -558,6 +578,7 @@
         const was = r.bpm;
         setBpm(r.bpm + tempoStep());
         say('ok', `Clean ×${g.cleanNeeded}`, `${summary}. Up to ${run.bpm} bpm (from ${was}).`);
+        if (stand) stand.pop('ok', `Clean · up to ${run.bpm} bpm`);
         return;
       }
       if (!res.clean && res.acc < 0.6) {
@@ -567,10 +588,12 @@
           r.struggled = true;
           setBpm(r.bpm - tempoStep());
           say('warn', 'Slowing down', `${summary}. Two rough passes: ${run.bpm} bpm. Accuracy first.`);
+          if (stand) stand.pop('warn', `Slower · ${run.bpm} bpm`);
           return;
         }
       } else r.bad = 0;
     }
+    if (stand) stand.pop(res.clean ? 'ok' : res.acc >= 0.75 ? 'warn' : 'bad', res.clean ? (g.cleanNeeded > 1 ? `Clean ${g.cleanStreak}/${g.cleanNeeded}` : 'Clean pass') : `${pct(res.acc)} of the notes`);
     if (res.clean) say('ok', 'Clean pass', `${summary}${g.cleanNeeded > 1 ? ` · ${g.cleanStreak}/${g.cleanNeeded} in a row` : ''}`);
     else say(res.acc >= 0.75 ? 'warn' : 'bad', 'Pass', `${summary}${res.timing != null && res.timing > 60 ? ' · lock in with the click' : ''}`);
   }
@@ -697,6 +720,11 @@
   }
   function idleFeedback() {
     if (run || !V) return;
+    if (stand && stand.on && (settings.mode === 'jam' || V.ex)) {
+      const want = standStartNote();
+      say('hint', 'Ready', engine.micOn && stand.opts.playStart && want != null ? `Play ${noteName(want)} to start, or press the right pedal. Left pedal: next shape.` : engine.micOn ? 'Right pedal or Start. Left pedal: next shape.' : 'Start turns the input on, so the app can grade you.');
+      return;
+    }
     const mic = engine.micOn ? '' : ' Turn on the mic (right) to get graded.';
     if (settings.mode === 'jam') say('hint', 'Ready', `Start counts in one bar, then the band plays in ${V.root}. Every note you play lights up on the neck.${mic}`);
     else if (!V.ex) say('warn', 'Doesn’t fit', 'That route doesn’t fit on the neck in this key. Pick another shape or string.');
@@ -772,6 +800,7 @@
     $('shapeOpts').hidden = mode !== 'shape';
     $('neckOpts').hidden = mode !== 'neck';
     $('jamOpts').hidden = mode !== 'jam';
+    $('jamChord').hidden = mode !== 'jam';
     $('tabCard').hidden = mode === 'jam';
     $('jamPanel').hidden = mode !== 'jam';
     $('recent').hidden = mode !== 'jam';
@@ -897,6 +926,7 @@
   // ringed, the next note ringed, and where you just played.
   function drawBoard() {
     if (!V) return;
+    applyBoard();
     const lab = (n) => (settings.labels === 'note' ? noteName(n.midi) : settings.labels === 'deg' ? n.label : '');
     const mode = settings.mode;
     const cur = currentShape();
@@ -1204,9 +1234,41 @@
   });
   window.addEventListener('pagehide', () => { if (run) stop(); });
 
+  // ---------- stand mode ----------
+  // The note that starts it when you play it: the sequence's first note, or the key's root in Play along.
+  function standStartNote() {
+    if (settings.mode === 'jam') return 48 + V.keyPc;
+    return V.ex && V.ex.notes.length ? V.ex.notes[0].midi : null;
+  }
+  // Left pedal: the next shape along the neck (round to the first). It stops what's running.
+  function nextShape() {
+    if (!V || !V.shapes.length) return;
+    const was = !!run;
+    if (run) stop();
+    const i = V.shape ? (V.shape.idx + 1) % V.shapes.length : 0;
+    pickShape(V.shapes[i]);
+    if (stand.on) stand.pop('ok', N.shapeLabel(V.shape));
+    if (was) start();
+  }
+  stand = window.Stand.setup({
+    page: 'scales', store,
+    parts: {
+      l: ['.neck-card', '#tabCard', ['#stats', 6]],
+      r: [['.ex-card .ex-top', 1], ['.ex-card .ex-head', 2], ['#jamChord', 3], ['#recent', 7], ['#feedback', 7], ['.ex-card .ex-controls', 8]],
+      b: ['.listen-card', '.ex-card .stand-opts'],
+    },
+    onRight: () => toggleGo(),
+    onLeft: () => nextShape(),
+    onChange: () => { drawBoard(); idleFeedback(); if (V && V.ex && settings.mode !== 'jam') tab.setNow(run && run.grader ? run.grader.i : 0); },
+    startNote: () => (V ? standStartNote() : null),
+    canPlayStart: () => !run && !!V && (settings.mode === 'jam' || !!V.ex),
+    start: () => start(),
+  });
+
   // ---------- go ----------
   compute();
   renderAll();
+  stand.init();
 
   // For poking at it from the console: __scales.fakeNote(57)
   window.__scales = {

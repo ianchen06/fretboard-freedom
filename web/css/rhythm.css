@@ -159,5 +159,5 @@
 .sym-help { font-size: 13.5px; }
 
 .ex-title .zh { color: var(--muted); font-weight: 600; margin-left: 8px; font-size: 0.75em; }
-.ex-card .beats i.quiet { border-style: dashed; }
+.ex-card .beats i.quiet, .stand-view .beats i.quiet { border-style: dashed; }
 .rx-card[data-state="run"] .beats i.on.quiet { background: transparent; border-color: var(--pearl); }

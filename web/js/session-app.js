@@ -88,7 +88,76 @@
   const board = new window.Fretboard($('board'), { from: 0, to: 15, tuning, onPick });
   const tab = new window.SeqTab($('tab'), $('tabScroll'));
   const lane = new RP.Lane($('lane'));
+  let boardFrom = 0;
   let boardTo = 15;
+  let boardW = 1000;
+
+  // ---------- stand mode: one screen, big, hands-free (for a phone or tablet on a music stand) ----------
+  // The page shows only what you need while playing, the neck zooms in on the exercise's frets, a pedal
+  // (or the arrow keys) starts and steps through, the first note you play can start an exercise, and
+  // when the time is up the next exercise comes on its own.
+  function boardWindow(ex) {
+    const fs = ex ? [...ex.dots, ...ex.notes].map((n) => n.f) : [];
+    if (!fs.length) return { from: 0, to: 15, width: 1000 }; // a break, or a rhythm drill (no notes on the neck)
+    const maxF = Math.max(...fs);
+    if (!standOn()) return { from: 0, to: Math.min(22, Math.max(15, maxF + 2)), width: 1000 };
+    return window.Stand.fretWindow(fs, 22);
+  }
+  function applyBoard() {
+    const ex = cur && cur.ex;
+    const w = boardWindow(ex);
+    if (w.from !== boardFrom || w.to !== boardTo || w.width !== boardW) {
+      boardFrom = w.from; boardTo = w.to; boardW = w.width;
+      board.configure({ from: w.from, to: w.to, tuning, width: w.width });
+    }
+    // On a narrow screen the full neck scrolls sideways: start it where the exercise is.
+    const sc = $('board').parentElement;
+    const fs = ex ? [...ex.dots, ...ex.notes].map((n) => n.f) : [];
+    if (fs.length && sc.scrollWidth > sc.clientWidth + 1) {
+      const lo = Math.max(boardFrom, Math.min(...fs) - 1);
+      sc.scrollLeft = Math.max(0, ((board.x(lo) - 40) / boardW) * sc.scrollWidth);
+    } else sc.scrollLeft = 0;
+  }
+  // The note that starts an exercise when you play it: its first note, else the key's root. A rhythm
+  // drill starts on any strum.
+  function startNote(ex) {
+    if (!ex) return null;
+    if (ex.grade === 'rhythm') return 'any';
+    const first = ex.notes.find((n) => !n.rest);
+    if (first) return first.midi;
+    const r = ex.dots.find((d) => d.role === 'root');
+    return r ? r.midi : null;
+  }
+  const stand = window.Stand.setup({
+    page: 'session', store,
+    parts: {
+      l: ['#boardCard', '#laneCard', '#tabCard', ['#stats', 6]],
+      r: [['.ex-card .ex-top', 1], ['.ex-card .ex-head', 2], ['.ex-card .ex-timer', 3], ['#exChord', 4], ['#feedback', 7], ['#rateRow', 7], ['.ex-card .ex-controls', 8]],
+      b: ['.listen-card', '.ex-card .stand-opts'],
+    },
+    onRight: () => toggleGo(),
+    onLeft: () => leftPedal(),
+    onChange: (on) => {
+      if (!on && cur && cur.state === 'timeup') cur.autoAt = 0;
+      if (!cur) return;
+      applyBoard();
+      drawBoard();
+      if (cur.ex && cur.ex.notes.length) tab.setNow(cur.grader && cur.grader.i != null ? cur.grader.i : Math.max(0, cur.clockIdx));
+      renderFeedbackIdle();
+    },
+    startNote: () => (cur ? startNote(cur.ex) : null),
+    canPlayStart: () => !!(cur && cur.item.kind === 'ex' && cur.ex && (cur.state === 'ready' || cur.state === 'paused')),
+    start: () => start(),
+  });
+  const standOn = () => stand.on;
+  const pop = (kind, text) => stand.pop(kind, text);
+  // Pedals: right is Start / Pause / Resume, and Next when the time is up. Left is +2 min while
+  // playing or when the time is up, else skip to the next exercise.
+  function leftPedal() {
+    if (!cur) return;
+    if (cur.state === 'run' || cur.state === 'timeup') $('extendBtn').click();
+    else next();
+  }
 
   // ---------- the current exercise ----------
   let cur = null;
@@ -118,9 +187,7 @@
       musicStart: null, beatDur: 0.8, countBeats: 4, cleanBpm: 0, struggled: false, bad: 0,
       revealed: new Set(), recent: [], chordIdx: 0, clockIdx: -1, recorded: false, run: null, hits: [],
     };
-    const maxF = ex ? Math.max(...[...ex.dots, ...ex.notes].map((n) => n.f)) : 12;
-    const to = Math.min(22, Math.max(15, maxF + 2));
-    if (to !== boardTo) { boardTo = to; board.configure({ from: 0, to, tuning }); }
+    applyBoard();
     board.setTargetString(null);
     renderCard();
     renderTab();
@@ -145,7 +212,7 @@
     if (micScore == null && r == null) return;
     const score = micScore != null && r != null ? 0.7 * micScore + 0.3 * r : micScore != null ? micScore : r;
     learner.update(cur.ex.skill, score, plan.date, cur.item.desc);
-    if (cur.ex.tempoKey && (g instanceof G.SeqGrader || g instanceof G.RhythmGrade) && g.passes.length && !cur.ex.fixedBpm) {
+    if (cur.ex.tempoKey && (g instanceof G.SeqGrader || g instanceof G.RhythmGrade || cur.ex.grade === 'tech') && g.passes.length && !cur.ex.fixedBpm) {
       learner.saveTempo(cur.ex.tempoKey, { bpm: cur.bpm, cleanBpm: cur.cleanBpm, struggled: cur.struggled && !cur.cleanBpm });
     }
     saveLearner();
@@ -158,9 +225,16 @@
     renderProgress();
   }
 
+  let standMicTried = false;
   async function start() {
     if (!cur) return;
     await ensureAudio();
+    // In stand mode the Hearing card is folded away: Start turns the input on (once; if you turn it
+    // off or the browser says no, it stays off).
+    if (standOn() && !engine.micOn && !standMicTried && cur.item.kind === 'ex') {
+      standMicTried = true;
+      try { await mic.enable(); } catch { /* the Hearing strip says why */ }
+    }
     if (cur.item.kind === 'rest') {
       cur.state = 'run';
       renderCard();
@@ -169,9 +243,17 @@
     }
     if (!cur.grader) {
       cur.grader = cur.ex.grade === 'seq' ? new G.SeqGrader(cur.ex, { strictOctave: settings.strictOctave })
-        : cur.ex.grade === 'rhythm' ? new G.RhythmGrade(cur.ex) : new G.FreeGrader(cur.ex);
+        : cur.ex.grade === 'tech' ? Tech.grader(cur.ex, { SeqGrader: G.SeqGrader, strictOctave: settings.strictOctave })
+          : cur.ex.grade === 'rhythm' ? new G.RhythmGrade(cur.ex) : new G.FreeGrader(cur.ex);
     }
     cur.recorded = false;
+    // Palm mutes and stops need every pick attack, muted or not: the onset detector hears them.
+    if (cur.ex.onsets) {
+      try {
+        await engine.enableOnsets('js/onset.js?v=1');
+        engine.setOnsetParams({ threshold: 4.5, gateDb: engine.tracker.gateDb, refractory: 0.06 });
+      } catch (err) { say('bad', 'Audio', err.message); return; }
+    }
     if (cur.ex.grade === 'rhythm') { if (!(await startRhythm())) return; } else startClock(true);
     cur.state = 'run';
     acquireWakeLock();
@@ -181,6 +263,7 @@
     if (!engine.micOn) say('hint', 'Mic is off', 'Enable it on the right to get graded, or rate the exercise yourself when you finish.');
     else if (cur.ex.backing && settings.backOn && inputKind === 'mic') say('hint', 'Headphones?', 'The mic can hear the backing. Use headphones, or turn Backing off.');
     else if (cur.ex.grade === 'rhythm') say('hint', 'Count-in', `${cur.run.countBeats} clicks, then play.${cur.ex.rhythm.click.mode === 'all' ? '' : ` After that the click is ${cur.ex.chips[2][1]}.`}`);
+    else if (cur.ex.grade === 'tech') say('hint', 'Go', TECH_GO[cur.ex.tech.kind]);
     else say('hint', 'Go', cur.ex.grade === 'seq' ? 'Play along with the click. The next note is ringed on the fretboard.' : 'Play along. Notes that fit show up teal, the rest red.');
   }
 
@@ -288,6 +371,7 @@
     cur.countBeats = countIn ? 4 : 0;
     cur.musicStart = startAt + cur.countBeats * beatDur;
     cur.clockIdx = -1;
+    if (cur.grader && cur.grader.resync) cur.grader.resync(); // the bar count starts again
     applyClick();
     engine.startMetronome({ bpm: cur.bpm, startAt, accentEvery: 4, onBeat });
   }
@@ -331,6 +415,7 @@
     if (!cur) return;
     stopAudio();
     cur.state = 'paused';
+    stand.stopped();
     renderCard();
     say('hint', 'Paused', 'Space to carry on. Rate it whenever you like.');
   }
@@ -341,8 +426,30 @@
     cur.state = 'timeup';
     renderCard();
     renderPlan();
+    if (standOn() && stand.opts.autoNext) {
+      cur.autoAt = performance.now() + AUTO_NEXT_MS;
+      pop('ok', cur.item.kind === 'rest' ? 'Break’s over' : 'Time’s up');
+      autoNextTick();
+      return;
+    }
     if (cur.item.kind === 'rest') say('ok', 'Break’s over', 'Next when you’re ready.');
     else say('ok', 'Time’s up', 'Rate it (it steers what comes back), then Next. Or +2 min to keep going.');
+  }
+
+  // Auto next (stand mode): a countdown after the time is up, then the next exercise. A break starts
+  // its timer on its own; an exercise waits for you (or for its first note, with Play to start).
+  const AUTO_NEXT_MS = 8000;
+  function autoNextTick() {
+    if (!cur || cur.state !== 'timeup' || !cur.autoAt) return;
+    const left = Math.ceil((cur.autoAt - performance.now()) / 1000);
+    if (left > 0) {
+      say('ok', cur.item.kind === 'rest' ? 'Break’s over' : 'Time’s up', `Next in ${left} s. Left pedal: +2 min. Right pedal: next now.`);
+      return;
+    }
+    cur.autoAt = 0;
+    const last = cur.idx === plan.items.length - 1;
+    next();
+    if (!last && cur.item.kind === 'rest') start();
   }
 
   function next(step = 1) {
@@ -352,6 +459,7 @@
       leave();
       cur.state = 'ready';
       renderCard();
+      if (standOn()) stand.set(false);
       say('ok', 'Session done', `${Math.round(totalPlayed() / 60)} minutes today. Your skill map is below.`);
       $('progressPanel').scrollIntoView({ behavior: 'smooth' });
       return;
@@ -371,7 +479,7 @@
   const step = () => G.tempoStep(cur && cur.ex ? cur.ex.npb : 2);
 
   // ---------- hearing notes ----------
-  engine.on('note', (ev) => { hearingId = ev.id; played(ev.midi, ev.playedAt, false); hearingId = null; });
+  engine.on('note', (ev) => { stand.heard(ev.midi); hearingId = ev.id; played(ev.midi, ev.playedAt, false); hearingId = null; });
 
   // String check (js/stringid.js): exercises ask for each note at a place. When a found note's
   // sound clearly says another string, give a hint. It never changes the grade.
@@ -389,13 +497,77 @@
     say('warn', `${nameOf(w.midi, w.chord)}: other string?`, `it sounded like the ${T.stringLongName(r.s, tuning)} string fret ${r.f}; this exercise has it on the ${T.stringLongName(w.s, tuning)} string fret ${w.f}. It still counted.`);
   });
   engine.on('frame', (info) => {
-    if (!cur || cur.state !== 'run' || !cur.grader || cur.ex.grade !== 'seq') return;
+    if (!cur || cur.state !== 'run' || !cur.grader) return;
+    if (cur.ex.grade === 'tech') {
+      if (cur.musicStart == null) return;
+      const ev = cur.grader.frame(info, info.t - latency() - cur.musicStart, cur.beatDur);
+      if (ev.length) handleTech(ev);
+      return;
+    }
+    if (cur.ex.grade !== 'seq') return;
     const ev = cur.grader.frame(info, info.t);
     if (ev.length) handleSeq(ev, info.midi);
   });
+  engine.on('onset', (o) => {
+    if (!cur || cur.state !== 'run' || !cur.grader || cur.ex.grade !== 'tech' || !cur.grader.onset || cur.musicStart == null) return;
+    const ev = cur.grader.onset(o, o.t - latency() - cur.musicStart, cur.beatDur);
+    if (ev.length) handleTech(ev);
+  });
+
+  // ---------- technique exercises (js/technique.js): graded from the frames, not the note events ----------
+  const Tech = window.Technique;
+  const TECH_GO = {
+    vibrato: 'Pick the ringed note and hold it for the bar with vibrato. Then the next one.',
+    legato: 'Pick the first note of each beat; hammer on and pull off the rest.',
+    palm: 'PM notes muted at the bridge, open notes ringing.',
+    stop: 'Two beats of 8ths, then dead silence from beat 3.',
+  };
+  function handleTech(events) {
+    const ex = cur.ex;
+    for (const e of events) {
+      if (e.kind === 'hit') tab.setState(e.i, 'hit');
+      else if (e.kind === 'miss') tab.setState(e.i, 'miss');
+      else if (e.kind === 'wrong') {
+        flashWrong(e.midi);
+        const want = ex.notes[e.i];
+        say('bad', `Heard ${nameOf(e.midi)}`, `next is ${nameOf(want.midi)}, ${T.stringLongName(want.s, tuning)} string fret ${want.f}`);
+      } else if (e.kind === 'pass') tab.clearStates();
+      else if (e.kind === 'rep') onTechRep(e.result);
+    }
+    if (!ex.clock) tab.setNow(cur.grader.i);
+    drawBoard();
+    renderStats();
+  }
+  function onTechRep(r) {
+    const g = cur.grader;
+    if (r.clean) cur.cleanBpm = Math.max(cur.cleanBpm, cur.bpm);
+    if (settings.autoTempo && !cur.ex.fixedBpm && cur.ex.tempoKey) {
+      if (r.clean && g.cleanStreak >= g.cleanNeeded) {
+        g.resetStreak();
+        cur.bad = 0;
+        const was = cur.bpm;
+        setBpm(cur.bpm + step());
+        say('ok', `Clean ×${g.cleanNeeded}`, `${r.text} Up to ${cur.bpm} bpm (from ${was}).`);
+        pop('ok', `Clean · up to ${cur.bpm} bpm`);
+        return;
+      }
+      if (!r.clean && r.score < 0.55) {
+        if (++cur.bad >= 2) {
+          cur.bad = 0;
+          cur.struggled = true;
+          setBpm(cur.bpm - step());
+          say('warn', 'Slowing down', `${r.text} Two rough ones: ${cur.bpm} bpm.`);
+          pop('warn', `Slower · ${cur.bpm} bpm`);
+          return;
+        }
+      } else cur.bad = 0;
+    }
+    say(r.kind, r.tag, r.text);
+    pop(r.kind, r.clean && g.cleanNeeded > 1 && !cur.ex.fixedBpm ? `${r.tag} ${g.cleanStreak}/${g.cleanNeeded}` : r.tag);
+  }
 
   function played(midi, t, fromClick) {
-    if (!cur || !cur.ex || cur.state !== 'run' || !cur.grader || cur.ex.grade === 'rhythm') return;
+    if (!cur || !cur.ex || cur.state !== 'run' || !cur.grader || cur.ex.grade === 'rhythm' || cur.ex.grade === 'tech') return;
     const tt = t - (fromClick ? 0 : latency());
     if (cur.ex.grade === 'seq') {
       const dev = cur.ex.timing && !fromClick && cur.musicStart != null && tt >= cur.musicStart - cur.beatDur / 2 ? gridDev(tt) : null;
@@ -476,6 +648,7 @@
         const was = cur.bpm;
         setBpm(cur.bpm + step());
         say('ok', `Clean ×${g.cleanNeeded}`, `${summary}. Up to ${cur.bpm} bpm (from ${was}).`);
+        pop('ok', `Clean · up to ${cur.bpm} bpm`);
         return;
       }
       if (!r.clean && r.acc < 0.6) {
@@ -485,10 +658,13 @@
           cur.struggled = true;
           setBpm(cur.bpm - step());
           say('warn', 'Slowing down', `${summary}. Two rough passes: ${cur.bpm} bpm. Accuracy first.`);
+          pop('warn', `Slower · ${cur.bpm} bpm`);
           return;
         }
       } else cur.bad = 0;
     }
+    if (r.clean) pop('ok', g.cleanNeeded > 1 ? `Clean ${g.cleanStreak}/${g.cleanNeeded}` : 'Clean pass');
+    else pop(r.acc >= 0.75 ? 'warn' : 'bad', `${pct(r.acc)} of the notes`);
     if (r.clean) say('ok', 'Clean pass', `${summary}${g.cleanNeeded > 1 ? ` · ${g.cleanStreak}/${g.cleanNeeded} in a row` : ''}`);
     else say(r.acc >= 0.75 ? 'warn' : 'bad', 'Pass', `${summary}${r.timing != null && r.timing > 60 ? ' · lock in with the click' : ''}`);
   }
@@ -519,7 +695,7 @@
     let best = null;
     for (const s of T.STRINGS) {
       const f = midi - tuning.open[s];
-      if (f < 0 || f > boardTo) continue;
+      if (f < boardFrom || f > boardTo) continue;
       const d = Math.abs(f - ref.f) + Math.abs(s - ref.s) * 0.7;
       if (!best || d < best.d) best = { s, f, d };
     }
@@ -540,6 +716,7 @@
     const now = performance.now();
     const dt = Math.min(1, (now - lastTick) / 1000);
     lastTick = now;
+    if (cur && cur.state === 'timeup' && cur.autoAt) autoNextTick();
     if (!cur || cur.state !== 'run') return;
     const uid = cur.item.uid;
     plan.played[uid] = (plan.played[uid] || 0) + dt;
@@ -585,13 +762,22 @@
     if (!cur || cur.state === 'run') return;
     if (cur.item.kind === 'rest') { say('hint', 'Break', 'Start the timer, put the guitar down for two minutes.'); return; }
     if (cur.state !== 'ready') return;
+    if (standOn()) {
+      const sn = startNote(cur.ex);
+      const how = engine.micOn && stand.opts.playStart && sn === 'any' ? 'Strum to start, or press the right pedal.'
+        : engine.micOn && stand.opts.playStart && sn != null ? `Play ${nameOf(sn)} to start, or press the right pedal.`
+          : engine.micOn ? 'Right pedal or Start.' : standMicTried ? 'The input is off: turn it on below to get graded.' : 'Start turns the input on, so the app can grade you.';
+      say('hint', 'Ready', how);
+      return;
+    }
     const mic = engine.micOn ? '' : ' Turn on the mic (right) to get graded.';
     if (cur.ex && cur.ex.grade === 'rhythm') {
       const lat = rhythmStore().lat ? '' : ' For exact timing, measure your timing offset once on the Rhythm page.';
       say('hint', 'Ready', `Start gives you a count-in. Use headphones: a mic that hears the click counts it as your hits.${mic}${lat}`);
       return;
     }
-    say('hint', 'Ready', `Start gives you one bar of clicks first.${mic}`);
+    const tip = cur.ex && cur.ex.grade === 'tech' && inputKind === 'mic' ? ' This one grades your tone, so it works best through an audio interface; with a mic, use headphones and play close to it.' : '';
+    say('hint', 'Ready', `Start gives you one bar of clicks first.${mic}${tip}`);
   }
 
   function renderCard() {
@@ -599,6 +785,9 @@
     const card = $('exCard');
     card.dataset.block = item.block;
     card.dataset.state = cur.state;
+    $('boardCard').classList.toggle('stand-hide', !ex); // Stand mode: no empty neck during a break
+    $('standView').dataset.block = item.block;
+    $('standView').dataset.state = cur.state;
     const exs = exercises();
     const num = exs.indexOf(item) + 1;
     $('exKicker').textContent = item.kind === 'rest' ? 'Break' : `${G.BLOCKS[item.block].name} · ${num} of ${exs.length}`;
@@ -672,7 +861,7 @@
     $('tabCard').hidden = false;
     tab.render(ex.notes, { npb: ex.npb, hidden: ex.hidden, chords: ex.chords });
     $('tabTitle').textContent = ex.clock ? 'A path through the changes (it follows the beat)' : `Sequence · ${ex.notes.length} notes, then it loops`;
-    $('tabNote').textContent = ex.hidden ? 'Hidden until you find each one' : `${G.RHYTHM[ex.npb]}${ex.npb >= 1 ? `, ${ex.npb} per click` : ', one every 2 clicks'}`;
+    $('tabNote').textContent = ex.tabNote ? ex.tabNote : ex.hidden ? 'Hidden until you find each one' : `${G.RHYTHM[ex.npb]}${ex.npb >= 1 ? `, ${ex.npb} per click` : ', one every 2 clicks'}`;
     tab.setNow(0);
     $('tabScroll').scrollTop = 0;
   }
@@ -716,7 +905,7 @@
     if (ex.notes.length && cur.item.kind === 'ex') {
       const i = ex.clock ? Math.max(0, cur.clockIdx) : cur.grader ? cur.grader.i : 0;
       const n = ex.notes[i];
-      if (n) {
+      if (n && !n.rest) {
         if (ex.hidden) target = n.s;
         else dots.push({ s: n.s, f: n.f, kind: 'now', label: '' });
       }
@@ -748,6 +937,11 @@
         stat('Spread', last ? `±${Math.round(last.spread)}<small>ms</small>` : '–', last ? lv(last.spread, 15, 25) : ''),
         settings.autoTempo ? stat('Clean in a row', `${pips}${best ? `<small> best ${best}</small>` : ''}`) : stat('Clean passes', g ? String(g.passes.filter((x) => x.clean).length) : '0'),
       ].join('');
+      return;
+    }
+    if (ex.grade === 'tech') {
+      // Before Start there's no grader yet: a fresh one shows the empty stats.
+      el.innerHTML = (g || Tech.grader(ex, { SeqGrader: G.SeqGrader })).stats().map(([l, v, c]) => stat(l, v, c)).join('');
       return;
     }
     if (ex.grade === 'seq') {
@@ -897,6 +1091,7 @@
   $('faster').addEventListener('click', () => setBpm(cur.bpm + step()));
   $('extendBtn').addEventListener('click', () => {
     if (!cur) return;
+    cur.autoAt = 0;
     cur.extra = (cur.extra || 0) + 120 + Math.max(0, playedSec(cur.item) - cur.item.minutes * 60 - (cur.extra || 0));
     if (cur.state === 'timeup') start();
     renderTimer();
@@ -1069,13 +1264,16 @@
   syncSegs();
   renderProgress();
   select(plan.cur || 0);
+  stand.init();
   if (!plan.items.some((x) => x.block === 'rhythm') && plan.settings !== planSettings()) {
     say('hint', 'New: a Rhythm block', 'Today’s plan was built before rhythm drills were part of the session. ↻ Generate new session to add them; what you’ve played today stays in your progress.');
   }
 
   // For poking at it from the console: __session.fakeNote(64)
   window.__session = {
-    get cur() { return cur; }, get plan() { return plan; }, learner: () => learner, engine, select, start,
+    get cur() { return cur; }, get plan() { return plan; }, learner: () => learner, engine, select, start, timeUp, stand,
     fakeNote: (midi) => played(midi, engine.ctx ? engine.ctx.currentTime : 0, true),
+    // Swap the current exercise for another descriptor: __session.use({ fam: 'vibrato', width: 'narrow', key: 9, skill: 'vibrato:narrow' })
+    use(desc) { const it = plan.items[plan.cur]; it.desc = desc; exCache.delete(it.uid); cur = null; select(plan.cur); },
   };
 })();

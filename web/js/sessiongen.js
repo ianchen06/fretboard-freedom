@@ -407,6 +407,126 @@
     },
   };
 
+  // ---------- electric-guitar technique: graded by js/technique.js from the input's frames ----------
+  const TONE_CUES = [
+    'Play one pass on a clean, low-gain tone: it shows every mistake that distortion hides.',
+    'Then one pass with crunch: keep it just as clean.',
+  ];
+
+  FAM.vibrato = {
+    name: 'Vibrato', blocks: ['technique'], tags: ['tech', 'pent'],
+    cands: () => [
+      { fam: 'vibrato', width: 'narrow', skill: 'vibrato:narrow', base: 1.3 },
+      { fam: 'vibrato', width: 'wide', skill: 'vibrato:wide', base: 1, need: [['vibrato:narrow', 0.4]] },
+    ],
+    make(c, ctx) { return { ...c, key: chooseKey(ctx, 'blues') }; },
+    build(d, { tuning, maxFret }) {
+      const shape = S.position(d.key, 'minPent', 1, { tuning, maxFret });
+      if (!shape) return null;
+      const flat = preferFlat(d.key, true);
+      // Four notes on the top three strings, where vibrato lives: root first, then the 5th, ♭7, ♭3.
+      const top = shape.notes.filter((n) => n.s <= 3);
+      const order = [0, 7, 10, 3];
+      const picked = [];
+      for (const semi of order) {
+        const n = top.find((x) => x.semi === semi && !picked.includes(x));
+        if (n) picked.push(n);
+      }
+      if (picked.length < 3) return null;
+      const notes = picked.map((n) => ({ s: n.s, f: n.f, midi: n.midi, label: n.label, role: n.role, mark: '~~~' }));
+      const W = d.width === 'wide' ? { cents: '70–160', words: 'a half step', who: 'blues and rock' } : { cents: '20–60', words: 'a quarter step', who: 'melodic lead' };
+      return base({
+        title: `${d.width === 'wide' ? 'Wide' : 'Narrow'} vibrato · ${nameOf(d.key, flat)} minor pentatonic`,
+        chips: [['Key', `${nameOf(d.key, flat)} minor`], ['Width', `${W.words} (${W.cents}¢)`], ['Speed', '5–7 a second']],
+        how: `Pick each note and hold it for a whole bar (4 clicks) with vibrato: push the string ${W.words} up and let it back down to the note, evenly, 5–7 times a second. The grade measures the width, the speed and how even it is. Then go on to the next note.`,
+        why: `Vibrato is the guitarist's voice: two players on the same note sound different because of it. ${d.width === 'wide' ? 'The wide, slow half-step vibrato is the sound of blues and rock.' : 'A narrow, even vibrato makes a held note sing without going out of tune.'} Hearing your width and speed in numbers makes it even fast.`,
+        notes, dots: uniqueDots(shape.notes), npb: 0.25, timing: false, keyPc: d.key, flat, fixedBpm: 72,
+        grade: 'tech', tech: { kind: 'vibrato', width: d.width }, tabNote: 'One note a bar, held, with vibrato',
+        tempoKey: null, cues: ['Pivot from the wrist, the thumb hooked over the neck.', 'Support the fretting finger with the ones behind it.', TONE_CUES[0]],
+      });
+    },
+  };
+
+  FAM.legato = {
+    name: 'Legato', blocks: ['technique'], tags: ['tech', 'scales', 'metal'],
+    cands: () => [1, 2, 3].map((s) => ({ fam: 'legato', s, skill: `legato:${s}`, base: s === 2 ? 1.2 : 1 })),
+    make(c, ctx) { return { ...c, scaleId: pick(ctx.rng, ['aeolian', 'ionian', 'dorian', 'aeolian']), k: 1 + Math.floor(ctx.rng() * 3), key: chooseKey(ctx) }; },
+    build(d, { tuning, maxFret }) {
+      const shape = S.nps(d.key, d.scaleId, d.k, { tuning, maxFret });
+      if (!shape) return null;
+      const three = shape.notes.filter((n) => n.s === d.s).sort((a, b) => a.f - b.f);
+      if (three.length !== 3) return null;
+      const [a, b, c] = three;
+      const mk = (n, legato, mark) => ({ s: n.s, f: n.f, midi: n.midi, label: n.label, role: n.role, legato, mark });
+      // One pick a beat, then hammer-on, hammer-on, pull-off: a b c b, a b c b …
+      const notes = [mk(a, false, ''), mk(b, true, 'h'), mk(c, true, 'h'), mk(b, true, 'p')];
+      const sp = spellKey(d.key, d.scaleId);
+      const sc = S.SCALES[d.scaleId];
+      return base({
+        title: `Legato · ${sp.root} ${scaleTitle(d.scaleId)} on the ${STRING_NAME[d.s]} string`,
+        chips: [['Key', sp.root], ['String', STRING_NAME[d.s]], ['Frets', `${a.f}–${c.f}`], ['Rhythm', '16th notes']],
+        how: `Pick only the first note of each beat (fret ${a.f}). Hammer on to ${b.f} and ${c.f}, then pull off back to ${b.f}. The grade checks every note, its timing, and how loud the hammer-ons and pull-offs are next to the picked note: aim for the same level.`,
+        why: 'Legato is how fast, fluid lines are played, and it is all fretting hand. Most players hammer too softly and the line fades after the pick; matching the levels is the skill.',
+        notes, dots: uniqueDots(shape.notes), npb: 4, keyPc: d.key, flat: sp.flat, names: sp.byPc,
+        allowed: sc.steps.map((x) => mod12(d.key + x)),
+        grade: 'tech', tech: { kind: 'legato' },
+        tempoKey: `${d.skill}:4`, cues: ['Hammer from about a centimetre up, right behind the fret.', 'Pull off down and slightly sideways, like a small pluck.', 'Mute the strings below with the picking-hand palm.', TONE_CUES[0]],
+      });
+    },
+  };
+
+  const PALM = {
+    gallop: { name: 'six chugs and two opens', pattern: ['P', 'P', 'P', 'P', 'P', 'P', 'O', 'O'] },
+    accents: { name: 'opens on the off-beats', pattern: ['P', 'P', 'O', 'P', 'P', 'O', 'P', 'O'] },
+  };
+  FAM.palm = {
+    name: 'Palm mute vs open', blocks: ['technique'], tags: ['tech', 'metal'],
+    cands: () => Object.keys(PALM).map((id) => ({ fam: 'palm', id, skill: `palm:${id}`, base: id === 'gallop' ? 1.3 : 1, need: id === 'gallop' ? [] : [['palm:gallop', 0.4]] })),
+    make(c, ctx) { return { ...c, key: chooseKey(ctx, 'metal') }; },
+    build(d, { tuning }) {
+      // The root on the low E string, open or as low as it goes.
+      const f = mod12(d.key - tuning.open[6]);
+      const midi = tuning.open[6] + f;
+      const flat = preferFlat(d.key, true);
+      const P = PALM[d.id];
+      const notes = P.pattern.map((k) => ({ s: 6, f, midi, label: 'R', role: 'root', mark: k === 'P' ? 'PM' : '' }));
+      return base({
+        title: `Palm mute vs open · ${nameOf(d.key, flat)}, ${P.name}`,
+        chips: [['Note', `${nameOf(d.key, flat)}, low E string fret ${f}`], ['Pattern', P.pattern.map((k) => (k === 'P' ? 'PM' : 'open')).join(' ')], ['Rhythm', '8th notes']],
+        how: 'Down-picked 8th notes on one note. PM notes: rest the edge of the picking hand on the strings right at the bridge, for a short, tight chug. Open notes: lift the palm and let them ring. The grade measures how fast each note dies, and checks the mutes and the opens sound clearly different.',
+        why: 'The tight chug against a ringing accent is the core of metal and hard-rock rhythm. Too much palm and the chug turns into a thud, too little and it rings into mud.',
+        notes, dots: [{ s: 6, f, midi, role: 'root', label: 'R' }], npb: 2, timing: false, keyPc: d.key, flat, clock: true,
+        grade: 'tech', tech: { kind: 'palm', pattern: P.pattern }, onsets: true,
+        tempoKey: `${d.skill}:2`, cues: ['Same picking strength for the mutes and the opens: only the palm changes.', 'Keep the palm in place between chugs; don’t bounce it.', 'Use a dry or lightly driven tone: heavy gain hides the difference.'],
+      });
+    },
+  };
+
+  FAM.stops = {
+    name: 'Stops', blocks: ['technique'], tags: ['tech', 'metal', 'pent'],
+    cands: () => [{ fam: 'stops', skill: 'stops', base: 1 }],
+    make(c, ctx) { return { ...c, key: chooseKey(ctx, ctx.rng() < 0.5 ? 'metal' : 'blues') }; },
+    build(d, { tuning }) {
+      // A power chord's root and 5th on the low strings, played as 8ths for two beats.
+      const s = mod12(d.key - tuning.open[6]) <= 7 ? 6 : 5;
+      const f = mod12(d.key - tuning.open[s]);
+      const root = tuning.open[s] + f;
+      const fifth = tuning.open[s - 1] + f + 2;
+      const flat = preferFlat(d.key, true);
+      const hit = (i) => (i % 2 === 0 ? { s, f, midi: root, label: 'R', role: 'root' } : { s: s - 1, f: f + 2, midi: fifth, label: '5', role: 'fifth' });
+      const notes = [hit(0), hit(1), hit(0), hit(1), ...[0, 1, 2, 3].map(() => ({ s: 3, f: 0, midi: tuning.open[3], rest: true, label: '', role: 'ghost' }))];
+      return base({
+        title: `Stops · ${nameOf(d.key, flat)}5, two beats on, two beats off`,
+        chips: [['Riff', `${nameOf(d.key, flat)} root and 5th, ${STRING_NAME[s]} string fret ${f}`], ['Rhythm', '8th notes, then rest']],
+        how: 'Play 8th notes on beats 1 and 2 (root, 5th, root, 5th), then stop dead on beat 3 and stay silent until the next bar. To stop, lay the picking-hand palm across the strings and ease the fretting fingers off the frets while they still touch the strings. The grade measures how close to beat 3 the sound stops and how quiet the rest is.',
+        why: 'Silence is part of the riff. Tight stops are what make a band sound together, and on an electric with gain every string you don’t mute will ring and feed back.',
+        notes, dots: [{ s, f, midi: root, role: 'root', label: 'R' }, { s: s - 1, f: f + 2, midi: fifth, role: 'fifth', label: '5' }], npb: 2, timing: false, keyPc: d.key, flat, clock: true,
+        grade: 'tech', tech: { kind: 'stop' }, tabNote: 'Two beats of 8ths, then two beats of silence',
+        tempoKey: `${d.skill}:2`, cues: ['Both hands mute: palm on the strings, fretting fingers relax.', 'The stop is a sound: practise it as deliberately as the notes.', TONE_CUES[1]],
+      });
+    },
+  };
+
   FAM.pedal = {
     name: 'Pedal point', blocks: ['technique', 'connect'], tags: ['metal', 'tech'],
     cands: () => [1, 2, 6].map((s) => ({ fam: 'pedal', s, skill: `pedal:${s}`, base: s === 6 ? 1.2 : 1 })),

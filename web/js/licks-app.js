@@ -122,9 +122,18 @@
   const board = new window.Fretboard($('board'), { onPick: pickOnScreen });
   const tab = new window.Tab($('tab'));
 
+  let stand = null; // stand mode (js/stand.js), set up below
+  // The card's phase colors the beats and the big word; in stand mode those have moved out of the card.
+  function setPhase(ph) {
+    $('jamCard').dataset.phase = ph;
+    const v = $('standView');
+    if (v) v.dataset.phase = ph;
+  }
   function configureBoard() {
     const R = LG.rootFret(keyPc());
-    board.configure({ from: Math.max(0, R - 3), to: R + 6 });
+    // Stand mode: zoomed in on the box, bigger.
+    const w = stand && stand.on ? window.Stand.fretWindow(LG.boxSpots(keyPc()).map((b) => b.f)) : null;
+    board.configure(w || { from: Math.max(0, R - 3), to: R + 6, width: 1000 });
   }
 
   function boxDots() {
@@ -356,6 +365,7 @@
     if (slot) slot.frames.push({ t: info.t, midi: info.midi });
   });
   engine.on('note', (ev) => {
+    if (stand && stand.heard(ev.midi)) return;
     const t = ev.playedAt;
     const slot = slotAnswering(t);
     if (slot) slot.events.push({ t, midi: ev.midi });
@@ -435,6 +445,7 @@
     } else if (entry.alts) tip = ' Bend a little higher: the mic heard the note before the bend.';
     const timing = entry.timing ? `, ${entry.timing}` : '';
     const next = settings.mode === 'repeat' ? (g.pass ? ' New lick next.' : slot.attempt >= 3 ? ' Moving on to a new one.' : ' Same lick again.') : '';
+    if (stand) stand.pop(g.pass ? 'ok' : g.score >= 0.5 ? 'warn' : 'bad', g.pass ? (g.score === 1 ? 'Nailed it' : 'Got it') : `${g.score >= 0.5 ? 'Close' : 'Not yet'} · ${g.hits}/${g.required}`);
     if (g.pass) feedback('ok', g.score === 1 ? 'Nailed it' : 'Got it', `${g.hits}/${g.required} notes${timing}.${tip}${next}`);
     else if (g.score >= 0.5) feedback('warn', 'Close', `${g.hits}/${g.required} notes${timing}.${tip}${next}`);
     else feedback('bad', 'Not yet', `${g.hits}/${g.required} notes.${tip}${next}`);
@@ -533,7 +544,7 @@
     const beats = $('beats').children;
     if (p) for (let b = 0; b < 4; b++) beats[b].classList.toggle('on', p.bar >= -1 && b === p.beat && now >= band.t0);
     if (!p || p.bar < 0) {
-      card.dataset.phase = 'countin';
+      setPhase('countin');
       $('phase').textContent = p && now >= band.t0 ? `Count-in ${p.beat + 1}` : 'Count-in';
       requestAnimationFrame(frame);
       return;
@@ -543,7 +554,7 @@
     const pos = p.bar % 4;
     const slot = run.slots.get(s);
     const listening = pos < 2;
-    card.dataset.phase = listening ? 'listen' : 'answer';
+    setPhase(listening ? 'listen' : 'answer');
     $('phase').textContent = listening ? 'Listen' : 'Your turn';
     $('chordNow').textContent = chordName(run.bars[p.bar % n]);
     $('chordNext').textContent = p.beat === 3 ? `→ ${chordName(run.bars[(p.bar + 1) % n])}` : '';
@@ -578,9 +589,15 @@
   }
 
   // ---------- start / stop ----------
+  let standMicTried = false;
   async function start() {
     if (run) return;
     await ensureAudio();
+    // In stand mode the Hearing card is folded away: Start turns the input on (once).
+    if (stand && stand.on && !engine.micOn && !standMicTried) {
+      standMicTried = true;
+      try { await mic.enable(); } catch { /* the Hearing strip says why */ }
+    }
     const bars = LG.PROGRESSIONS[settings.prog].bars;
     run = { bars, keyPc: keyPc(), slots: new Map(), recent: [], cur: null, shown: null };
     renderBars(bars);
@@ -598,7 +615,8 @@
     if (!run) return;
     band.stop();
     run = null;
-    $('jamCard').dataset.phase = 'idle';
+    setPhase('idle');
+    if (stand) stand.stopped();
     $('phase').textContent = 'Stopped';
     $('startBtn').innerHTML = 'Start the band <kbd>Space</kbd>';
     $('newBtn').hidden = true;
@@ -627,8 +645,35 @@
     else if (e.key === 'n' || e.key === 'N') { if (run) newLick(); }
   });
 
+  // ---------- stand mode ----------
+  // Right pedal: start / stop the band. Left pedal: a new lick on the next call. Playing the key's
+  // root starts the band.
+  stand = window.Stand.setup({
+    page: 'licks', store,
+    parts: {
+      l: ['#bars', '.tab-wrap', '.board-card'],
+      r: [['.jam-card .jam-top', 1], ['.jam-card .jam-head', 2], ['#feedback', 7], ['#startBtn', 8], ['#newBtn', 8]],
+      b: ['.listen-card', '.jam-card .stand-opts'],
+    },
+    onRight: () => (run ? stop() : start()),
+    onLeft: () => { if (run) newLick(); },
+    onChange: (on) => {
+      configureBoard();
+      drawBoard(run && run.shown ? run.shown : null);
+      setPhase($('jamCard').dataset.phase);
+      if (on && !run) feedback('hint', 'Ready', engine.micOn && stand.opts.playStart ? `Play ${pcName(keyPc())} to start the band, or press the right pedal.` : 'Right pedal or Start the band. Left pedal: a new lick.');
+    },
+    startNote: () => 48 + keyPc(),
+    canPlayStart: () => !run,
+    start: () => start(),
+  });
+
   configureBoard();
   refreshIdle();
   renderSession();
   tab.render([], { empty: 'Press Start: the band counts you in' });
+  stand.init();
+
+  // For poking at it from the console.
+  window.__licks = { engine, get run() { return run; }, start, stop, stand };
 })();
