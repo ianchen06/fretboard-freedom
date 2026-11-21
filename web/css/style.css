@@ -187,6 +187,11 @@ kbd {
 .seg.seg-sm button { padding: 5px 8px; font-size: 12.5px; border-radius: 7px; white-space: nowrap; }
 .io-tip { background: var(--card-2); border-radius: 9px; padding: 9px 11px; color: var(--muted); }
 .io-tip b { color: var(--pearl); }
+.str-cal { display: grid; gap: 6px; }
+.str-cal-status { font-size: 13px; color: var(--muted); }
+.str-cal-status.on { color: var(--pearl); }
+.str-cal-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.str-cal-step-n { color: var(--faint); margin-left: 4px; }
 .fine { margin: 0; font-size: 12.5px; color: var(--faint); line-height: 1.45; }
 
 /* ---------- buttons & inputs ---------- */

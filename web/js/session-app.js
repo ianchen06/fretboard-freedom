@@ -479,7 +479,23 @@
   const step = () => G.tempoStep(cur && cur.ex ? cur.ex.npb : 2);
 
   // ---------- hearing notes ----------
-  engine.on('note', (ev) => { stand.heard(ev.midi); played(ev.midi, ev.playedAt, false); });
+  engine.on('note', (ev) => { stand.heard(ev.midi); hearingId = ev.id; played(ev.midi, ev.playedAt, false); hearingId = null; });
+
+  // String check (js/stringid.js): exercises ask for each note at a place. When a found note's
+  // sound clearly says another string, give a hint. It never changes the grade.
+  const SI = window.StringId;
+  const newCheck = () => (SI ? new SI.StringCheck({ model: SI.StringModel.fromJSON(store.get('ff.strings', null)), tuning: tuning.open }) : null);
+  let strCheck = newCheck();
+  let hearingId = null;
+  window.addEventListener('ff:strings', () => { strCheck = newCheck(); });
+  engine.on('timbre', ({ id, feat }) => {
+    if (!cur || !cur.ex || cur.state !== 'run') return;
+    const r = strCheck && strCheck.check(id, feat);
+    if (!r) return;
+    const w = r.want;
+    board.flash({ s: r.s, f: r.f, kind: 'wrong', label: '?' }, 1200);
+    say('warn', `${nameOf(w.midi, w.chord)}: other string?`, `it sounded like the ${T.stringLongName(r.s, tuning)} string fret ${r.f}; this exercise has it on the ${T.stringLongName(w.s, tuning)} string fret ${w.f}. It still counted.`);
+  });
   engine.on('frame', (info) => {
     if (!cur || cur.state !== 'run' || !cur.grader) return;
     if (cur.ex.grade === 'tech') {
@@ -593,6 +609,9 @@
       if (e.kind === 'hit') {
         tab.setState(e.i, 'hit');
         if (ex.hidden) { tab.reveal(e.i); cur.revealed.add(posKey(ex.notes[e.i])); }
+        const want = ex.notes[e.i];
+        // Not for bends (the pitch isn't the fretted note's) or exercises that take any octave.
+        if (strCheck && hearingId != null && !ex.matchPc && !want.bend) strCheck.expect(hearingId, want);
         if (e.cents != null) {
           const c = Math.round(e.cents);
           say(Math.abs(c) <= 15 ? 'ok' : 'warn', Math.abs(c) <= 15 ? 'Bend in tune' : c < 0 ? 'Bend a little flat' : 'Bend a little sharp', `${c > 0 ? '+' : ''}${c}¢`);

@@ -373,7 +373,7 @@
     while (bars.length < 4) bars = bars.concat(once);
     run = {
       kind: 'jam', bpm, beatDur: 60 / bpm, countBeats: 4, musicStart: null, groove: b.groove,
-      jam: { bars, bar: -1, chord: 0, stats: new N.JamStats(S.SCALES[V.scaleId].steps.map((x) => mod12(V.keyPc + x))), tracker: new N.HandTracker(), recent: [], trail: [] },
+      jam: { bars, bar: -1, chord: 0, stats: new N.JamStats(S.SCALES[V.scaleId].steps.map((x) => mod12(V.keyPc + x))), tracker: newLocator(), recent: [], trail: [], placed: new Map() },
       sec: 0, unlogged: 0,
     };
     if (b.groove === 'drone') {
@@ -432,7 +432,8 @@
       });
       if (score != null) logDay(0, { key: `scales:${r.ex.tempoKey}`, value: { title: `Scales · ${r.ex.title}`, block: 'scales', skill: r.ex.skill || null, score: Math.round(score * 100) / 100, bpm: r.bpm } });
       V.tempo = loadLearner().tempo(V.ex.tempoKey, V.ex.npb);
-      if (score != null) say('ok', 'Saved', `${pct(score)} on this one${r.cleanBpm ? `, clean at ${r.cleanBpm} bpm` : ''}. ${r.ex.skill ? 'It counts in the Daily session’s skill map.' : ''}`);
+      const off = r.offString ? ` ${r.offString} note${r.offString > 1 ? 's' : ''} sounded like another string than the shape’s.` : '';
+      if (score != null) say('ok', 'Saved', `${pct(score)} on this one${r.cleanBpm ? `, clean at ${r.cleanBpm} bpm` : ''}.${off} ${r.ex.skill ? 'It counts in the Daily session’s skill map.' : ''}`);
     } else {
       const st = r.jam.stats;
       if (st.total >= 12) {
@@ -473,19 +474,49 @@
   const tempoStep = () => (settings.mode === 'jam' ? 4 : G.tempoStep(V.ex ? V.ex.npb : 2));
 
   // ---------- hearing notes ----------
-  engine.on('note', (ev) => { if (stand && stand.heard(ev.midi)) return; played(ev.midi, ev.playedAt, false); });
+  engine.on('note', (ev) => { if (stand && stand.heard(ev.midi)) return; played(ev.midi, ev.playedAt, false, null, ev.id); });
 
-  function played(midi, t, fromClick, at = null) {
+  // Where each note was played: placed at once from where the hand has been, then corrected from the
+  // note's sound (js/stringid.js) about 0.2 s later. The string model is the one fitted to your
+  // guitar under Hearing → Teach it your guitar, if you've done that.
+  const SI = window.StringId;
+  function newLocator() {
+    if (!SI) return new N.HandTracker();
+    return new SI.StringLocator({ model: SI.StringModel.fromJSON(store.get('ff.strings', null)), tuning: tuning.open, maxFret: MAXF });
+  }
+  // Sequences ask for each note at a place: a hint when one clearly came from another string.
+  const newCheck = () => (SI ? new SI.StringCheck({ model: SI.StringModel.fromJSON(store.get('ff.strings', null)), tuning: tuning.open, maxFret: MAXF }) : null);
+  let strCheck = newCheck();
+  let hearingId = null;
+  engine.on('timbre', ({ id, feat }) => {
+    if (!V || !feat) return;
+    if (run && run.kind === 'drill') { drillRefine(id, feat); return; }
+    if (run && run.kind === 'jam') { jamRefine(id, feat); return; }
+    if (!run && idleTracker.refine) {
+      const moved = idleTracker.refine(id, feat);
+      if (moved) flashLive(moved, idleNotes.get(id), S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(idleNotes.get(id))));
+    }
+  });
+
+  function played(midi, t, fromClick, at = null, id = null) {
     if (!V) return;
     const tt = t - (fromClick ? 0 : latency());
-    if (run && run.kind === 'drill') { drillNote(midi, tt, fromClick); return; }
-    if (run && run.kind === 'jam') { jamNote(midi, tt, at); return; }
+    if (run && run.kind === 'drill') { hearingId = id; drillNote(midi, tt, fromClick); hearingId = null; return; }
+    if (run && run.kind === 'jam') { jamNote(midi, tt, at, id); return; }
     // Idle: show where it probably was, nearest the shape on screen.
     const win = settings.mode === 'jam' && settings.move === 'free' ? null : V.shape;
-    const place = at || idleTracker.place(midi, win);
+    const place = at || idleTracker.place(midi, win, id);
+    if (id != null) { idleNotes.set(id, midi); if (idleNotes.size > 16) idleNotes.delete(idleNotes.keys().next().value); }
     if (place) flashLive(place, midi, S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(midi)));
   }
-  const idleTracker = new N.HandTracker();
+  let idleTracker = newLocator();
+  const idleNotes = new Map();
+  // A new calibration (from the Hearing card) takes effect at once.
+  window.addEventListener('ff:strings', () => {
+    idleTracker = newLocator();
+    strCheck = newCheck();
+    if (run && run.kind === 'jam') run.jam.tracker = newLocator();
+  });
 
   function drillNote(midi, tt, fromClick) {
     const r = run;
@@ -504,6 +535,7 @@
     for (const e of events) {
       if (e.kind === 'hit') {
         tab.setState(e.i, 'hit');
+        if (strCheck && hearingId != null) strCheck.expect(hearingId, { ...ex.notes[e.i], i: e.i });
         if (ex.hidden) { tab.reveal(e.i); r.revealed.add(posKey(ex.notes[e.i])); }
         flashLive(ex.notes[e.i], ex.notes[e.i].midi, true);
       } else if (e.kind === 'miss') {
@@ -521,6 +553,15 @@
     if (seg !== V.seg) { V.seg = seg; drawStrip(); renderNeckHead(); }
     drawBoard();
     renderStats();
+  }
+
+  function drillRefine(id, feat) {
+    const r = strCheck && strCheck.check(id, feat);
+    if (!r) return;
+    run.offString = (run.offString || 0) + 1;
+    const w = r.want;
+    board.flash({ s: r.s, f: r.f, label: '?', kind: 'wrong' }, 1200);
+    say('warn', `${noteName(w.midi)}: other string?`, `it sounded like the ${T.stringLongName(r.s, tuning)} string fret ${r.f}; the shape has it on the ${T.stringLongName(w.s, tuning)} string fret ${w.f}. It still counted.`);
   }
 
   function onPass(res) {
@@ -574,7 +615,7 @@
     board.flash({ s: place.s, f: place.f, kind: `live${inScale ? '' : ' out'}`, label: settings.labels === 'note' || !inScale ? noteName(midi) : '' }, 1100);
   }
 
-  function jamNote(midi, tt, clicked) {
+  function jamNote(midi, tt, clicked, id = null) {
     const r = run;
     const J = r.jam;
     const barDur = 4 * r.beatDur;
@@ -591,11 +632,15 @@
       }
     }
     const active = activeShape(at ? at.bar : 0);
-    const place = clicked || J.tracker.place(midi, active);
+    const place = clicked || J.tracker.place(midi, active, id);
     if (clicked) J.tracker.center = J.tracker.center == null ? clicked.f : 0.6 * J.tracker.center + 0.4 * clicked.f;
     const shape = N.shapeAt(V.shapes, place, J.tracker.center);
     const inShape = active ? active.notes.some((n) => n.midi === midi) : null;
     const res = J.stats.note(midi, { at, chord, next, place, shapeKey: shape ? shape.idx : null, inShape });
+    if (id != null && place && !clicked) {
+      J.placed.set(id, { midi, place, shapeKey: shape ? shape.idx : null });
+      if (J.placed.size > 32) J.placed.delete(J.placed.keys().next().value);
+    }
     J.recent.push({ name: noteName(midi), ok: res.inScale && inShape !== false, land: res.land });
     if (J.recent.length > 16) J.recent.shift();
     if (place) {
@@ -609,6 +654,24 @@
     drawBoard();
     if (place) flashLive(place, midi, res.inScale);
     renderStats();
+    renderJamPanel();
+  }
+
+  // The note's sound says it was somewhere else on the neck: move it in the stats and on the board.
+  function jamRefine(id, feat) {
+    const J = run.jam;
+    const was = J.placed.get(id);
+    if (!was || !J.tracker.refine) return;
+    const moved = J.tracker.refine(id, feat);
+    if (!moved) return;
+    const place = { s: moved.s, f: moved.f };
+    const shape = N.shapeAt(V.shapes, place, J.tracker.center);
+    J.stats.relocate(was.place, place, was.shapeKey, shape ? shape.idx : null);
+    const ti = J.trail.findIndex((p) => p === was.place);
+    if (ti >= 0) J.trail[ti] = place;
+    J.placed.set(id, { midi: was.midi, place, shapeKey: shape ? shape.idx : null });
+    drawBoard();
+    flashLive(place, was.midi, J.stats.pcs.has(mod12(was.midi)));
     renderJamPanel();
   }
 
@@ -960,7 +1023,7 @@
     const st = run && run.kind === 'jam' ? run.jam.stats : lastJam;
     if (run && run.kind === 'jam') lastJam = run.jam.stats;
     const total = st ? st.total : 0;
-    $('jamTitle').textContent = total ? `Where you played · ${total} notes` : 'Where you played';
+    $('jamTitle').textContent = total ? `Where you played (estimated) · ${total} notes` : 'Where you played (estimated)';
     const counts = V.shapes.map((p) => ({ p, n: st ? st.byShape[p.idx] || 0 : 0 })).filter((c) => c.n);
     const max = counts.length ? Math.max(...counts.map((c) => c.n)) : 1;
     $('shapeUse').innerHTML = counts.length
