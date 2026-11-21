@@ -1,0 +1,68 @@
+name: CI / Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run web tests
+        run: |
+          set -e
+          for f in web/test/*.test.js; do
+            echo "::group::$f"
+            node "$f"
+            echo "::endgroup::"
+          done
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage site
+        run: |
+          set -e
+          mkdir -p _site
+          # The practice app: pages and runtime assets only (no tests, tools or notes).
+          cp web/*.html _site/
+          cp -r web/css web/js web/vendor _site/
+          # App Store privacy and support pages.
+          cp docs/privacy.html docs/support.html docs/site.css _site/
+          touch _site/.nojekyll
+          ls -R _site | head -50
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
