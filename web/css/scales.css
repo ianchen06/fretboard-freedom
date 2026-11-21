@@ -116,3 +116,7 @@
 body.stand .caged-strip { display: none; }
 body.stand .neck-scroll .fretboard { min-width: 0; }
 body.stand .ex-card .recent-notes, body.stand .stand-view .recent-notes { min-height: 0; }
+
+/* Listen: hear the sequence once */
+.btn-listen[aria-pressed="true"] { border-color: var(--third); color: var(--third); }
+body.stand .ex-controls .btn-listen { display: none; }

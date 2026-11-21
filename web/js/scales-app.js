@@ -327,6 +327,7 @@
   let standMicTried = false;
   async function start() {
     if (run) return;
+    stopListen();
     const view = V;
     await ensureAudio();
     if (stand && stand.on && !engine.micOn && !standMicTried) {
@@ -350,6 +351,55 @@
     drawBoard();
     renderStats();
     say('hint', 'Count-in', settings.guide ? 'One bar of clicks, then the page plays along with you.' : 'One bar of clicks, then go.');
+  }
+
+  // ---------- listen: hear the sequence once, no mic ----------
+  // Plays the whole sequence at the set tempo with the play-along guitar, landing back on its first
+  // note, and walks the tab and the neck along with it.
+  let demo = null; // { idx, timers }
+  async function listen() {
+    if (demo) { stopListen(); return; }
+    if (run) stop();
+    if (settings.mode === 'jam' || !V.ex || !V.ex.notes.length) return;
+    await ensureAudio();
+    if (run || demo || !V.ex) return;
+    const notes = V.ex.notes;
+    const seq = notes.map((n, i) => i);
+    if (notes.length > 1 && notes[notes.length - 1].midi !== notes[0].midi) seq.push(0); // resolve home
+    for (const n of notes) songBand.buffer('clean', n.midi);
+    const step = 60 / V.tempo / V.ex.npb;
+    const t0 = engine.ctx.currentTime + 0.15;
+    const ms = (t) => Math.max(0, (t - engine.ctx.currentTime) * 1000);
+    const d = demo = { idx: null, timers: [] };
+    seq.forEach((idx, j) => {
+      const when = t0 + j * step;
+      const last = j === seq.length - 1;
+      guideNote(notes[idx].midi, when, last ? Math.max(step * 0.92, 0.9) : step * 0.92);
+      d.timers.push(setTimeout(() => showListen(d, idx), ms(when)));
+    });
+    d.timers.push(setTimeout(() => { if (demo === d) stopListen(); }, ms(t0 + (seq.length - 1) * step + Math.max(step, 0.9) + 0.1)));
+    renderListen();
+  }
+  function showListen(d, idx) {
+    if (demo !== d) return;
+    d.idx = idx;
+    tab.setNow(idx);
+    drawBoard();
+  }
+  function stopListen() {
+    if (!demo) return;
+    for (const t of demo.timers) clearTimeout(t);
+    demo = null;
+    stopGuide();
+    renderListen();
+    if (!run) { tab.setNow(0); drawBoard(); }
+  }
+  function renderListen() {
+    const b = $('listenBtn');
+    b.hidden = settings.mode === 'jam';
+    b.disabled = !V.ex;
+    b.setAttribute('aria-pressed', String(!!demo));
+    b.innerHTML = demo ? '■ Stop <kbd>P</kbd>' : '▶ Listen <kbd>P</kbd>';
   }
 
   function startClock(countIn) {
@@ -937,6 +987,7 @@
     $('bpm').textContent = run ? run.bpm : V.tempo;
     $('goBtn').innerHTML = run ? 'Stop <kbd>Space</kbd>' : 'Start <kbd>Space</kbd>';
     $('goBtn').disabled = mode !== 'jam' && !V.ex;
+    renderListen();
     for (const [id, on] of [['clickBtn', settings.clickOn], ['guideBtn', settings.guide], ['droneBtn', settings.drone], ['hideBtn', settings.hide], ['ladderBtn', settings.autoTempo]]) $(id).setAttribute('aria-pressed', String(on));
     $('clickVol').value = settings.click;
     $('backVol').value = settings.back;
@@ -1038,7 +1089,7 @@
     if (run && run.kind === 'jam') for (const p of run.jam.trail.slice(0, -1)) dots.push({ s: p.s, f: p.f, kind: 'trail', label: '' });
     let target = null;
     if (mode !== 'jam' && V.ex) {
-      const i = run && run.grader ? run.grader.i : 0;
+      const i = demo && demo.idx != null ? demo.idx : run && run.grader ? run.grader.i : 0;
       const n = V.ex.notes[i];
       if (n && hide) target = n.s; // from memory: which string, not where
       else if (n) dots.push({ s: n.s, f: n.f, kind: 'now', label: '' });
@@ -1130,6 +1181,7 @@
 
   // Something about what to play changed: stop, recompute, redraw.
   function rebuild() {
+    stopListen();
     if (run) stop();
     save();
     compute();
@@ -1255,6 +1307,7 @@
 
   $('goBtn').addEventListener('click', (e) => { e.currentTarget.blur(); toggleGo(); });
   function toggleGo() { if (run) stop(); else start(); }
+  $('listenBtn').addEventListener('click', (e) => { e.currentTarget.blur(); listen(); });
   $('slower').addEventListener('click', () => setBpm((run ? run.bpm : V.tempo) - tempoStep()));
   $('faster').addEventListener('click', () => setBpm((run ? run.bpm : V.tempo) + tempoStep()));
   $('clickBtn').addEventListener('click', () => { settings.clickOn = !settings.clickOn; save(); applyClick(); renderCard(); });
@@ -1303,6 +1356,7 @@
       const i = V.shape ? V.shape.idx + (k === 'ArrowLeft' ? -1 : 1) : 0;
       if (V.shapes[i]) pickShape(V.shapes[i]);
     } else if (k === 'k' || k === 'K') $('up4Btn').click();
+    else if ((k === 'p' || k === 'P') && !$('listenBtn').hidden) $('listenBtn').click();
     else if (k === '-' || k === '_') $('slower').click();
     else if (k === '=' || k === '+') $('faster').click();
     else if ((k === 'm' || k === 'M') && !$('clickBtn').hidden) $('clickBtn').click();
@@ -1313,7 +1367,7 @@
     else if (k === 'w' || k === 'W') $('wholeBtn').click();
     else if ((k === 'c' || k === 'C') && !$('gripBtn').hidden) $('gripBtn').click();
   });
-  window.addEventListener('pagehide', () => { if (run) stop(); });
+  window.addEventListener('pagehide', () => { stopListen(); if (run) stop(); });
 
   // ---------- stand mode ----------
   // The note that starts it when you play it: the sequence's first note, or the key's root in Play along.

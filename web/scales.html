@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css?v=8">
   <link rel="stylesheet" href="css/session.css?v=4">
-  <link rel="stylesheet" href="css/scales.css?v=4">
+  <link rel="stylesheet" href="css/scales.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -229,6 +229,7 @@
 
         <div class="ex-controls">
           <button class="btn btn-start" id="goBtn" type="button">Start <kbd>Space</kbd></button>
+          <button class="btn btn-ghost btn-listen" id="listenBtn" type="button" aria-pressed="false" title="Hear the sequence once through at this tempo, no mic needed (P)">▶ Listen <kbd>P</kbd></button>
           <div class="tempo" id="tempoBox">
             <button class="btn btn-ghost tempo-btn" id="slower" type="button" aria-label="Slower">−</button>
             <div class="tempo-val"><span id="bpm">72</span><small>bpm</small></div>
@@ -341,7 +342,7 @@
           </div>
           <div class="field">
             <div class="field-label">Keys</div>
-            <p class="field-help"><kbd>K</kbd> moves the key up a 4th (C → F → B♭ …), the order the deck drills keys in. <kbd>←</kbd> <kbd>→</kbd> pick the shape below or above. <kbd>Space</kbd> starts and stops.</p>
+            <p class="field-help"><kbd>P</kbd> plays the sequence for you to hear. <kbd>K</kbd> moves the key up a 4th (C → F → B♭ …), the order the deck drills keys in. <kbd>←</kbd> <kbd>→</kbd> pick the shape below or above. <kbd>Space</kbd> starts and stops.</p>
           </div>
         </div>
         <aside class="method" aria-label="Practice tips">
@@ -372,6 +373,6 @@
   <script src="js/sessiongen.js?v=6"></script>
   <script src="js/scaleneck.js?v=5"></script>
   <script src="js/stand.js?v=1"></script>
-  <script src="js/scales-app.js?v=11"></script>
+  <script src="js/scales-app.js?v=12"></script>
 </body>
 </html>
