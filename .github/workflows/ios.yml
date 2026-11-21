@@ -59,16 +59,58 @@ jobs:
           npm run sync
       - name: Pick an iPad simulator
         id: sim
-        # Ask xcodebuild which simulators this Xcode can run the scheme on, so the
-        # pick always matches the selected Xcode's iOS runtime.
+        # Ask xcodebuild which simulators this Xcode can run the scheme on, so the pick
+        # matches the selected Xcode's iOS runtime. Hosted runners sometimes list none
+        # (CoreSimulator still starting, or no iOS runtime installed), so retry, then
+        # create an iPad, then download the iOS runtime as a last resort.
         run: |
           xcodebuild -version
-          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations > "$RUNNER_TEMP/dests.txt" 2>&1 || true
-          ipads=$(grep 'platform:iOS Simulator' "$RUNNER_TEMP/dests.txt" | grep 'name:iPad' | grep -v placeholder || true)
-          line=$(echo "$ipads" | grep 'name:iPad Pro 13' | head -1 || true)
-          [ -n "$line" ] || line=$(echo "$ipads" | head -1)
+          find_ipad() {
+            xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations > "$RUNNER_TEMP/dests.txt" 2>&1 || true
+            local ipads line
+            ipads=$(grep 'platform:iOS Simulator' "$RUNNER_TEMP/dests.txt" | grep 'name:iPad' | grep -v placeholder || true)
+            line=$(echo "$ipads" | grep 'name:iPad Pro 13' | head -1 || true)
+            [ -n "$line" ] || line=$(echo "$ipads" | head -1)
+            echo "$line"
+          }
+          create_ipad() {
+            local runtime device
+            runtime=$(xcrun simctl list runtimes available -j | python3 -c '
+          import json, sys
+          rs = [r for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS"]
+          rs.sort(key=lambda r: [int(x) for x in r["version"].split(".")])
+          print(rs[-1]["identifier"] if rs else "")')
+            [ -n "$runtime" ] || return 1
+            device=$(xcrun simctl list devicetypes -j | python3 -c '
+          import json, sys
+          ts = [t for t in json.load(sys.stdin)["devicetypes"] if t["name"].startswith("iPad")]
+          pro = [t for t in ts if t["name"].startswith("iPad Pro 13")]
+          print((pro or ts)[-1]["identifier"] if ts else "")')
+            [ -n "$device" ] || return 1
+            echo "Creating an iPad simulator: $device on $runtime"
+            xcrun simctl create "CI iPad" "$device" "$runtime"
+          }
+          line=""
+          for attempt in 1 2 3; do
+            line=$(find_ipad)
+            [ -n "$line" ] && break
+            echo "No iPad simulator listed (attempt $attempt); waking CoreSimulator"
+            xcrun simctl list devices > /dev/null || true
+            sleep 15
+          done
+          if [ -z "$line" ]; then
+            create_ipad || true
+            line=$(find_ipad)
+          fi
+          if [ -z "$line" ]; then
+            echo "No iOS simulator runtime usable; downloading one"
+            xcodebuild -downloadPlatform iOS
+            create_ipad || true
+            line=$(find_ipad)
+          fi
           if [ -z "$line" ]; then
             cat "$RUNNER_TEMP/dests.txt"
+            xcrun simctl list runtimes
             echo "::error::No iPad simulator available for this Xcode"; exit 1
           fi
           echo "Using: $line"
