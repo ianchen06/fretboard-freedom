@@ -1,5 +1,6 @@
 // Tab for an exercise's note sequence, wrapped into lines of whole beats: fret numbers on six lines
-// (high e on top), the count under the notes, bar lines, chord names, bends, and a state per note
+// (high e on top), the count under the notes, bar lines, chord names, bends, technique marks (~~~,
+// h, p, PM), rests, and a state per note
 // (now, hit, miss). Hidden notes show "?" until revealed.
 (function (root) {
   'use strict';
@@ -77,12 +78,21 @@
             el('text', { x: x - slot / 2 + 2, y: y0 - 14, class: 'stab-chord' }, g).textContent = chords[n.chord].name;
           }
           const ng = el('g', { class: 'stab-note' }, g);
+          if (n.rest) {
+            // A rest: a dash across the middle of the staff, no fret.
+            el('rect', { x: x - 7, y: y0 + 2 * SP + SP / 2 - 3, width: 14, height: 6, rx: 1.5, class: 'stab-rest' }, ng);
+            ng.dataset.label = '';
+            this.noteEls.push(ng);
+            continue;
+          }
           const label = hidden ? '?' : n.bend ? `${n.f}b` : String(n.f);
           const w = Math.max(15, label.length * 8 + 6);
           el('rect', { x: x - w / 2, y: y - 9, width: w, height: 18, rx: 5, class: 'stab-note-bg' }, ng);
           const t = el('text', { x, y: y + 4.5, 'text-anchor': 'middle', class: 'stab-fret' }, ng);
           t.textContent = label;
           if (n.bend && !hidden) el('text', { x, y: y - 12, 'text-anchor': 'middle', class: 'stab-tech' }, ng).textContent = n.bend === 2 ? 'full' : '½';
+          // Technique marks: ~~~ vibrato, h hammer-on, p pull-off, PM palm mute.
+          else if (n.mark && !hidden) el('text', { x, y: y - 12, 'text-anchor': 'middle', class: 'stab-tech' }, ng).textContent = n.mark;
           ng.dataset.label = n.bend ? `${n.f}b` : String(n.f);
           this.noteEls.push(ng);
         }

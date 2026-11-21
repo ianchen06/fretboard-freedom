@@ -6,9 +6,9 @@
   <title>Scales · Fretboard Freedom</title>
   <meta name="description" content="Scales across the whole neck: CAGED shapes in any key, routes up and down the neck, and a play-along band, with the mic checking every note.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=6">
-  <link rel="stylesheet" href="css/session.css?v=2">
-  <link rel="stylesheet" href="css/scales.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/session.css?v=4">
+  <link rel="stylesheet" href="css/scales.css?v=4">
 </head>
 <body>
   <header class="topbar">
@@ -110,7 +110,10 @@
       <div class="card ex-card" id="exCard" data-state="ready" data-mode="shape">
         <div class="ex-top">
           <div class="card-kicker" id="exKicker">Learn a shape</div>
-          <div class="beats" id="beats" aria-hidden="true"><i class="beat"></i><i class="beat"></i><i class="beat"></i><i class="beat"></i></div>
+          <div class="ex-top-r">
+            <div class="beats" id="beats" aria-hidden="true"><i class="beat"></i><i class="beat"></i><i class="beat"></i><i class="beat"></i></div>
+            <button class="chip-btn stand-btn" id="standBtn" type="button" aria-pressed="false" title="One screen, big and hands-free, for a phone or tablet on a music stand (F)">Stand mode</button>
+          </div>
         </div>
         <div class="ex-head">
           <h1 class="ex-title" id="exTitle">Loading…</h1>
@@ -211,6 +214,10 @@
             <button class="chip-btn" id="hideBtn" type="button" aria-pressed="false" title="Play the shape from memory: dots show as you find them (H)">From memory</button>
             <button class="chip-btn" id="ladderBtn" type="button" aria-pressed="true" title="Clean passes in a row move the tempo up; two rough ones move it down (L)">Tempo ladder</button>
           </div>
+        </div>
+        <div class="stand-opts" aria-label="Hands-free options">
+          <button class="chip-btn" id="playStartBtn" type="button" aria-pressed="true" title="Playing the first note (in Play along, the root) starts it">Play to start</button>
+          <span class="stand-keys">Pedal: right = start / stop · left = next shape</span>
         </div>
       </div>
 
@@ -323,10 +330,11 @@
   <script src="js/songtheory.js?v=2"></script>
   <script src="js/songband.js?v=2"></script>
   <script src="js/pad.js?v=1"></script>
-  <script src="js/seqtab.js?v=2"></script>
+  <script src="js/seqtab.js?v=3"></script>
   <script src="js/scales.js?v=2"></script>
-  <script src="js/sessiongen.js?v=4"></script>
+  <script src="js/sessiongen.js?v=5"></script>
   <script src="js/scaleneck.js?v=3"></script>
-  <script src="js/scales-app.js?v=7"></script>
+  <script src="js/stand.js?v=1"></script>
+  <script src="js/scales-app.js?v=8"></script>
 </body>
 </html>
