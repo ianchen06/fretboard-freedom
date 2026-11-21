@@ -21,7 +21,7 @@
     return l && !MIC_WORDS.test(l) ? 'interface' : 'mic';
   }
 
-  function setup(engine, { store, preferFlat = () => false, onInputChange = () => {} }) {
+  function setup(engine, { store, preferFlat = () => false, onInputChange = () => {}, tuning = () => T.TUNINGS.standard }) {
     const $ = (id) => document.getElementById(id);
     const has = (id) => !!document.getElementById(id);
     const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', ...store.get('ff.settings', {}) };
@@ -215,7 +215,7 @@
       const on = !!(saved && saved.calibrated);
       $('strCalStatus').textContent = teaching ? 'Learning your strings…'
         : on ? `From the sound, fitted to your guitar${saved.date ? ` (${saved.date})` : ''}`
-          : 'From the sound and your hand position (typical strings)';
+          : 'From the sound, assuming typical strings';
       $('strCalStatus').classList.toggle('on', on && !teaching);
       $('strCalBtn').hidden = !!teaching;
       $('strCalBtn').textContent = on ? 'Teach it again' : 'Teach it your guitar';
@@ -224,7 +224,9 @@
       $('strCalStep').hidden = !teaching;
       if (teaching) {
         const st = root.StringId.CALIBRATION[teaching.i];
-        const fret = st.f === 0 ? `the open ${STRING_NAMES[st.s]} string` : `the ${STRING_NAMES[st.s]} string at the 7th fret`;
+      const tn = tuning();
+        const nm = tn.id === 'standard' ? STRING_NAMES[st.s] : `${T.stringLongName(st.s, tn)} (${st.s}${['', 'st', 'nd', 'rd', 'th', 'th', 'th'][st.s]})`;
+        const fret = st.f === 0 ? `the open ${nm} string` : `the ${nm} string at the 7th fret`;
         $('strCalStep').innerHTML = `${teaching.retry ? `${esc(teaching.retry)} ` : ''}Pick <b>${esc(fret)}</b> and let it ring. Mute the other strings.<span class="str-cal-step-n">${teaching.i + 1} / ${root.StringId.CALIBRATION.length}</span>`;
       }
     }
@@ -238,7 +240,7 @@
       if (!engine.micOn) await enable();
       if (!engine.micOn) return;
       const SI = root.StringId;
-      const open = { 1: 64, 2: 59, 3: 55, 4: 50, 5: 45, 6: 40 };
+      const open = { ...tuning().open }; // calibrate in the tuning the page is set to
       teaching = { i: 0, got: [], retry: '', off: () => {} };
       teaching.off = engine.on('timbre', ({ midi, feat }) => {
         const t = teaching;
@@ -255,7 +257,7 @@
         t.retry = '';
         t.i++;
         if (t.i < SI.CALIBRATION.length) { renderStrings(); return; }
-        const model = SI.StringModel.fit(t.got);
+        const model = SI.StringModel.fit(t.got, { tuning: open });
         store.set('ff.strings', { ...model.toJSON(), date: new Date().toISOString().slice(0, 10) });
         stopTeaching();
         root.dispatchEvent(new Event('ff:strings'));

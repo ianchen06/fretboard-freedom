@@ -83,6 +83,12 @@ A pitch can be played in two to five places on the neck, and pitch alone can't t
 
 The two are combined as probabilities: hand position as the prior, and how well the measured B fits each string and fret as the likelihood. The note is placed at once from the hand, then moved if its sound says otherwise, about 0.2 s later.
 
+**String hints.** *Find any note*, Scales sequences and the Daily session ask for each note at a given place. Notes still count by pitch, but when a found note's sound clearly says another string (90% sure from the sound alone), you get a hint: "Right note, but it sounded like the low E string, fret 8." It never costs you the note, and *Find any note* lists those notes after the round. Bends and any-octave exercises aren't checked.
+
+**Blind spot: G and D.** A plain G string is so stiff that the D string a few frets higher measures almost the same (for example A3 at fret 2 of the G and fret 7 of the D). About 13% of same-pitch pairs on the neck are like this, all of them G against D. There the app stays quiet instead of guessing. A wound G (most acoustic sets) doesn't have this problem as much.
+
+**Other tunings.** Tuning a string down lowers its tension, which makes it a little stiffer for its pitch; the model takes that into account (B ∝ 1/tension). Teaching it your guitar uses the tuning the page is set to, and remembers it.
+
 Out of the box the app assumes a typical 10–46 set. **Hearing → Teach it your guitar** asks for 12 notes (each open string, then each string at the 7th fret) and fits each string's stiffness to your guitar. Do it again after changing string gauge.
 
 How good is it? On synthetic notes that follow string physics, with realistic flaws added (detuned overtones, pitch glide after the pick, another string ringing), it picks the right string about 99% of the time after teaching and about 89% without it (`test/stringid.test.js`). A real guitar through a laptop mic in a room will do worse than that: chords, very fast playing, heavy distortion and loud backing in the mic all make the overtones harder to measure. So **Where you played** is still an estimate, and grading still goes by pitch, never by string.
@@ -292,7 +298,7 @@ On the Call & response page, **Sound and amp → Play my guitar through this amp
 
 When you pick a note an octave above a string that's still ringing, the detector compares which harmonics just got louder to tell the two notes apart.
 
-Grading goes by **pitch, not strings**. It catches wrong notes and wrong octaves, but it doesn't mark G3 on the A string (fret 10) wrong when the exercise asked for G3 on the D string (fret 5). The Scales page does guess the string for *Where you played* (see *Which string you played*); that guess isn't reliable enough to grade you on.
+Grading goes by **pitch, not strings**. It catches wrong notes and wrong octaves, but it doesn't mark G3 on the A string (fret 10) wrong when the exercise asked for G3 on the D string (fret 5). The app does guess the string from each note's sound (see *Which string you played*) and gives a hint when a note seems to be on another string, but that guess isn't reliable enough to grade you on.
 
 Tips:
 - Tune up first. The *Hearing* panel doubles as a tuner.

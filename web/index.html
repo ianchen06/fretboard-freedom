@@ -81,8 +81,17 @@
         </div>
         <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
         <p class="fine io-tip" id="ioTip" hidden></p>
+        <div class="str-cal" id="strCal">
+          <div class="io-row"><span class="io-label">Strings</span><span class="str-cal-status" id="strCalStatus">From the sound, assuming typical strings</span></div>
+          <p class="fine io-tip" id="strCalStep" hidden></p>
+          <div class="str-cal-btns">
+            <button class="link-btn" id="strCalBtn" type="button" title="Pick 12 notes so the app learns how each of your strings sounds">Teach it your guitar</button>
+            <button class="link-btn" id="strCalCancel" type="button" hidden>Cancel</button>
+            <button class="link-btn danger" id="strCalForget" type="button" hidden>Forget</button>
+          </div>
+        </div>
         <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
-        <p class="fine" id="micNote">The mic hears pitch, not which string you used. It catches wrong notes and wrong octaves; using the right string is up to you.</p>
+        <p class="fine" id="micNote">Notes count by pitch. When a note sounds like it came from another string than the one asked for, you get a hint; it never costs you the note.</p>
       </div>
     </section>
 
@@ -214,10 +223,11 @@
 
   <script src="js/theory.js?v=4"></script>
   <script src="js/pitch.js?v=2"></script>
+  <script src="js/stringid.js?v=2"></script>
   <script src="js/audio.js?v=6"></script>
   <script src="js/fretboard.js?v=2"></script>
   <script src="js/drill.js?v=2"></script>
   <script src="js/micpanel.js?v=4"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

@@ -208,5 +208,66 @@ console.log('sound + hand position');
   check(loc.refine('zzz', { lnB: 0, sigma: 1 }) === null, 'refine of an unknown note does nothing');
 }
 
+// ---------- other tunings ----------
+console.log('tunings');
+{
+  const m = new SI.StringModel();
+  const dropD = { ...OPEN, 6: 38 };
+  check(Math.abs(m.lnB(6, 0, dropD) - m.lnB(6, 0) - (4 * Math.LN2) / 12) < 1e-9, 'a string tuned 2 semitones down: B up by 2^(4/12) (less tension)');
+  check(m.lnB(5, 3, dropD) === m.lnB(5, 3), 'the other strings are unchanged');
+  // Calibrated in E♭ standard, then used in E♭: the measured values come back.
+  const eflat = { 1: 63, 2: 58, 3: 54, 4: 49, 5: 44, 6: 39 };
+  const g = makeGuitar(0.2);
+  const tunedB = (s, f) => g[s] * 2 ** (f / 6) * 2 ** (2 / 12); // a semitone down: tension × 2^(-2/12)
+  const fit = SI.StringModel.fit(SI.CALIBRATION.map(({ s, f }) => ({ s, f, lnB: Math.log(tunedB(s, f)), sigma: 0.1 })), { tuning: eflat });
+  check([1, 2, 3, 4, 5, 6].every((s) => Math.abs(fit.lnB(s, 5, eflat) - Math.log(tunedB(s, 5))) < 1e-6), 'calibrated in E♭: right in E♭');
+  check([1, 2, 3, 4, 5, 6].every((s) => Math.abs(fit.lnB(s, 5, OPEN) - Math.log(g[s] * 2 ** (5 / 6))) < 1e-6), 'and predicts standard tuning from it');
+  const back = SI.StringModel.fromJSON(JSON.parse(JSON.stringify(fit)));
+  check(back.ref[6] === 39, 'the tuning it was taught in survives JSON');
+  // Drop D: the low string's notes are found on it.
+  const loc = new SI.StringLocator({ model: fit, tuning: dropD, handWidth: 1e9 });
+  let right = 0;
+  for (let f = 5; f <= 9; f++) {
+    const { x, f0 } = note(38 + f, g[6] * 2 ** (f / 6) * 2 ** (4 / 12));
+    const p = loc.place(38 + f, null, null, SI.analyze(x, SR, f0));
+    if (p.s === 6) right++;
+  }
+  check(right >= 4, `drop D: low-string notes placed on it (${right} of 5)`);
+}
+
+// ---------- the string check ----------
+console.log('string check');
+{
+  const g = makeGuitar(0.2);
+  const model = SI.StringModel.fit(SI.CALIBRATION.map(({ s, f }) => ({ s, f, lnB: Math.log(g[s] * 2 ** (f / 6)), sigma: 0.1 })));
+  const chk = new SI.StringCheck({ model });
+  let falseAlarm = 0;
+  const caught = { 5: 0, 4: 0 };
+  const misnamed = { n: 0 };
+  const n = 30;
+  // Asked for A3 (57) on the G string, fret 2. Played there, on the A string fret 12 (much stiffer:
+  // separable), or on the D string fret 7. The last is a real limit: a plain G is so stiff that the
+  // D string at fret 7 measures almost the same (ln B 0.2 apart), so the check must stay quiet there.
+  for (let i = 0; i < n; i++) {
+    const right = note(57, trueB(g, 3, 2));
+    chk.expect(`r${i}`, { s: 3, f: 2, midi: 57 });
+    if (chk.check(`r${i}`, SI.analyze(right.x, SR, right.f0))) falseAlarm++;
+    for (const [s, f] of [[5, 12], [4, 7]]) {
+      const wrong = note(57, trueB(g, s, f));
+      chk.expect(`w${s}${i}`, { s: 3, f: 2, midi: 57 });
+      const r = chk.check(`w${s}${i}`, SI.analyze(wrong.x, SR, wrong.f0));
+      if (r && r.s === s) caught[s]++;
+      else if (r) misnamed.n++;
+    }
+  }
+  console.log(`  on the asked-for string: ${falseAlarm} of ${n} flagged; A string fret 12: ${caught[5]} of ${n} caught; D string fret 7: ${caught[4]} of ${n} (too close to tell)`);
+  check(falseAlarm <= 1, 'almost never flags a note played on the right string');
+  check(caught[5] >= 0.9 * n, 'catches a clearly stiffer string');
+  check(misnamed.n === 0, 'never names the wrong other string');
+  check(chk.check('nope', { lnB: -9, sigma: 0.1 }) === null, 'unknown note: no answer');
+  chk.expect('x', { s: 3, f: 2, midi: 57 });
+  check(chk.check('x', null) === null, 'no measurement: no answer');
+}
+
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
 process.exit(failures ? 1 : 0);

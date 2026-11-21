@@ -134,6 +134,15 @@
         </div>
         <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
         <p class="fine io-tip" id="ioTip" hidden></p>
+        <div class="str-cal" id="strCal">
+          <div class="io-row"><span class="io-label">Strings</span><span class="str-cal-status" id="strCalStatus">From the sound, assuming typical strings</span></div>
+          <p class="fine io-tip" id="strCalStep" hidden></p>
+          <div class="str-cal-btns">
+            <button class="link-btn" id="strCalBtn" type="button" title="Pick 12 notes so the app learns how each of your strings sounds">Teach it your guitar</button>
+            <button class="link-btn" id="strCalCancel" type="button" hidden>Cancel</button>
+            <button class="link-btn danger" id="strCalForget" type="button" hidden>Forget</button>
+          </div>
+        </div>
         <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
         <p class="fine" id="micNote">Headphones help: the click and the backing are in the guitar’s range.</p>
       </div>
@@ -287,6 +296,7 @@
 
   <script src="js/theory.js?v=4"></script>
   <script src="js/pitch.js?v=3"></script>
+  <script src="js/stringid.js?v=2"></script>
   <script src="js/audio.js?v=6"></script>
   <script src="js/fretboard.js?v=3"></script>
   <script src="js/micpanel.js?v=4"></script>
@@ -296,6 +306,6 @@
   <script src="js/sessiongen.js?v=4"></script>
   <script src="js/pad.js?v=1"></script>
   <script src="js/seqtab.js?v=1"></script>
-  <script src="js/session-app.js?v=3"></script>
+  <script src="js/session-app.js?v=4"></script>
 </body>
 </html>

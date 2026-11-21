@@ -181,10 +181,15 @@
   // 1.5 either way (gauge, scale, wound vs plain G, acoustic sets), so the uncalibrated model is wide.
   const DEFAULT_B0 = { 1: 1.3e-5, 2: 4.0e-5, 3: 1.1e-4, 4: 7.5e-5, 5: 9.5e-5, 6: 2.0e-4 };
 
+  // Tuning a string down lowers its tension, and B ∝ 1/T with T ∝ f0²: B rises by 2^(2d/12) for a
+  // string tuned d semitones lower than when it was measured (same string, so the same diameter).
+  const LN2_6_TENSION = (2 * Math.LN2) / 12;
+
   class StringModel {
     // strings: { [s]: { lnB0, k } }; sigma: spread of a real note around the model (in ln B).
-    constructor({ strings = null, sigma = 0.55, calibrated = false, tuning = STD_OPEN } = {}) {
-      this.tuning = tuning;
+    // ref: the open-string MIDI notes the model was measured in (standard for the default model).
+    constructor({ strings = null, sigma = 0.55, calibrated = false, ref = STD_OPEN } = {}) {
+      this.ref = { ...ref };
       this.strings = {};
       for (const s of STRINGS_LOW_FIRST) {
         const c = strings && strings[s];
@@ -193,13 +198,19 @@
       this.sigma = sigma;
       this.calibrated = calibrated;
     }
-    lnB(s, f) { const c = this.strings[s]; return c.lnB0 + c.k * f; }
+    // ln B at string s, fret f, with the strings tuned to `open` (default: as measured).
+    lnB(s, f, open = null) {
+      const c = this.strings[s];
+      const d = open && open[s] != null ? this.ref[s] - open[s] : 0;
+      return c.lnB0 + c.k * f + LN2_6_TENSION * d;
+    }
 
     // Fit to calibration notes [{ s, f, lnB, sigma }]. A string with notes at two or more frets gets
     // its own slope; with one, the physical slope. Strings without notes keep the default, moved by
     // how far the measured strings are from it (a heavier or lighter set moves all of them).
+    // tuning: the open strings the samples were played in.
     static fit(samples, { tuning = STD_OPEN } = {}) {
-      const base = new StringModel({ tuning });
+      const base = new StringModel();
       const shift = [];
       const strings = {};
       for (const s of STRINGS_LOW_FIRST) {
@@ -218,24 +229,24 @@
           lnB0 = pts.reduce((x, p) => x + p.lnB - k * p.f, 0) / pts.length;
         }
         strings[s] = { lnB0, k };
-        shift.push(lnB0 - base.strings[s].lnB0);
+        shift.push(lnB0 - base.lnB(s, 0, tuning));
       }
       const avg = shift.length ? shift.reduce((a, b) => a + b, 0) / shift.length : 0;
       for (const s of STRINGS_LOW_FIRST) {
-        if (!strings[s]) strings[s] = { lnB0: base.strings[s].lnB0 + avg, k: LN2_6 };
+        if (!strings[s]) strings[s] = { lnB0: base.lnB(s, 0, tuning) + avg, k: LN2_6 };
       }
       // How far the calibration notes sit from the fitted model, with a floor: a note played
       // with a different pick or force varies more than two careful calibration plucks.
       const res = samples.map((p) => p.lnB - (strings[p.s].lnB0 + strings[p.s].k * p.f));
       const rms = res.length ? Math.sqrt(res.reduce((a, r) => a + r * r, 0) / res.length) : 0;
       const sigma = Math.max(0.22, Math.min(0.5, 1.5 * rms));
-      return new StringModel({ strings, sigma, calibrated: true, tuning });
+      return new StringModel({ strings, sigma, calibrated: true, ref: tuning });
     }
 
-    toJSON() { return { strings: this.strings, sigma: this.sigma, calibrated: this.calibrated }; }
-    static fromJSON(o, tuning = STD_OPEN) {
-      if (!o || !o.strings) return new StringModel({ tuning });
-      return new StringModel({ strings: o.strings, sigma: o.sigma, calibrated: !!o.calibrated, tuning });
+    toJSON() { return { strings: this.strings, sigma: this.sigma, calibrated: this.calibrated, ref: this.ref }; }
+    static fromJSON(o) {
+      if (!o || !o.strings) return new StringModel();
+      return new StringModel({ strings: o.strings, sigma: o.sigma, calibrated: !!o.calibrated, ref: o.ref || STD_OPEN });
     }
   }
 
@@ -286,7 +297,7 @@
         let ll = 0;
         if (feat) {
           const sd = Math.sqrt(this.model.sigma ** 2 + feat.sigma ** 2);
-          const z = (feat.lnB - this.model.lnB(k.s, k.f)) / sd;
+          const z = (feat.lnB - this.model.lnB(k.s, k.f, this.tuning)) / sd;
           // An "upper" reading only says B is at most this: no penalty for candidates below it.
           ll = feat.upper && z > 0 ? 0 : -0.5 * z * z;
         }
@@ -334,7 +345,37 @@
     }
   }
 
-  const api = { fft, spectrum, analyze, StringModel, StringLocator, CALIBRATION, DEFAULT_B0, LN2_6, B_MIN };
+  // ---------- did you play it on the asked-for string? ----------
+  // For exercises that ask for a note at a given place. The grader accepts notes by pitch; once a
+  // note's sound is measured, this says whether it clearly came from another string. Only a
+  // confident answer counts (posterior ≥ minP, no hand prior: the sound alone), so it stays quiet
+  // when unsure. It's a hint, not a grade: a real mic in a room is less reliable than the tests.
+  class StringCheck {
+    constructor({ model = new StringModel(), tuning = STD_OPEN, maxFret = 24, minP = 0.9 } = {}) {
+      this.loc = new StringLocator({ model, tuning, maxFret, handWidth: 1e9 });
+      this.minP = minP;
+      this.expected = new Map(); // id → { s, f, midi, ...extra }
+    }
+    // Note `id` was accepted as the note at string s, fret f.
+    expect(id, want) {
+      if (id == null || !want) return;
+      this.expected.set(id, want);
+      if (this.expected.size > 32) this.expected.delete(this.expected.keys().next().value);
+    }
+    // → null (no answer, or it matches), or { s, f, p, want } when another string is clearly likelier.
+    check(id, feat) {
+      const want = this.expected.get(id);
+      if (!want || !feat) return null;
+      this.expected.delete(id);
+      const d = this.loc.decide(want.midi, null, 0, feat);
+      if (!d) return null;
+      const mine = d.cands.find((c) => c.s === want.s);
+      if (d.s === want.s || d.p < this.minP || (mine && mine.p > 1 - this.minP)) return null;
+      return { s: d.s, f: d.f, p: d.p, want };
+    }
+  }
+
+  const api = { fft, spectrum, analyze, StringModel, StringLocator, StringCheck, CALIBRATION, DEFAULT_B0, LN2_6, B_MIN };
   root.StringId = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
