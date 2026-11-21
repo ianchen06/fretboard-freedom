@@ -1,9 +1,9 @@
-# Builds and tests the Capacitor iPad app (ipad-wrapper/) on every change to it or to
+# Builds and tests the Fretboard Freedom iPad app (Capacitor, in app/) on every change to it or to
 # the web app it bundles, and ships it to TestFlight / App Store Connect.
 #
 # Ship a build: push a tag like ios-v1.0.0 (the version is taken from the tag), or run
 # this workflow by hand from the Actions tab with "upload" ticked. Setup and secrets:
-# ipad-wrapper/APP_STORE.md.
+# app/APP_STORE.md.
 name: iOS
 
 on:
@@ -12,12 +12,12 @@ on:
     tags: ['ios-v*']
     paths:
       - 'web/**'
-      - 'ipad-wrapper/**'
+      - 'app/**'
       - '.github/workflows/ios.yml'
   pull_request:
     paths:
       - 'web/**'
-      - 'ipad-wrapper/**'
+      - 'app/**'
       - '.github/workflows/ios.yml'
   workflow_dispatch:
     inputs:
@@ -34,8 +34,8 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
-  PROJECT: ipad-wrapper/ios/App/App.xcodeproj
-  SCHEME: App
+  PROJECT: app/ios/App/App.xcodeproj
+  SCHEME: FretboardFreedom
 
 jobs:
   test:
@@ -43,36 +43,38 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ipad-wrapper/package-lock.json
+          cache-dependency-path: app/package-lock.json
       - name: Stage the web app into the iOS project
-        working-directory: ipad-wrapper
+        working-directory: app
         run: |
           npm ci
           npm run sync
       - name: Pick an iPad simulator
         id: sim
+        # Ask xcodebuild which simulators this Xcode can run the scheme on, so the
+        # pick always matches the selected Xcode's iOS runtime.
         run: |
-          udid=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          devices = json.load(sys.stdin)["devices"]
-          ipads = [d for runtime, ds in devices.items() if "iOS" in runtime
-                   for d in ds if d["name"].startswith("iPad")]
-          pro = [d for d in ipads if d["name"].startswith("iPad Pro")]
-          print((pro or ipads)[-1]["udid"])')
-          xcrun simctl list devices | grep "$udid"
+          xcodebuild -version
+          dests=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations 2>/dev/null \
+            | grep 'platform:iOS Simulator' | grep 'name:iPad' | grep -v 'placeholder')
+          echo "$dests"
+          line=$(echo "$dests" | grep 'name:iPad Pro 13' | head -1)
+          [ -n "$line" ] || line=$(echo "$dests" | head -1)
+          udid=$(echo "$line" | sed -E 's/.*id:([^,]+),.*/\1/')
+          if [ -z "$udid" ]; then echo "::error::No iPad simulator available"; exit 1; fi
+          echo "Using: $line"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
       - name: UI tests
         # The mic test needs an audio input device, which hosted runners don't have.
         run: |
-          xcodebuild -version
           xcodebuild test \
             -project "$PROJECT" -scheme "$SCHEME" \
             -destination "id=${{ steps.sim.outputs.udid }}" \
@@ -82,7 +84,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
       - name: Keep the test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-test-results
           path: build/UITests.xcresult
@@ -99,17 +101,17 @@ jobs:
       BUNDLE_ID: app.fretboardfreedom.practice
       TEAM_ID: VTX9N56A38
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ipad-wrapper/package-lock.json
+          cache-dependency-path: app/package-lock.json
       - name: Stage the web app into the iOS project
-        working-directory: ipad-wrapper
+        working-directory: app
         run: |
           npm ci
           npm run sync
@@ -175,7 +177,7 @@ jobs:
           xcodebuild archive \
             -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive \
+            -archivePath build/FretboardFreedom.xcarchive \
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
             CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
             CODE_SIGNING_ALLOWED=NO
@@ -206,7 +208,7 @@ jobs:
           </plist>
           EOF
           xcodebuild -exportArchive \
-            -archivePath build/App.xcarchive \
+            -archivePath build/FretboardFreedom.xcarchive \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath build/export \
             -authenticationKeyPath "$key" \
@@ -216,10 +218,10 @@ jobs:
           echo "Uploaded. App Store Connect emails you when the build has processed (5–30 minutes); then it's in TestFlight." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: App-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}.xcarchive
-          path: build/App.xcarchive
+          name: FretboardFreedom-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}.xcarchive
+          path: build/FretboardFreedom.xcarchive
           retention-days: 30
 
       - name: Remove the signing keychain

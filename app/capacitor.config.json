@@ -3,6 +3,7 @@
   "appName": "Fretboard Freedom",
   "webDir": "www",
   "ios": {
-    "backgroundColor": "#17171b"
+    "backgroundColor": "#17171b",
+    "scheme": "FretboardFreedom"
   }
 }

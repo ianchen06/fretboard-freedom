@@ -13,7 +13,7 @@ GitHub Actions builds, tests, signs and uploads it ([`.github/workflows/ios.yml`
 - **Mic prompt** text in `Info.plist`.
 - **Privacy and support pages** (`docs/privacy.html`, `docs/support.html`), deployed to GitHub Pages by the CI workflow on every push to `main`:
   `https://ianchen06.github.io/fretboard-freedom/privacy.html` and `.../support.html`. Replace `support@example.com` (marked `TODO`) in both with a public address first.
-- **CI**: every pull request or push to `main` that touches `web/` or `ipad-wrapper/` builds the app and runs the UI tests on an iPad simulator. The mic test is skipped there because hosted runners have no audio input; run it locally (see [README.md](README.md)).
+- **CI**: every pull request or push to `main` that touches `web/` or `app/` builds the app and runs the UI tests on an iPad simulator. The mic test is skipped there because hosted runners have no audio input; run it locally (see [README.md](README.md)).
 
 ## What CI does on a release
 
@@ -158,7 +158,7 @@ Then under **Build** pick the TestFlight build, choose **Manually release**, and
 
 ## Each update
 
-1. Change `web/` (and `ipad-wrapper/` if needed), merge to `main`. CI runs the tests.
+1. Change `web/` (and `app/` if needed), merge to `main`. CI runs the tests.
 2. Tag `ios-v1.1.0` and push. TestFlight gets the build.
 3. In App Store Connect, **+** next to the versions, add **What's New**, pick the build, submit.
 

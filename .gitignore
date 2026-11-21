@@ -11,8 +11,8 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 
-# iOS release builds (ipad-wrapper)
-ipad-wrapper/ios/build/
+# iOS release builds (app)
+app/ios/build/
 *.ipa
 *.p12
 *.mobileprovision
