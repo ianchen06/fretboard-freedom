@@ -21,6 +21,18 @@
         "exec python3 -m http.server ${PORT:-8766} --directory web"
       ],
       "port": 8766
+    },
+    {
+      "name": "app-store-pages",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8767",
+        "--directory",
+        "docs"
+      ],
+      "port": 8767
     }
   ]
 }
