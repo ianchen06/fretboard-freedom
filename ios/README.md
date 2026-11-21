@@ -9,6 +9,7 @@ On iPadOS 26 and later, the landscape-only orientation list is only a preference
 **Built so far:**
 
 - **Pentatonic boxes.** Pick a minor or major pentatonic or blues box (1 to 5) in any key, then play it up and down, in 3s, in 4s or in 3rds against the click. The mic grades every note, the tempo ladder moves the click, and an on-device AI coach turns the grades into one tip for the next pass.
+- **Arpeggios.** Pick a chord root, one of eight chord types, and one of five neck positions. Play the chord tones up and down or in groups of three using the fretboard and tab, with the same note grading and tempo ladder as Pentatonic boxes.
 - **Find any note** (Part 3 of the deck). *One note everywhere*: one note on every string, low E → high e → back, with the note moving round the circle of 4ths each round. *Flash cards*: a random note and string, limited to naturals, chosen strings or a fret range, with *Focus on weak spots* bringing your slow and missed notes up more often. Free pace is timed against the 2-second checkpoint; the deck's four metronome stages (40 bpm × 4 clicks up to 80 bpm × 1) count clean rounds and tell you when to move up. Hints follow the 3-step method: first your anchors on the E and A strings (or the landmark notes, when the note is on one of them), then where it is. Between rounds the neck is your speed map: every string-and-note pair colored by your average time, teal under 2 s.
 
 The other pages are in the sidebar as "Coming next". The app opens on the page you had open last.
@@ -33,7 +34,7 @@ If `xcodebuild` says the developer directory is the Command Line Tools, point it
 
 To put it on the App Store, follow [APP_STORE.md](APP_STORE.md).
 
-**Without a guitar.** Tap the notes on the neck: each tap plays the note and counts as played, though not for timing (on Find any note, a tap answers with its string, and its time counts). In a Debug build, the launch argument `-FFDemo` runs the page that opens without audio input. On Pentatonic boxes it plays the box in time straight into the grader for 40 seconds, with a few wrong notes; it runs the clock, grader, tempo ladder, learner and coach. On Find any note it plays one round with the current settings, taking 0.6 to 3 s a note, with a wrong note now and then. The mic stays closed and the click is muted. To pick the page, add `-ff.page findNote` (or `boxes`).
+**Without a guitar.** Tap the notes on the neck: each tap plays the note and counts as played, though not for timing (on Find any note, a tap answers with its string, and its time counts). In a Debug build, the launch argument `-FFDemo` runs the page that opens without audio input. On Pentatonic boxes and Arpeggios it plays the shape in time straight into the grader for 40 seconds, with a few wrong notes; it runs the clock, grader, tempo ladder, learner and coach. On Find any note it plays one round with the current settings, taking 0.6 to 3 s a note, with a wrong note now and then. The mic stays closed and the click is muted. To pick the page, add `-ff.page findNote`, `-ff.page boxes`, or `-ff.page arpeggios`.
 
 ## How it's put together
 
@@ -42,7 +43,7 @@ ios/
 ├── FretboardFreedom.xcodeproj      app target: iPad only, Swift 6, main-actor by default
 ├── FretboardFreedom/               the app (a synchronized folder: new files are picked up)
 │   ├── App/                        entry point, sidebar shell, ProgressStore
-│   ├── Practice/                   box practice: model, screen, cards
+│   ├── Practice/                   pentatonic box and arpeggio practice: model, screen, cards
 │   └── FindNote/                   find any note: model, screen, panels, the speed map's file
 └── Packages/FretboardKit/          the engine, one Swift package with five modules
     ├── MusicTheory                 ← web/js/theory.js + scales.js

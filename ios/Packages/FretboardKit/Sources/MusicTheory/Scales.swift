@@ -86,6 +86,19 @@ public enum ChordKind: String, Sendable, Codable, CaseIterable {
   case major = "maj", minor = "min", diminished = "dim"
   case dominant7 = "dom7", minor7 = "min7", major7 = "maj7", halfDiminished = "m7b5", diminished7 = "dim7"
 
+  public var name: String {
+    switch self {
+    case .major: "Major"
+    case .minor: "Minor"
+    case .diminished: "Diminished"
+    case .dominant7: "Dominant 7"
+    case .minor7: "Minor 7"
+    case .major7: "Major 7"
+    case .halfDiminished: "Half-diminished 7"
+    case .diminished7: "Diminished 7"
+    }
+  }
+
   public var symbol: String {
     switch self {
     case .major: ""
@@ -164,6 +177,12 @@ public enum Spelling {
   /// The key's name and its scale's note names, spelled the way the deck does.
   public static func key(_ root: Int, _ scale: ScaleKind) -> Theory.SpelledSet {
     Spelling.scale(root: root, scale, preferFlat: preferFlat(root, minor: scale.isMinor))
+  }
+
+  /// The chord's root and chord tones, using the degree labels to choose the letters.
+  public static func chord(root: Int, _ chord: ChordKind) -> Theory.SpelledSet {
+    Theory.spellSet(rootPC: root, steps: chord.steps, labels: chord.steps.map { Degrees.label($0, chord: chord) },
+                   preferFlat: preferFlat(root, minor: chord.steps.contains(3)))
   }
 
   /// A chord's tones named from its root's name (thirds stacked by letter): ("D", .dominant7) → D F♯ A C.
