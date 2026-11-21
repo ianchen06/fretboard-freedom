@@ -9,7 +9,7 @@ import SwiftUI
 
 /// The three panels side by side: grades, coach (widest), mic.
 struct Dashboard: View {
-  let model: BoxPracticeModel
+  let model: ShapePracticeModel
   let short: Bool
 
   var body: some View {
@@ -64,7 +64,7 @@ extension View {
 }
 
 struct StatsPanel: View {
-  let model: BoxPracticeModel
+  let model: ShapePracticeModel
   let short: Bool
 
   var body: some View {
@@ -124,7 +124,7 @@ struct Stat: View {
 }
 
 struct CoachPanel: View {
-  let model: BoxPracticeModel
+  let model: ShapePracticeModel
   let short: Bool
   @Environment(PracticeCoach.self) private var coach
 
@@ -306,6 +306,7 @@ extension GuitarAudioEngine.AudioInput {
 /// The exercise's how, why and cues, from the toolbar's info button.
 struct HowToPlay: View {
   let exercise: PracticeExercise?
+  let positionLabel: String
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -321,7 +322,7 @@ struct HowToPlay: View {
               systemImage: "waveform")
           .font(.footnote)
           .foregroundStyle(.secondary)
-        Label("Keys: Space start/stop · ← → box · K up a 4th · − = tempo", systemImage: "keyboard")
+        Label("Space starts or stops · ← → change \(positionLabel.lowercased()) · K goes up a 4th · − = change tempo", systemImage: "keyboard")
           .font(.footnote)
           .foregroundStyle(.secondary)
       }

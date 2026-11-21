@@ -224,16 +224,25 @@ public enum Shapes {
 
   /// Every scale note on one string between two frets.
   public static func oneString(root: Int, scale: ScaleKind, string s: Int, from: Int, to: Int, tuning: Tuning = .standard) -> [ShapeNote] {
-    let set = pcs(root, scale.steps)
-    let raw = (from...to).compactMap { f -> Raw? in
+    annotate(matchingNotes(pcs(root, scale.steps), on: s, frets: from...to, tuning: tuning), root: root, scale: scale)
+  }
+
+  private static func matchingNotes(_ pcs: Set<Int>, on s: Int, frets: ClosedRange<Int>, tuning: Tuning) -> [Raw] {
+    frets.compactMap { f in
       let m = tuning.open(s) + f
-      return set.contains(Theory.mod12(m)) ? Raw(string: s, fret: f, midi: m) : nil
+      return pcs.contains(Theory.mod12(m)) ? Raw(string: s, fret: f, midi: m) : nil
     }
-    return annotate(raw, root: root, scale: scale)
   }
 
   /// Every place of the scale on the whole neck (for the faded backdrop behind a shape).
   public static func wholeNeck(root: Int, scale: ScaleKind, tuning: Tuning = .standard, frets: ClosedRange<Int>) -> [ShapeNote] {
     lowToHigh.flatMap { oneString(root: root, scale: scale, string: $0, from: frets.lowerBound, to: frets.upperBound, tuning: tuning) }
+  }
+
+  /// Every place of the chord tones on the neck, including alternate fingerings of the same pitch.
+  public static func wholeNeck(root: Int, chord: ChordKind, tuning: Tuning = .standard, frets: ClosedRange<Int>) -> [ShapeNote] {
+    let set = pcs(root, chord.steps)
+    let raw = lowToHigh.flatMap { matchingNotes(set, on: $0, frets: frets, tuning: tuning) }
+    return annotate(raw, root: root, chord: chord)
   }
 }

@@ -292,6 +292,26 @@ console.log('names');
   check(ex.names[10] === 'B♭' && /^A Phrygian/.test(ex.title), `A Phrygian names its ♭2 B♭ (${ex.names[10]})`);
   const hm = G.buildExercise({ fam: 'pedal', s: 1, skill: 'pedal:1', scaleId: 'harmMinor', key: 2 });
   check(hm.names[1] === 'C♯' && hm.names[10] === 'B♭', 'D harmonic minor: B♭ and C♯');
+  // Arpeggios name the root so the chord stacks by letter: D♯° is D♯ F♯ A (E♭° would need B𝄫).
+  // The iPad app spells them the same way (ArpeggioDrillTests).
+  const arp = (key, chordId) => G.buildExercise({ fam: 'arp', key, chordId, k: 1, seq: 'straight', npb: 2, skill: `arp:${chordId}:1` });
+  const arpName = (key, chordId) => {
+    const e = arp(key, chordId);
+    return `${e.title.split(' ')[0]} ${S.CHORDS[chordId].steps.map((x) => e.names[T.mod12(key + x)]).join(' ')}`;
+  };
+  for (const [key, chordId, want] of [
+    [3, 'dim', 'D♯° D♯ F♯ A'], [3, 'm7b5', 'D♯m7♭5 D♯ F♯ A C♯'], [3, 'dim7', 'D♯°7 D♯ F♯ A C'], [10, 'dim7', 'A♯°7 A♯ C♯ E G'],
+    [10, 'dim', 'A♯° A♯ C♯ E'], [6, 'dom7', 'F♯7 F♯ A♯ C♯ E'], [10, 'min', 'B♭m B♭ D♭ F'], [3, 'maj', 'E♭ E♭ G B♭'], [6, 'maj', 'G♭ G♭ B♭ D♭'],
+  ]) check(arpName(key, chordId) === want, `arpeggio spelled ${want} (${arpName(key, chordId)})`);
+  // Where a chord tone can't stack by letter, the root's other spelling couldn't do better.
+  const offStack = (root, chordId) => S.CHORDS[chordId].steps.filter((x) => !T.spellAbove(root, x, T.letterSteps(S.degreeLabel(x, { chordId })))).length;
+  for (const chordId of Object.keys(S.CHORDS)) {
+    for (let key = 0; key < 12; key++) {
+      const full = arp(key, chordId).title.split(' ')[0];
+      const root = full.slice(0, full.length - S.CHORDS[chordId].sym.length);
+      check(offStack(root, chordId) === Math.min(...T.spellings(key).map((r) => offStack(r, chordId))), `${full}: fewest notes off the letter stack`);
+    }
+  }
   const one = (key, s) => G.buildExercise({ fam: 'onestring', s, skill: `onestring:${s}`, scaleId: 'minPent', seq: 'straight', key });
   check(/root to the root an octave up/.test(one(9, 6).how) && /root is at fret 10/.test(one(2, 6).how), 'one string: the text says where the line really runs');
 }

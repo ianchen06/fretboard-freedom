@@ -1,17 +1,16 @@
-// The app shell: every practice page of the web app in a sidebar. Box practice and Find any note
-// are built; the rest are listed with what they'll do, in the order they're planned. The app opens
-// on the page you had open last.
+// The practice sidebar. The app opens on the page you had open last.
 import FretboardUI
 import SwiftUI
 
 enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
-  case boxes, findNote, scales, licks, rhythm, session, songwriting
+  case boxes, arpeggios, findNote, scales, licks, rhythm, session, songwriting
 
   var id: String { rawValue }
 
   var title: String {
     switch self {
-    case .boxes: "Pentatonic boxes"
+    case .boxes: ShapePracticeMode.boxes.title
+    case .arpeggios: ShapePracticeMode.arpeggios.title
     case .findNote: "Find any note"
     case .scales: "Scales"
     case .licks: "Call & response"
@@ -24,6 +23,7 @@ enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
   var symbol: String {
     switch self {
     case .boxes: "square.grid.3x2.fill"
+    case .arpeggios: "music.note.list"
     case .findNote: "scope"
     case .scales: "point.3.connected.trianglepath.dotted"
     case .licks: "bubble.left.and.bubble.right.fill"
@@ -33,11 +33,12 @@ enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
     }
   }
 
-  var isReady: Bool { self == .boxes || self == .findNote }
+  var isReady: Bool { self == .boxes || self == .arpeggios || self == .findNote }
 
   var blurb: String {
     switch self {
     case .boxes: "The five boxes in any key, as sequences against the click. The mic checks every note."
+    case .arpeggios: "Play the tones of a chord in five positions across the neck."
     case .findNote: "One note everywhere and flash cards, with the 3-step hint method and a speed map."
     case .scales: "Any scale across the whole neck: CAGED shapes, routes up and down, and a band to jam with."
     case .licks: "The band plays a lick, you play it back. Every lick lands on a chord tone."
@@ -73,7 +74,8 @@ struct RootView: View {
       .navigationTitle("Fretboard Freedom")
     } detail: {
       switch page {
-      case .boxes: BoxPracticeScreen()
+      case .boxes: ShapePracticeScreen(mode: .boxes)
+      case .arpeggios: ShapePracticeScreen(mode: .arpeggios)
       case .findNote: FindNoteScreen()
       case let other: PlannedModuleView(module: other)
       }

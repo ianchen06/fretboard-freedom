@@ -1,4 +1,4 @@
-// Box practice: one shape as a sequence against the click. The mic (or a tap on the neck) feeds the
+// Shape practice: one shape as a sequence against the click. The mic (or a tap on the neck) feeds the
 // sequence grader, the grader feeds the tempo ladder, and the run's grade goes into the learner.
 // The same flow as "Learn a shape" on the web app's Scales page.
 import Coach
@@ -9,8 +9,25 @@ import MusicTheory
 import Observation
 import PracticeEngine
 
+enum ShapePracticeMode: String {
+  case boxes = "box"
+  case arpeggios = "arp"
+
+  var title: String { self == .boxes ? "Pentatonic boxes" : "Arpeggios" }
+  var positionLabel: String { self == .boxes ? "Box" : "Position" }
+  var positionSetting: String { self == .boxes ? "box.box" : "arp.position" }
+  var patterns: [SequencePattern] {
+    self == .boxes ? [.straight, .threes, .fours, .thirds] : [.straight, .threes]
+  }
+
+  func rhythms(for pattern: SequencePattern) -> [Int] {
+    guard self == .arpeggios else { return pattern.rhythms }
+    return pattern == .straight ? [2, 3, 4] : [3]
+  }
+}
+
 @Observable
-final class BoxPracticeModel {
+final class ShapePracticeModel {
   typealias Message = PracticeMessage
 
   struct Flash: Identifiable {
@@ -22,10 +39,11 @@ final class BoxPracticeModel {
 
   var key: Int { didSet { settingsChanged() } }
   var scale: ScaleKind { didSet { settingsChanged() } }
-  var box: Int { didSet { settingsChanged() } }
+  var chord: ChordKind { didSet { settingsChanged() } }
+  var position: Int { didSet { settingsChanged() } }
   var pattern: SequencePattern {
     didSet {
-      if !pattern.rhythms.contains(notesPerBeat) { notesPerBeat = pattern.notesPerBeat } else { settingsChanged() }
+      if !rhythms.contains(notesPerBeat) { notesPerBeat = pattern.notesPerBeat } else { settingsChanged() }
     }
   }
   var notesPerBeat: Int { didSet { settingsChanged() } }
@@ -54,6 +72,7 @@ final class BoxPracticeModel {
 
   @ObservationIgnored private var grader: SequenceGrader?
   @ObservationIgnored private var ladder: TempoLadder?
+  @ObservationIgnored private var startTask: Task<Void, Never>?
   /// Misses and wrong notes per target in this run, for the coach.
   @ObservationIgnored private var trouble: [Int: Int] = [:]
   @ObservationIgnored private var lastCoachAt: Date?
@@ -61,48 +80,66 @@ final class BoxPracticeModel {
   let audio: GuitarAudioEngine
   let progress: ProgressStore
   let coach: PracticeCoach
+  let mode: ShapePracticeMode
   let tuning = Tuning.standard
 
-  init(audio: GuitarAudioEngine, progress: ProgressStore, coach: PracticeCoach) {
+  init(mode: ShapePracticeMode, audio: GuitarAudioEngine, progress: ProgressStore, coach: PracticeCoach) {
+    self.mode = mode
     self.audio = audio
     self.progress = progress
     self.coach = coach
     let d = UserDefaults.standard
-    key = d.object(forKey: "box.key") as? Int ?? 9
+    let keySetting = "\(mode.rawValue).key"
+    key = d.object(forKey: keySetting) == nil ? 9 : Theory.mod12(d.integer(forKey: keySetting))
     scale = d.string(forKey: "box.scale").flatMap(ScaleKind.init) ?? .minorPentatonic
-    box = d.object(forKey: "box.box") as? Int ?? 1
-    let p = d.string(forKey: "box.pattern").flatMap(SequencePattern.init) ?? .straight
+    chord = d.string(forKey: "arp.chord").flatMap(ChordKind.init) ?? .dominant7
+    let savedPosition = d.integer(forKey: mode.positionSetting)
+    position = (1...5).contains(savedPosition) ? savedPosition : 1
+    let savedPattern = d.string(forKey: "\(mode.rawValue).pattern").flatMap(SequencePattern.init)
+    let p = savedPattern.flatMap { mode.patterns.contains($0) ? $0 : nil } ?? .straight
     pattern = p
-    notesPerBeat = d.object(forKey: "box.npb") as? Int ?? p.notesPerBeat
+    let savedRhythm = d.integer(forKey: "\(mode.rawValue).npb")
+    notesPerBeat = mode.rhythms(for: p).contains(savedRhythm) ? savedRhythm : p.notesPerBeat
     rebuild()
   }
 
   // MARK: Derived
 
-  var drill: ShapeDrill { ShapeDrill(key: key, scale: scale, box: box, pattern: pattern, notesPerBeat: notesPerBeat) }
-  var keyName: String { Spelling.key(key, scale).root }
-  var mastery: Double { progress.learner.mastery(drill.skill) }
-  var bestBPM: Int { max(progress.learner.best(drill.tempoKey), ladder?.cleanBPM ?? 0) }
+  var rhythms: [Int] { mode.rhythms(for: pattern) }
+  var keyName: String { name(of: key) }
+  var mastery: Double { exercise.map { progress.learner.mastery($0.skill) } ?? 0 }
+  var bestBPM: Int { max(exercise.map { progress.learner.best($0.tempoKey) } ?? 0, ladder?.cleanBPM ?? 0) }
   var frets: ClosedRange<Int> { 0...min(22, max(15, (exercise?.hi ?? 12) + 2)) }
   var window: ClosedRange<Int>? { exercise.map { $0.lo...$0.hi } }
   var nextNote: ShapeNote? { exercise.flatMap { pointer < $0.notes.count ? $0.notes[pointer] : nil } }
 
-  /// The 12 keys, spelled for this scale, in the order of the circle of 4ths from C.
+  /// All 12 roots, in the order of the circle of 4ths from C.
   var keys: [(pc: Int, name: String)] {
-    Theory.circleOfFourths.compactMap(Theory.pitchClass).map { ($0, Spelling.key($0, scale).root) }
+    Theory.circleOfFourths.compactMap(Theory.pitchClass).map { ($0, name(of: $0)) }
+  }
+
+  private func name(of root: Int) -> String {
+    switch mode {
+    case .boxes: Spelling.key(root, scale).root
+    case .arpeggios: Spelling.chord(root: root, chord).root
+    }
   }
 
   func label(for note: ShapeNote) -> String {
     noteNames ? (exercise?.name(note.midi) ?? Theory.noteName(note.midi)) : note.label
   }
 
-  /// What the fretboard draws: the scale faded behind the shape, the shape, the next note, flashes.
+  /// What the fretboard draws: nearby fingerings, the shape, the next note, and flashes.
   var dots: [FretDot] {
     guard let ex = exercise else { return [] }
     var out: [FretDot] = []
     let inShape = Set(ex.dots.map(\.position))
     if showWholeNeck {
-      out += Shapes.wholeNeck(root: key, scale: scale, tuning: tuning, frets: frets)
+      let neck = switch mode {
+      case .boxes: Shapes.wholeNeck(root: key, scale: scale, tuning: tuning, frets: frets)
+      case .arpeggios: Shapes.wholeNeck(root: key, chord: chord, tuning: tuning, frets: frets)
+      }
+      out += neck
         .filter { !inShape.contains($0.position) }
         .map { FretDot($0, style: .faded) }
     }
@@ -119,16 +156,19 @@ final class BoxPracticeModel {
   // MARK: Settings
 
   func upAFourth() { key = Theory.mod12(key + 5) }
-  func nextBox() { box = box % 5 + 1 }
-  func previousBox() { box = (box + 3) % 5 + 1 }
+  func nextPosition() { position = position % 5 + 1 }
+  func previousPosition() { position = (position + 3) % 5 + 1 }
 
   private func settingsChanged() {
     let d = UserDefaults.standard
-    d.set(key, forKey: "box.key")
-    d.set(scale.rawValue, forKey: "box.scale")
-    d.set(box, forKey: "box.box")
-    d.set(pattern.rawValue, forKey: "box.pattern")
-    d.set(notesPerBeat, forKey: "box.npb")
+    d.set(key, forKey: "\(mode.rawValue).key")
+    switch mode {
+    case .boxes: d.set(scale.rawValue, forKey: "box.scale")
+    case .arpeggios: d.set(chord.rawValue, forKey: "arp.chord")
+    }
+    d.set(position, forKey: mode.positionSetting)
+    d.set(pattern.rawValue, forKey: "\(mode.rawValue).pattern")
+    d.set(notesPerBeat, forKey: "\(mode.rawValue).npb")
     let wasRunning = isRunning
     if wasRunning { stop() }
     rebuild()
@@ -136,8 +176,13 @@ final class BoxPracticeModel {
   }
 
   private func rebuild() {
-    exercise = drill.build(tuning: tuning)
-    bpm = progress.learner.tempo(drill.tempoKey, notesPerBeat: Double(notesPerBeat))
+    switch mode {
+    case .boxes:
+      exercise = ShapeDrill(key: key, scale: scale, box: position, pattern: pattern, notesPerBeat: notesPerBeat).build(tuning: tuning)
+    case .arpeggios:
+      exercise = ArpeggioDrill(root: key, chord: chord, position: position, pattern: pattern, notesPerBeat: notesPerBeat).build(tuning: tuning)
+    }
+    bpm = exercise.map { progress.learner.tempo($0.tempoKey, notesPerBeat: $0.notesPerBeat) } ?? Tempo.startBPM(Double(notesPerBeat))
     resetRun()
     message = nil
     coach.clear()
@@ -150,10 +195,8 @@ final class BoxPracticeModel {
     trouble = [:]
     revealed = []
     lastTempoChange = nil
-    if let ex = exercise {
-      grader = SequenceGrader(ex)
-      cleanNeeded = grader!.cleanNeeded
-    }
+    grader = exercise.map { SequenceGrader($0) }
+    cleanNeeded = grader?.cleanNeeded ?? 3
     cleanStreak = 0
     ladder = TempoLadder(bpm: bpm, notesPerBeat: Double(notesPerBeat), automatic: autoTempo)
   }
@@ -167,10 +210,11 @@ final class BoxPracticeModel {
     resetRun()
     isRunning = true
     message = Message(kind: .info, title: "Count-in", detail: "Four clicks, then start on the first note.")
-    Task {
+    startTask = Task {
       if listen && audio.micState != .listening { await audio.startMic() }
+      guard !Task.isCancelled else { return }
       if !audio.isRunning { await audio.startOutput() }
-      guard isRunning else { return }
+      guard !Task.isCancelled else { return }
       startClock(countIn: true)
       coach.prewarm()
     }
@@ -179,6 +223,8 @@ final class BoxPracticeModel {
   func stop() {
     guard isRunning else { return }
     isRunning = false
+    startTask?.cancel()
+    startTask = nil
     audio.stopMetronome()
     musicStart = nil
     saveRun()
@@ -202,12 +248,12 @@ final class BoxPracticeModel {
 
   /// The run's grade and tempo go into the learner, as on the web app.
   private func saveRun() {
-    guard let grader, let ladder else { return }
+    guard let exercise, let grader, let ladder else { return }
     if let score = grader.score() {
-      progress.learner.update(drill.skill, score: score, today: .today)
+      progress.learner.update(exercise.skill, score: score, today: .today)
     }
     if !grader.passes.isEmpty || ladder.cleanBPM > 0 {
-      progress.learner.saveTempo(drill.tempoKey, bpm: ladder.bpm, cleanBPM: ladder.cleanBPM, struggled: ladder.struggled)
+      progress.learner.saveTempo(exercise.tempoKey, bpm: ladder.bpm, cleanBPM: ladder.cleanBPM, struggled: ladder.struggled)
     }
     progress.save()
   }
@@ -365,7 +411,11 @@ final class BoxPracticeModel {
   private func noteLabel(_ midi: Int) -> String { exercise?.name(midi) ?? Theory.noteName(midi) }
 
   private func role(_ midi: Int) -> DegreeRole {
-    Degrees.scaleRole(Theory.mod12(midi - key), scale: scale)
+    let interval = Theory.mod12(midi - key)
+    return switch mode {
+    case .boxes: Degrees.scaleRole(interval, scale: scale)
+    case .arpeggios: Degrees.chordRole(interval)
+    }
   }
 
   /// The mic hears pitch, not strings: show a note at the place nearest where the hand is.

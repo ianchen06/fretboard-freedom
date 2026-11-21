@@ -1,0 +1,8 @@
+{
+  "appId": "app.fretboardfreedom.webpractice",
+  "appName": "Fretboard Freedom",
+  "webDir": "www",
+  "ios": {
+    "backgroundColor": "#17171b"
+  }
+}

@@ -159,6 +159,7 @@ public final class PracticeCoach {
   /// Whether the current tip came from the model.
   public private(set) var tipFromModel = false
   public private(set) var isThinking = false
+  @ObservationIgnored private var tipRevision = 0
 
   static let instructions = """
     You are a patient guitar teacher standing next to the player. Between passes of a practice drill \
@@ -192,11 +193,16 @@ public final class PracticeCoach {
     LanguageModelSession(instructions: Self.instructions).prewarm()
   }
 
-  public func clear() { tip = nil }
+  public func clear() {
+    tipRevision += 1
+    tip = nil
+  }
 
   /// A tip for the next pass. The rules' tip shows at once; the model's replaces it when it's ready.
   /// If the model is unavailable or fails, the rules' tip stays.
   public func reflect(on report: PracticeReport) async {
+    tipRevision += 1
+    let revision = tipRevision
     tip = RuleCoach.tip(for: report)
     tipFromModel = false
     guard status == .onDevice, !isThinking else { return }
@@ -221,6 +227,7 @@ public final class PracticeCoach {
         group.cancelAll()
         return first
       }
+      guard revision == tipRevision else { return }
       guard let answer else {
         log.error("Coach model timed out")
         return

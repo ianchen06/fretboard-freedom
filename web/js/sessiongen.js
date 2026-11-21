@@ -713,6 +713,7 @@
   const ARP_WHY = {
     min: 'R-♭3-5: the minor triad. These three notes are home base inside every minor pentatonic box.',
     maj: 'R-3-5: the major triad. Find the 3rd (amber) and you can make any box sound major.',
+    dim: 'The ♭5 is a half step below the fifth of a minor chord. Listen to how that one change adds tension.',
     dom7: 'R-3-5-♭7: the blues chord. Over a 12-bar, these are the notes that make you sound like you know the changes.',
     min7: 'R-♭3-5-♭7: the minor pentatonic minus the 4. Smooth, soulful minor lines.',
     maj7: 'R-3-5-7: the dreamy major sound; the 7 is a half step below the root.',
@@ -744,18 +745,16 @@
       const sh = S.arpeggio(d.key, d.chordId, d.k, { tuning, maxFret });
       if (!sh || sh.notes.length < 5) return null;
       const notes = seqIndices(sh.notes.length, d.seq).map((i) => sh.notes[i]);
-      const minorish = ['min', 'min7', 'm7b5', 'dim7', 'dim'].includes(d.chordId);
-      const flat = preferFlat(d.key, minorish);
       const ch = S.CHORDS[d.chordId];
+      const sp = S.spellChordOn(d.key, d.chordId, preferFlat(d.key, ch.steps.includes(3)));
+      const name = sp.root + ch.sym;
       const formula = [...new Set(ch.steps.map((x) => S.degreeLabel(x, { chordId: d.chordId })))].join('-');
-      const names = {};
-      S.spellChord(nameOf(d.key, flat), d.chordId).forEach((nm, i) => { names[mod12(d.key + ch.steps[i])] = nm; });
       return base({
-        title: `${S.chordName(d.key, d.chordId, flat)} arpeggio · position ${d.k}`,
-        chips: [['Chord', `${S.chordName(d.key, d.chordId, flat)} (${formula})`], ['Frets', `${sh.lo}–${sh.hi}`], ['Pattern', SEQS[d.seq].name], ['Rhythm', RHYTHM[d.npb]]],
-        how: `Only the chord tones (${formula}), up and down. Where two notes sit at the same fret on neighbouring strings, roll the fingertip across instead of lifting it.${d.npb === 3 ? ' Triplets: let the pick fall through the strings on the way up.' : ''}`,
+        title: `${name} arpeggio · position ${d.k}`,
+        chips: [['Chord', `${name} (${formula})`], ['Frets', `${sh.lo}–${sh.hi}`], ['Pattern', SEQS[d.seq].name], ['Rhythm', RHYTHM[d.npb]]],
+        how: `${SEQ_HOW[d.seq]} When successive notes sit at the same fret on neighbouring strings, roll your fingertip across. Mute each note as you leave it.`,
         why: ARP_WHY[d.chordId],
-        notes, dots: uniqueDots(sh.notes), npb: d.npb, keyPc: d.key, flat, names,
+        notes, dots: uniqueDots(sh.notes), npb: d.npb, keyPc: d.key, flat: sp.flat, names: sp.byPc,
         allowed: ch.steps.map((x) => mod12(d.key + x)),
         tempoKey: `${d.skill}:${d.seq}:${d.npb}`, cues: ['Mute each note as you leave it: arpeggios shouldn’t ring like a chord.', CUES[3], CUES[0]],
       });

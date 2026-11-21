@@ -1,4 +1,4 @@
-// The box practice screen, laid out for an iPad in landscape so everything stays in view while
+// The shape practice screen, laid out for an iPad in landscape so everything stays in view while
 // both hands are on the guitar: the exercise and the transport on top, the neck as big as the
 // screen allows, the tab, and one strip with the grades, the coach and the mic. In a window too
 // small for that (Stage Manager), the same pieces stack and scroll.
@@ -9,22 +9,23 @@ import MusicTheory
 import PracticeEngine
 import SwiftUI
 
-struct BoxPracticeScreen: View {
+struct ShapePracticeScreen: View {
+  let mode: ShapePracticeMode
   @Environment(GuitarAudioEngine.self) private var audio
   @Environment(ProgressStore.self) private var progress
   @Environment(PracticeCoach.self) private var coach
-  @State private var model: BoxPracticeModel?
+  @State private var model: ShapePracticeModel?
 
   var body: some View {
     Group {
       if let model {
-        BoxPracticeView(model: model)
+        ShapePracticeView(model: model)
       } else {
         Palette.background
       }
     }
     .onAppear {
-      let m = model ?? BoxPracticeModel(audio: audio, progress: progress, coach: coach)
+      let m = model ?? ShapePracticeModel(mode: mode, audio: audio, progress: progress, coach: coach)
       model = m
       audio.setNoteHandler(owner: m) { [weak m] e in m?.heard(e) }
       #if DEBUG
@@ -38,8 +39,8 @@ struct BoxPracticeScreen: View {
   }
 }
 
-struct BoxPracticeView: View {
-  @Bindable var model: BoxPracticeModel
+struct ShapePracticeView: View {
+  @Bindable var model: ShapePracticeModel
   @State private var showHow = false
 
   var body: some View {
@@ -51,7 +52,7 @@ struct BoxPracticeView: View {
       }
     }
     .background(Palette.background)
-    .navigationTitle("Pentatonic boxes")
+    .navigationTitle(model.mode.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { toolbar }
   }
@@ -113,7 +114,9 @@ struct BoxPracticeView: View {
             .lineLimit(1)
         }
       }
-      MessageLine(message: model.message)
+      MessageLine(message: model.message, placeholder: model.mode == .boxes
+                  ? "Pick a box and press Start, or tap the notes on the neck."
+                  : "Pick a chord and position, then press Start or tap the notes on the neck.")
     }
   }
 
@@ -123,60 +126,69 @@ struct BoxPracticeView: View {
     GlassEffectContainer(spacing: 12) {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: 12) {
-          scaleMenu(titled: true)
+          shapeMenu(titled: true)
           keyControl(titled: true)
-          boxPicker(width: 240)
+          positionPicker(width: 240)
           patternMenu(titled: true)
           Spacer(minLength: 0)
         }
         HStack(spacing: 10) {
-          scaleMenu(titled: false)
+          shapeMenu(titled: false)
           keyControl(titled: false)
-          boxPicker(width: 200)
+          positionPicker(width: 200)
           patternMenu(titled: false)
           Spacer(minLength: 0)
         }
         VStack(alignment: .leading, spacing: 10) {
           HStack(spacing: 10) {
-            scaleMenu(titled: false)
+            shapeMenu(titled: false)
             keyControl(titled: false)
             patternMenu(titled: false)
           }
-          boxPicker(width: 200)
+          positionPicker(width: 200)
         }
         // A narrow window: nothing may be wider than the window, or the whole page clips.
         VStack(alignment: .leading, spacing: 10) {
           HStack(spacing: 10) {
-            scaleMenu(titled: false)
+            shapeMenu(titled: false)
             keyControl(titled: false)
           }
           patternMenu(titled: false)
-          boxPicker(width: 200)
+          positionPicker(width: 200)
         }
       }
     }
   }
 
-  func scaleMenu(titled: Bool) -> some View {
-    Menu {
-      Picker("Scale", selection: $model.scale) {
-        ForEach([ScaleKind.minorPentatonic, .majorPentatonic, .blues]) { Text($0.name).tag($0) }
+  func shapeMenu(titled: Bool) -> some View {
+    let title = model.mode == .boxes ? "Scale" : "Chord"
+    return Menu {
+      switch model.mode {
+      case .boxes:
+        Picker("Scale", selection: $model.scale) {
+          ForEach([ScaleKind.minorPentatonic, .majorPentatonic, .blues]) { Text($0.name).tag($0) }
+        }
+      case .arpeggios:
+        Picker("Chord", selection: $model.chord) {
+          ForEach(ChordKind.allCases, id: \.self) { Text($0.name).tag($0) }
+        }
       }
     } label: {
-      ControlLabel(title: titled ? "Scale" : nil, value: model.scale.name)
+      ControlLabel(title: titled ? title : nil, value: model.mode == .boxes ? model.scale.name : model.chord.name)
     }
     .glassEffect(.regular.interactive(), in: .capsule)
     .fixedSize()
   }
 
   func keyControl(titled: Bool) -> some View {
-    HStack(spacing: 4) {
+    let title = model.mode == .boxes ? "Key" : "Root"
+    return HStack(spacing: 4) {
       Menu {
-        Picker("Key", selection: $model.key) {
+        Picker(title, selection: $model.key) {
           ForEach(model.keys, id: \.pc) { Text($0.name).tag($0.pc) }
         }
       } label: {
-        ControlLabel(title: titled ? "Key" : nil, value: model.keyName)
+        ControlLabel(title: titled ? title : nil, value: model.keyName)
       }
       Button("Up a 4th", systemImage: "arrow.trianglehead.clockwise") { model.upAFourth() }
         .labelStyle(.iconOnly)
@@ -188,10 +200,10 @@ struct BoxPracticeView: View {
     .fixedSize()
   }
 
-  func boxPicker(width: CGFloat) -> some View {
+  func positionPicker(width: CGFloat) -> some View {
     HStack(spacing: 10) {
-      Text("Box").font(.subheadline).foregroundStyle(Palette.faint)
-      Picker("Box", selection: $model.box) {
+      Text(model.mode.positionLabel).font(.subheadline).foregroundStyle(Palette.faint)
+      Picker(model.mode.positionLabel, selection: $model.position) {
         ForEach(1...5, id: \.self) { Text("\($0)").tag($0) }
       }
       .pickerStyle(.segmented)
@@ -203,10 +215,10 @@ struct BoxPracticeView: View {
   func patternMenu(titled: Bool) -> some View {
     Menu {
       Picker("Pattern", selection: $model.pattern) {
-        ForEach(SequencePattern.allCases.filter { $0 != .sixes }) { Text($0.name.capitalizedFirst).tag($0) }
+        ForEach(model.mode.patterns) { Text($0.name.capitalizedFirst).tag($0) }
       }
       Picker("Rhythm", selection: $model.notesPerBeat) {
-        ForEach(model.pattern.rhythms, id: \.self) { Text(Tempo.rhythmName(Double($0)).capitalizedFirst).tag($0) }
+        ForEach(model.rhythms, id: \.self) { Text(Tempo.rhythmName(Double($0)).capitalizedFirst).tag($0) }
       }
     } label: {
       ControlLabel(title: titled ? "Pattern" : nil,
@@ -226,7 +238,7 @@ struct BoxPracticeView: View {
     .padding(.horizontal, 14)
     .padding(.vertical, 10)
     .background(Palette.card, in: .rect(cornerRadius: 22))
-    .animation(.snappy(duration: 0.2), value: model.box)
+    .animation(.snappy(duration: 0.2), value: model.position)
   }
 
   func tab(rowHeight: CGFloat) -> some View {
@@ -241,12 +253,12 @@ struct BoxPracticeView: View {
 
   @ToolbarContentBuilder var toolbar: some ToolbarContent {
     ToolbarItemGroup(placement: .primaryAction) {
-      Button("Previous box", systemImage: "chevron.left") { model.previousBox() }
+      Button("Previous \(model.mode.positionLabel.lowercased())", systemImage: "chevron.left") { model.previousPosition() }
         .keyboardShortcut(.leftArrow, modifiers: [])
-      Button("Next box", systemImage: "chevron.right") { model.nextBox() }
+      Button("Next \(model.mode.positionLabel.lowercased())", systemImage: "chevron.right") { model.nextPosition() }
         .keyboardShortcut(.rightArrow, modifiers: [])
       Button("How to play it", systemImage: "info.circle") { showHow.toggle() }
-        .popover(isPresented: $showHow) { HowToPlay(exercise: model.exercise) }
+        .popover(isPresented: $showHow) { HowToPlay(exercise: model.exercise, positionLabel: model.mode.positionLabel) }
       Menu("View", systemImage: "slider.horizontal.3") {
         Toggle("Whole neck", isOn: $model.showWholeNeck)
         Toggle("Note names instead of degrees", isOn: $model.noteNames)
@@ -279,7 +291,7 @@ struct ControlLabel: View {
 }
 
 struct Transport: View {
-  @Bindable var model: BoxPracticeModel
+  @Bindable var model: ShapePracticeModel
 
   var body: some View {
     GlassEffectContainer(spacing: 10) {
@@ -322,7 +334,7 @@ struct Transport: View {
 
 /// Four lights for the beats of the bar; the count-in counts down.
 struct BeatLights: View {
-  let model: BoxPracticeModel
+  let model: ShapePracticeModel
   @Environment(GuitarAudioEngine.self) private var audio
 
   var body: some View {
@@ -366,7 +378,7 @@ struct PracticeMessage: Equatable {
 
 struct MessageLine: View {
   let message: PracticeMessage?
-  var placeholder = "Pick a box and press Start, or tap the notes on the neck."
+  let placeholder: String
   var lineLimit = 2
   /// Keep the room for every line, so the layout doesn't move as messages come and go.
   var reservesSpace = false
@@ -427,7 +439,7 @@ extension Tempo {
 }
 
 #Preview("Box practice", traits: .landscapeLeft) {
-  NavigationStack { BoxPracticeScreen() }
+  NavigationStack { ShapePracticeScreen(mode: .boxes) }
     .environment(GuitarAudioEngine())
     .environment(ProgressStore())
     .environment(PracticeCoach())

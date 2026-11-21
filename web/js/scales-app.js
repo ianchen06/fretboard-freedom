@@ -1,6 +1,7 @@
 // UI controller for the Scales page. Pick a genre, a key, a scale and a shape system, and see every
 // shape of it on the whole neck (the CAGED strip, the chord grip each shape is built around). Then:
 // - Learn a shape: one position in sequences (up & down, 3s, 4s, 3rds, 6s), graded note by note.
+// - Arpeggios: the tones of a chord in five positions, graded by the same sequence engine.
 // - Up & down the neck: shape ladders, diagonal runs and one-string runs that travel the neck.
 // - Play along: a band (or a drone) in your key. Every note you play lights up on the neck and is
 //   checked against the scale and the chord; the shape can move up and down the neck every few bars.
@@ -39,6 +40,7 @@
   const DEFAULTS = {
     genre: 'blues', key: 9, scaleId: 'minPent', system: 'caged', labels: 'deg', mode: 'shape',
     k: 1, alt: 0, seq: 'straight', route: 'ladder', span: 2, string: 6,
+    arpRoot: 9, chordId: 'dom7', arpPosition: 1, arpPattern: 'straight', arpRhythm: 2,
     backing: 'blues12', move: 'free', jamBpm: {},
     clickOn: true, guide: false, drone: false, hide: false, autoTempo: true, whole: true, grip: true,
     click: 70, back: 60, guideVol: 55,
@@ -46,6 +48,12 @@
   const settings = { ...DEFAULTS, ...store.get('ff.scales', {}) };
   if (!S.SCALES[settings.scaleId]) settings.scaleId = 'minPent';
   if (!N.GENRES[settings.genre]) settings.genre = 'blues';
+  if (!['shape', 'arp', 'neck', 'jam'].includes(settings.mode)) settings.mode = DEFAULTS.mode;
+  if (!Object.hasOwn(S.CHORDS, settings.chordId)) settings.chordId = DEFAULTS.chordId;
+  if (!Number.isInteger(settings.arpRoot) || settings.arpRoot < 0 || settings.arpRoot > 11) settings.arpRoot = DEFAULTS.arpRoot;
+  if (![1, 2, 3, 4, 5].includes(settings.arpPosition)) settings.arpPosition = DEFAULTS.arpPosition;
+  if (!['straight', 'threes'].includes(settings.arpPattern)) settings.arpPattern = DEFAULTS.arpPattern;
+  if (![2, 3, 4].includes(settings.arpRhythm)) settings.arpRhythm = DEFAULTS.arpRhythm;
   const save = () => store.set('ff.scales', settings);
 
   // The Daily session's skill model and day log: read, change, write back, so an open Session tab
@@ -151,7 +159,10 @@
 
   const MODES = ['dorian', 'mixolydian', 'phrygian', 'lydian', 'phrygDom'];
   const scaleName = (id) => (MODES.includes(id) ? S.SCALES[id].name : S.SCALES[id].name.toLowerCase());
-  const keyLabel = () => `${V.root} ${scaleName(V.scaleId)}`;
+  const keyLabel = () => V.chordId ? V.root + S.CHORDS[V.chordId].sym : `${V.root} ${scaleName(V.scaleId)}`;
+  const keySetting = () => settings.mode === 'arp' ? 'arpRoot' : 'key';
+  // The chord spelled by letter, its root named to need the fewest accidentals (D♯°, not E♭°).
+  const spellArp = (root, chordId) => S.spellChordOn(root, chordId, G.preferFlat(root, S.CHORDS[chordId].steps.includes(3)));
   // A note of the scale takes its name in the scale (B♭ in A Phrygian); anything else follows the key.
   const noteName = (midi) => (V && V.names[T.mod12(Math.round(midi))]) || T.noteName(midi, V ? V.flat : false);
   const uniq = (notes) => {
@@ -161,6 +172,7 @@
   };
 
   function compute() {
+    if (settings.mode === 'arp') { computeArpeggio(); return; }
     const scaleId = settings.scaleId;
     const sys = settings.system === 'nps3' && N.hasNps(scaleId) ? 'nps3' : 'caged';
     const K = sys === 'nps3' ? S.SCALES[scaleId].steps.length : 5;
@@ -171,9 +183,31 @@
     const shapes = N.shapeList(keyPc, scaleId, sys);
     const shape = N.findShape(shapes, settings.k, settings.alt);
     V = { keyPc, minor, flat: sp.flat, root: sp.root, names: sp.byPc, scaleNames: sp.names, sys, K, scaleId, shapes, shape, neck: N.neckNotes(keyPc, scaleId) };
+    V.allowed = S.pcsOf(keyPc, S.SCALES[scaleId].steps);
     V.ex = settings.mode === 'shape' ? shapeDrill() : settings.mode === 'neck' ? neckDrill() : null;
     V.tempo = V.ex ? loadLearner().tempo(V.ex.tempoKey, V.ex.npb) : jamBpm();
     V.seg = 0;
+  }
+
+  function computeArpeggio() {
+    const { arpRoot: keyPc, chordId, arpPosition: k, arpPattern: seq, arpRhythm } = settings;
+    const npb = seq === 'threes' ? 3 : arpRhythm;
+    const sp = spellArp(keyPc, chordId);
+    const shapes = [];
+    for (let pos = 1; pos <= 5; pos++) {
+      const p = S.arpeggio(keyPc, chordId, pos, { tuning, maxFret: MAXF });
+      if (p) shapes.push({ ...p, k: pos });
+    }
+    shapes.sort((a, b) => a.lo - b.lo || a.hi - b.hi || a.k - b.k);
+    shapes.forEach((p, idx) => { p.idx = idx; });
+    const shape = shapes.find((p) => p.k === k);
+    const ex = G.buildExercise({ fam: 'arp', key: keyPc, chordId, k, seq, npb, skill: `arp:${chordId}:${k}` }, { tuning, maxFret: MAXF });
+    if (ex) ex.kicker = 'Arpeggios';
+    V = {
+      keyPc, root: sp.root, flat: sp.flat, chordId, shapes, shape, ex, seg: 0,
+      names: sp.byPc, chordNames: sp.names, allowed: S.pcsOf(keyPc, S.CHORDS[chordId].steps), neck: N.chordNotes(keyPc, chordId),
+      tempo: ex ? loadLearner().tempo(ex.tempoKey, npb) : G.START_BPM[npb],
+    };
   }
 
   function gripFor(p) {
@@ -293,11 +327,13 @@
   let standMicTried = false;
   async function start() {
     if (run) return;
+    const view = V;
     await ensureAudio();
     if (stand && stand.on && !engine.micOn && !standMicTried) {
       standMicTried = true;
       try { await mic.enable(); } catch { /* the Hearing strip says why */ }
     }
+    if (run || view !== V) return;
     if (settings.mode === 'jam') { await startJam(); return; }
     if (!V.ex) return;
     const ex = { ...V.ex, hidden: settings.hide };
@@ -430,7 +466,10 @@
         if (r.ex.skill && score != null) L.update(r.ex.skill, score, todayStr());
         if (g.passes.length) L.saveTempo(r.ex.tempoKey, { bpm: r.bpm, cleanBpm: r.cleanBpm, struggled: r.struggled && !r.cleanBpm });
       });
-      if (score != null) logDay(0, { key: `scales:${r.ex.tempoKey}`, value: { title: `Scales · ${r.ex.title}`, block: 'scales', skill: r.ex.skill || null, score: Math.round(score * 100) / 100, bpm: r.bpm } });
+      if (score != null) {
+        const arp = r.ex.fam === 'arp';
+        logDay(0, { key: `scales:${r.ex.tempoKey}`, value: { title: arp ? r.ex.title : `Scales · ${r.ex.title}`, block: arp ? 'arps' : 'scales', skill: r.ex.skill || null, score: Math.round(score * 100) / 100, bpm: r.bpm } });
+      }
       V.tempo = loadLearner().tempo(V.ex.tempoKey, V.ex.npb);
       const off = r.offString ? ` ${r.offString} note${r.offString > 1 ? 's' : ''} sounded like another string than the shape’s.` : '';
       if (score != null) say('ok', 'Saved', `${pct(score)} on this one${r.cleanBpm ? `, clean at ${r.cleanBpm} bpm` : ''}.${off} ${r.ex.skill ? 'It counts in the Daily session’s skill map.' : ''}`);
@@ -494,7 +533,7 @@
     if (run && run.kind === 'jam') { jamRefine(id, feat); return; }
     if (!run && idleTracker.refine) {
       const moved = idleTracker.refine(id, feat);
-      if (moved) flashLive(moved, idleNotes.get(id), S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(idleNotes.get(id))));
+      if (moved) flashLive(moved, idleNotes.get(id), V.allowed.has(mod12(idleNotes.get(id))));
     }
   });
 
@@ -507,7 +546,7 @@
     const win = settings.mode === 'jam' && settings.move === 'free' ? null : V.shape;
     const place = at || idleTracker.place(midi, win, id);
     if (id != null) { idleNotes.set(id, midi); if (idleNotes.size > 16) idleNotes.delete(idleNotes.keys().next().value); }
-    if (place) flashLive(place, midi, S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(midi)));
+    if (place) flashLive(place, midi, V.allowed.has(mod12(midi)));
   }
   let idleTracker = newLocator();
   const idleNotes = new Map();
@@ -739,7 +778,26 @@
   }
 
   const KEY_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const chordSelect = $('chordSelect');
+  chordSelect.replaceChildren(...Object.entries(S.CHORDS).map(([id, { name }]) =>
+    new Option(name[0].toUpperCase() + name.slice(1), id)));
+
   function renderSetup() {
+    const arp = settings.mode === 'arp';
+    for (const id of ['genreField', 'keyHint', 'scaleField', 'systemField', 'scaleHelp']) $(id).hidden = arp;
+    $('chordField').hidden = !arp;
+    $('setupCard').setAttribute('aria-label', arp ? 'Root and chord' : 'Key and scale');
+    $('keyLabel').textContent = arp ? 'Root' : 'Key';
+    $('keySeg').setAttribute('aria-label', arp ? 'Root' : 'Key');
+    syncSeg($('labelSeg'), settings.labels);
+    if (arp) {
+      chordSelect.value = settings.chordId;
+      segButtons($('keySeg'), KEY_ORDER.map((pc) => [pc, esc(spellArp(pc, V.chordId).root)]), V.keyPc);
+      const names = V.chordNames;
+      const degrees = S.CHORDS[V.chordId].steps.map((x) => S.degreeLabel(x, { chordId: V.chordId }));
+      $('scaleWhy').innerHTML = `<b>${esc(keyLabel())}</b> · ${esc(names.join(' '))} <span class="fine">(${esc(degrees.join(' '))})</span>`;
+      return;
+    }
     const genre = N.GENRES[settings.genre];
     segButtons($('genreSeg'), Object.entries(N.GENRES).map(([id, g]) => [id, esc(g.name)]), settings.genre);
     segButtons($('keySeg'), KEY_ORDER.map((pc) => {
@@ -753,7 +811,6 @@
     const npsBtn = $('systemSeg').querySelector('[data-value="nps3"]');
     npsBtn.disabled = !N.hasNps(V.scaleId);
     npsBtn.title = N.hasNps(V.scaleId) ? 'Seven patterns with three notes on every string: the shred and metal fingering' : 'For 7-note scales (a pentatonic with 3 notes per string runs diagonally: see Up & down the neck)';
-    syncSeg($('labelSeg'), settings.labels);
     const sc = S.SCALES[V.scaleId];
     const names = V.scaleNames;
     const degs = sc.steps.map((x) => S.degreeLabel(x, { scaleId: V.scaleId }));
@@ -761,15 +818,20 @@
   }
 
   function renderNeckHead() {
-    $('neckTitle').textContent = `${keyLabel()} across the neck`;
+    const arp = settings.mode === 'arp';
+    $('neckTitle').textContent = arp ? `${keyLabel()} chord tones` : `${keyLabel()} across the neck`;
     const p = currentShape();
     const g = p ? gripFor(p) : null;
-    $('neckSub').textContent = p ? `${N.shapeLabel(p)} · ${N.shapeNumber(p, V.scaleId)} · frets ${p.lo}–${p.hi}` : '';
+    $('neckSub').textContent = p ? `${positionLabel(p)} · frets ${p.lo}–${p.hi}` : '';
     $('neckFoot').textContent = g && settings.grip ? `Ringed: the ${gripText(g)}.` : 'Click a shape above the neck to pick it. No guitar handy? Click the fretboard.';
     $('wholeBtn').setAttribute('aria-pressed', String(settings.whole));
     $('gripBtn').setAttribute('aria-pressed', String(settings.grip));
     $('gripBtn').hidden = V.sys !== 'caged';
+    $('gripLegend').hidden = $('gripBtn').hidden;
+    $('flavorLegend').hidden = arp;
   }
+
+  const positionLabel = (p) => V.chordId ? `Position ${p.k}` : `${N.shapeLabel(p)} · ${N.shapeNumber(p, V.scaleId)}`;
 
   // The shape the neck is about right now: the ladder segment you're in, the moving shape, or the one picked.
   function currentShape() {
@@ -798,6 +860,7 @@
     card.dataset.state = run ? 'run' : 'ready';
     $('modeTabs').querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.value === mode)));
     $('shapeOpts').hidden = mode !== 'shape';
+    $('arpOpts').hidden = mode !== 'arp';
     $('neckOpts').hidden = mode !== 'neck';
     $('jamOpts').hidden = mode !== 'jam';
     $('jamChord').hidden = mode !== 'jam';
@@ -813,6 +876,12 @@
     if (mode === 'shape') {
       shapeButtons($('shapeSeg'), settings.k);
       syncSeg($('seqSeg'), V.ex ? V.ex.seqId : settings.seq);
+    } else if (mode === 'arp') {
+      const positions = [...V.shapes].sort((a, b) => a.k - b.k);
+      segButtons($('arpPositionSeg'), positions.map((p) => [p.k, p.k, `Position ${p.k} · frets ${p.lo}–${p.hi}`]), settings.arpPosition);
+      syncSeg($('arpPatternSeg'), settings.arpPattern);
+      $('arpRhythmRow').hidden = settings.arpPattern === 'threes';
+      syncSeg($('arpRhythmSeg'), settings.arpRhythm);
     } else if (mode === 'neck') {
       syncSeg($('routeSeg'), settings.route);
       syncSeg($('spanSeg'), settings.span);
@@ -860,7 +929,7 @@
       $('exChips').innerHTML = V.ex.chips.map(([k, v]) => `<span class="ex-chip">${esc(k)}<b>${esc(v)}</b></span>`).join('');
       $('exHow').textContent = V.ex.how;
     } else {
-      $('exKicker').textContent = mode === 'shape' ? 'Learn a shape' : 'Up & down the neck';
+      $('exKicker').textContent = { shape: 'Learn a shape', neck: 'Up & down the neck', arp: 'Arpeggios' }[mode];
       $('exTitle').textContent = 'That doesn’t fit on the neck';
       $('exChips').innerHTML = '';
       $('exHow').textContent = 'Pick another shape, string or key.';
@@ -912,12 +981,12 @@
       if (used && used[p.idx]) cls.push('used');
       const style = used && used[p.idx] ? ` style="--use:${(used[p.idx] / max).toFixed(2)}"` : '';
       const big = p.letter || String(p.k);
-      const small = p.letter ? String(p.k) : S.degreeLabel(S.SCALES[V.scaleId].steps[p.k - 1], { scaleId: V.scaleId });
+      const small = V.chordId ? '' : p.letter ? String(p.k) : S.degreeLabel(S.SCALES[V.scaleId].steps[p.k - 1], { scaleId: V.scaleId });
       const cx = (x1 + x2) / 2;
-      const title = `${N.shapeLabel(p)} · ${N.shapeNumber(p, V.scaleId)} · frets ${p.lo}–${p.hi}`;
+      const title = `${positionLabel(p)} · frets ${p.lo}–${p.hi}`;
       return `<g class="${cls.join(' ')}" data-idx="${p.idx}" tabindex="0" role="button" aria-label="${esc(title)}"${style}><title>${esc(title)}</title>`
         + `<rect x="${x1.toFixed(1)}" y="${y}" width="${Math.max(10, x2 - x1).toFixed(1)}" height="${rowH}" rx="7"/>`
-        + `<text x="${(cx - 4).toFixed(1)}" y="${y + 18}" text-anchor="middle">${esc(big)}</text>`
+        + `<text x="${(small ? cx - 4 : cx).toFixed(1)}" y="${y + 18}" text-anchor="middle">${esc(big)}</text>`
         + `<text class="cs-num" x="${(cx + 8).toFixed(1)}" y="${y + 18}" text-anchor="start">${esc(small)}</text></g>`;
     }).join('');
   }
@@ -1099,10 +1168,15 @@
   $('keySeg').addEventListener('click', (e) => {
     const v = segValue(e);
     if (v == null) return;
-    settings.key = Number(v);
+    settings[keySetting()] = Number(v);
     rebuild();
   });
-  $('up4Btn').addEventListener('click', () => { settings.key = mod12(settings.key + 5); rebuild(); });
+  $('up4Btn').addEventListener('click', () => {
+    const key = keySetting();
+    settings[key] = mod12(settings[key] + 5);
+    rebuild();
+  });
+  chordSelect.addEventListener('change', (e) => { settings.chordId = e.target.value; rebuild(); });
   $('scaleSelect').addEventListener('change', (e) => {
     settings.scaleId = e.target.value;
     const b = N.backingById(settings.backing);
@@ -1130,8 +1204,11 @@
 
   function pickShape(p) {
     if (!p) return;
-    settings.k = p.k;
-    settings.alt = p.alt;
+    if (settings.mode === 'arp') settings.arpPosition = p.k;
+    else {
+      settings.k = p.k;
+      settings.alt = p.alt;
+    }
     rebuild();
   }
   $('strip').addEventListener('click', (e) => {
@@ -1159,10 +1236,14 @@
   $('modeTabs').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-value]');
     if (!b || b.dataset.value === settings.mode) return;
+    if (run) stop();
     settings.mode = b.dataset.value;
     rebuild();
   });
-  for (const [id, key, num] of [['seqSeg', 'seq'], ['routeSeg', 'route'], ['spanSeg', 'span', true], ['stringSeg', 'string', true], ['moveSeg', 'move']]) {
+  for (const [id, key, num] of [
+    ['seqSeg', 'seq'], ['routeSeg', 'route'], ['spanSeg', 'span', true], ['stringSeg', 'string', true], ['moveSeg', 'move'],
+    ['arpPositionSeg', 'arpPosition', true], ['arpPatternSeg', 'arpPattern'], ['arpRhythmSeg', 'arpRhythm', true],
+  ]) {
     $(id).addEventListener('click', (e) => {
       const v = segValue(e);
       if (v == null) return;
