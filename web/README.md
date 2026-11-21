@@ -42,6 +42,18 @@ Every other exercise shows the shape on the fretboard, colored by degree as in t
 - **Settings.** Length (60 to 120 minutes), focus (pentatonic & blues, scales & modes, arpeggios & triads, metal, technique), keys (*key of the day*, which moves up a 4th each day, or one fixed key), and *Where are you now?*, which only sets the starting guess.
 - **Progress.** A skill map (every box, position, pattern, arpeggio and triad set, colored by how well you play it), a 15-minute-a-day streak, minutes per day, and **Back up** / **Restore** as a .json file.
 
+### Stand mode (a phone or tablet on a music stand)
+
+**Stand mode** (top right of the exercise card, or **F**) turns the page into one screen you can read from a music stand while both hands are on the guitar. The page remembers it.
+
+- **Only what you need while playing.** The title, timer, stats, feedback and big Start / Next buttons are on the right; the neck and one line of tab are on the left. In portrait it's one column in playing order. The neck zooms in on the exercise's frets, and the tab scrolls sideways to follow the next note. Passes and tempo changes flash large across the screen ("Clean 2/3", "Slower · 68 bpm"). Hearing folds into a strip: the note you played, the level meter, and the input switch. **Exit** or **Esc** brings back the full page.
+- **Pedals.** Bluetooth page-turner pedals (AirTurn, PageFlip and others) type arrow or page keys. **Right** (→, ↓, Page Down) is the main button: Start, Pause, Resume, and Next when the time is up. **Left** (←, ↑, Page Up) adds 2 minutes while you play or when the time is up, and skips to the next exercise otherwise. The arrow keys only do this in Stand mode.
+- **Play to start.** With the input on, playing the exercise's first note (any octave; the key's root when there's no tab) starts it. A rhythm drill starts with any strum. Notes still ringing within 1.5 s of a pause don't count.
+- **Auto next.** When the time is up, the next exercise comes after 8 seconds (left pedal for +2 min, right pedal to go now). The mic's grade stands in for the *How did it go?* rating. A break starts its timer on its own.
+- **Start turns the input on** the first time, since the Hearing card is folded away.
+
+Turn Play to start and Auto next off under the controls. With an interface on an iPhone, iOS routes both input and output through it, so you only need to tap **Enable microphone** (or Start).
+
 ### How exercises are generated
 
 No exercise is stored. They're built from rules and music theory every time:

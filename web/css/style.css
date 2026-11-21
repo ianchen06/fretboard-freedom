@@ -368,3 +368,7 @@ button, a, select, label, [role="button"], .fretboard, svg { touch-action: manip
   .pages a { padding: 6px 9px; }
   .topbar > :not(.brand) { margin-left: auto; }
 }
+@media (max-height: 500px) and (orientation: landscape) {
+  /* a phone on its side: a sticky header would take a third of the screen */
+  .topbar { position: static; padding-top: 8px; padding-bottom: 8px; }
+}

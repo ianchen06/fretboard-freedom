@@ -117,7 +117,15 @@
       const scale = sc.scrollHeight / this.H;
       const top = this.lineOf(i) * this.lineH * scale;
       const bottom = top + this.lineH * scale;
-      if (top < sc.scrollTop || bottom > sc.scrollTop + sc.clientHeight) sc.scrollTo({ top: Math.max(0, top - 6), behavior: 'smooth' });
+      const to = {};
+      if (top < sc.scrollTop || bottom > sc.scrollTop + sc.clientHeight) to.top = Math.max(0, top - 6);
+      // On a narrow screen the tab scrolls sideways too: keep the note away from the edges.
+      if (sc.scrollWidth > sc.clientWidth + 1) {
+        const rect = g.querySelector('rect');
+        const x = rect ? (Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2) * (sc.scrollWidth / W) : 0;
+        if (x < sc.scrollLeft + 40 || x > sc.scrollLeft + sc.clientWidth - 40) to.left = Math.max(0, x - sc.clientWidth / 3);
+      }
+      if (to.top != null || to.left != null) sc.scrollTo({ ...to, behavior: 'smooth' });
     }
   }
 
