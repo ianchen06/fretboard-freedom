@@ -63,15 +63,16 @@ jobs:
         # pick always matches the selected Xcode's iOS runtime.
         run: |
           xcodebuild -version
-          dests=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations 2>/dev/null \
-            | grep 'platform:iOS Simulator' | grep 'name:iPad' | grep -v 'placeholder')
-          echo "$dests"
-          line=$(echo "$dests" | grep 'name:iPad Pro 13' | head -1)
-          [ -n "$line" ] || line=$(echo "$dests" | head -1)
-          udid=$(echo "$line" | sed -E 's/.*id:([^,]+),.*/\1/')
-          if [ -z "$udid" ]; then echo "::error::No iPad simulator available"; exit 1; fi
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations > "$RUNNER_TEMP/dests.txt" 2>&1 || true
+          ipads=$(grep 'platform:iOS Simulator' "$RUNNER_TEMP/dests.txt" | grep 'name:iPad' | grep -v placeholder || true)
+          line=$(echo "$ipads" | grep 'name:iPad Pro 13' | head -1 || true)
+          [ -n "$line" ] || line=$(echo "$ipads" | head -1)
+          if [ -z "$line" ]; then
+            cat "$RUNNER_TEMP/dests.txt"
+            echo "::error::No iPad simulator available for this Xcode"; exit 1
+          fi
           echo "Using: $line"
-          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          echo "udid=$(echo "$line" | sed -E 's/.*id:([^,]+),.*/\1/')" >> "$GITHUB_OUTPUT"
       - name: UI tests
         # The mic test needs an audio input device, which hosted runners don't have.
         run: |
