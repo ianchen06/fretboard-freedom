@@ -4,9 +4,16 @@ node_modules/
 .env
 .claude/settings.local.json
 
-# iPad app (ios/)
-ios/Packages/FretboardKit/.build/
-ios/Packages/FretboardKit/.swiftpm/
+# Archived SwiftUI app
+archive/swift-ios/Packages/FretboardKit/.build/
+archive/swift-ios/Packages/FretboardKit/.swiftpm/
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# iOS release builds (ipad-wrapper)
+ipad-wrapper/ios/build/
+*.ipa
+*.p12
+*.mobileprovision
+AuthKey_*.p8

@@ -1,0 +1,227 @@
+# Builds and tests the Capacitor iPad app (ipad-wrapper/) on every change to it or to
+# the web app it bundles, and ships it to TestFlight / App Store Connect.
+#
+# Ship a build: push a tag like ios-v1.0.0 (the version is taken from the tag), or run
+# this workflow by hand from the Actions tab with "upload" ticked. Setup and secrets:
+# ipad-wrapper/APP_STORE.md.
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    tags: ['ios-v*']
+    paths:
+      - 'web/**'
+      - 'ipad-wrapper/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'ipad-wrapper/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Archive, sign and upload a build to App Store Connect (TestFlight)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  PROJECT: ipad-wrapper/ios/App/App.xcodeproj
+  SCHEME: App
+
+jobs:
+  test:
+    name: Build and UI-test on the iPad simulator
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ipad-wrapper/package-lock.json
+      - name: Stage the web app into the iOS project
+        working-directory: ipad-wrapper
+        run: |
+          npm ci
+          npm run sync
+      - name: Pick an iPad simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          ipads = [d for runtime, ds in devices.items() if "iOS" in runtime
+                   for d in ds if d["name"].startswith("iPad")]
+          pro = [d for d in ipads if d["name"].startswith("iPad Pro")]
+          print((pro or ipads)[-1]["udid"])')
+          xcrun simctl list devices | grep "$udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: UI tests
+        # The mic test needs an audio input device, which hosted runners don't have.
+        run: |
+          xcodebuild -version
+          xcodebuild test \
+            -project "$PROJECT" -scheme "$SCHEME" \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -parallel-testing-enabled NO \
+            -skip-testing:AppUITests/WrapperUITests/testMicrophoneAndRhythmWorklet \
+            -resultBundlePath build/UITests.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: build/UITests.xcresult
+          retention-days: 7
+
+  release:
+    name: Archive and upload to App Store Connect
+    if: startsWith(github.ref, 'refs/tags/ios-v') || inputs.upload
+    needs: test
+    runs-on: macos-26
+    timeout-minutes: 45
+    environment: app-store
+    env:
+      BUNDLE_ID: app.fretboardfreedom.practice
+      TEAM_ID: VTX9N56A38
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ipad-wrapper/package-lock.json
+      - name: Stage the web app into the iOS project
+        working-directory: ipad-wrapper
+        run: |
+          npm ci
+          npm run sync
+
+      - name: Work out version and build number
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/ios-v* ]]; then
+            version="${GITHUB_REF#refs/tags/ios-v}"
+          else
+            version=$(xcodebuild -project "$PROJECT" -target App -configuration Release \
+              -showBuildSettings 2>/dev/null | awk '$1 == "MARKETING_VERSION" { print $3 }')
+          fi
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::Version '$version' must look like 1.2 or 1.2.3"; exit 1
+          fi
+          # Every upload needs a higher build number. The run number always goes up;
+          # the attempt keeps a re-run of the same run unique (12, then 12.2, 12.3).
+          build="$GITHUB_RUN_NUMBER"
+          if [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then build="$build.$GITHUB_RUN_ATTEMPT"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Version $version ($build)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the signing certificate and provisioning profile
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -base64 24)
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -k "$keychain" -P "$DIST_CERT_PASSWORD" \
+            -A -t cert -f pkcs12
+          rm "$RUNNER_TEMP/dist.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+          profile="$RUNNER_TEMP/appstore.mobileprovision"
+          echo "$PROFILE_BASE64" | base64 --decode > "$profile"
+          security cms -D -i "$profile" > "$RUNNER_TEMP/profile.plist"
+          uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          app_id=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          if [ "$app_id" != "$TEAM_ID.$BUNDLE_ID" ]; then
+            echo "::error::The provisioning profile is for $app_id, not $TEAM_ID.$BUNDLE_ID"; exit 1
+          fi
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" \
+                     "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$profile" "$dir/$uuid.mobileprovision"
+          done
+          echo "PROFILE_UUID=$uuid" >> "$GITHUB_ENV"
+
+      - name: Archive
+        # Archived unsigned; the export step signs the app with the distribution
+        # certificate and the App Store profile. This keeps signing settings away from
+        # the Swift package targets, which can't take a provisioning profile.
+        run: |
+          xcodebuild archive \
+            -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Sign and upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$key"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>$BUNDLE_ID</key><string>$PROFILE_UUID</string></dict>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath build/export \
+            -authenticationKeyPath "$key" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          rm "$key"
+          echo "Uploaded. App Store Connect emails you when the build has processed (5–30 minutes); then it's in TestFlight." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}.xcarchive
+          path: build/App.xcarchive
+          retention-days: 30
+
+      - name: Remove the signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
