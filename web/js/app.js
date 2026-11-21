@@ -111,6 +111,7 @@
   $('tuningSelect').value = settings.tuning;
   $('tuningSelect').addEventListener('change', (e) => {
     settings.tuning = e.target.value;
+    strCheck = newCheck();
     saveSettings();
     board.configure({ tuning: tuning() });
     renderStringChips();
@@ -154,10 +155,33 @@
   window.MicPanel.setup(engine, {
     store,
     preferFlat: () => (drill && drill.current ? /♭/.test(drill.current.names[0]) : tuning().flat),
+    tuning: () => tuning(),
   });
+  let hearing = null; // the mic note being judged right now (for the string check)
   engine.on('note', (ev) => {
     if (engine.now() < ignoreMicUntil) return;
+    hearing = ev;
     if (drill) drill.hear(ev, engine.now());
+    hearing = null;
+  });
+
+  // ---------- string check ----------
+  // The drill accepts the right pitch on any string. Once a found note's sound has been measured
+  // (js/stringid.js), say so if it clearly came from another string than the one asked for. It's a
+  // hint, never a miss: the guess from a room mic isn't sure enough to grade on.
+  const SI = window.StringId;
+  const newCheck = () => (SI ? new SI.StringCheck({ model: SI.StringModel.fromJSON(store.get('ff.strings', null)), tuning: tuning().open }) : null);
+  let strCheck = newCheck();
+  window.addEventListener('ff:strings', () => { strCheck = newCheck(); });
+  engine.on('timbre', ({ id, feat }) => {
+    if (!strCheck) return;
+    const r = strCheck.check(id, feat);
+    if (!r) return;
+    const tg = r.want.tg;
+    tg.offString = { s: r.s, f: r.f };
+    const sounded = `${esc(T.stringLongName(r.s, tuning()))} string, fret ${r.f}`;
+    feedback('warn', `${esc(tg.names[0])}: other string?`, `Right note, but it sounded like the ${sounded}. This one is on the ${esc(T.stringLongName(tg.s, tuning()))} string.`);
+    board.flash({ s: r.s, f: r.f, label: '?', kind: 'wrong' }, 1500);
   });
 
   async function pickOnScreen(s, f) {
@@ -293,6 +317,7 @@
   }
 
   function onHit(tg) {
+    if (strCheck && hearing && hearing.id != null) strCheck.expect(hearing.id, { s: tg.s, f: tg.fret, midi: T.midiAt(tg.s, tg.fret, tuning()), tg });
     stats.record(settings.tuning, tg.s, tg.pc, tg.ms);
     store.set('ff.stats', stats.data);
     roundDots.push({ s: tg.s, f: tg.fret, label: tg.names[0], kind: 'found', pop: true, title: `${secs(tg.ms)} s` });
@@ -506,6 +531,11 @@
     if (sum.misses.length) {
       const list = sum.misses.slice(0, 4).map((t) => `${esc(t.names[0])} on ${esc(T.stringLongName(t.s, tuning()))} (fret ${t.frets.join('/')})`).join(', ');
       tips.push(['warn', `Missed: ${list}${sum.misses.length > 4 ? '…' : ''}. The red dashed rings on the board show where they are.`]);
+    }
+    const off = drill ? drill.targets.filter((t) => t.offString) : [];
+    if (off.length) {
+      const list = off.slice(0, 3).map((t) => `${esc(t.names[0])} (asked on ${esc(T.stringLongName(t.s, tuning()))}, sounded like ${esc(T.stringLongName(t.offString.s, tuning()))})`).join(', ');
+      tips.push(['warn', `${off.length} note${off.length > 1 ? 's' : ''} sounded like another string: ${list}${off.length > 3 ? '…' : ''}. They still counted. The guess can be wrong, so if you were on the right string, teach it your guitar under Hearing.`]);
     }
     if (sum.hints) tips.push(['', `You used a hint ${sum.hints} time${sum.hints > 1 ? 's' : ''}. Next round, try the 3-step method first: anchor, octave shape, name it.`]);
     if (sum.slips >= 3) tips.push(['', 'Lots of wrong notes. Slow down: think first, then play. Finding it in your head before you play is the skill you’re building.']);

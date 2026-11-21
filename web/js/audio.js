@@ -9,7 +9,9 @@
       this.ctx = null;
       this.stream = null;
       this.micSource = null;
-      this.handlers = { frame: new Set(), note: new Set(), onset: new Set() };
+      this.handlers = { frame: new Set(), note: new Set(), onset: new Set(), timbre: new Set() };
+      this.noteId = 0;
+      this.measuring = null; // the note whose sound is waiting to be measured (string detection)
       this.onsetNode = null;
       this.looping = false;
       this.pluckCache = new Map();
@@ -49,6 +51,16 @@
         this.out = ctx.createGain();
         this.out.connect(ctx.destination);
         this.buf = new Float32Array(this.frameSize);
+        // String detection (js/stringid.js, if the page loads it): the last ~0.7 s of raw input, so
+        // each note's sound can be measured once it has rung for a moment.
+        if (root.StringId) {
+          this.rec = ctx.createAnalyser();
+          this.rec.fftSize = 32768;
+          this.rec.smoothingTimeConstant = 0;
+          this.input.connect(this.rec);
+          this.rec.connect(sink);
+          this.recBuf = new Float32Array(this.rec.fftSize);
+        }
         this.tracker = new NoteTracker({ sampleRate: ctx.sampleRate, frameSize: this.frameSize });
       }
       const resumed = unlock(this.ctx); // synchronous part first, while the gesture still counts
@@ -154,8 +166,42 @@
         this.analyser.getFloatTimeDomainData(this.buf);
         const info = this.tracker.process(this.buf, this.ctx.currentTime);
         this.emit('frame', info);
-        if (info.event) this.emit('note', info.event);
+        if (info.event) {
+          info.event.id = ++this.noteId;
+          if (this.rec) this.queueTimbre(info.event);
+          this.emit('note', info.event);
+        }
+        if (this.measuring && this.ctx.currentTime >= this.measuring.until) this.measureTimbre();
       }, 10);
+    }
+
+    // String detection: measure a note's sound from 30 ms after its attack (past the pick's noise) for
+    // up to 170 ms, or until the next note starts. Emits 'timbre' { id, midi, feat } where feat is
+    // StringId.analyze()'s result, or null when the note was too short or unclear.
+    queueTimbre(ev) {
+      if (this.measuring) {
+        this.measuring.until = Math.min(this.measuring.until, ev.playedAt - 0.01);
+        this.measureTimbre();
+      }
+      const from = ev.playedAt + 0.03;
+      this.measuring = { ev, from, until: from + 0.17 };
+    }
+
+    measureTimbre() {
+      const m = this.measuring;
+      this.measuring = null;
+      const sr = this.ctx.sampleRate;
+      const now = this.ctx.currentTime;
+      const until = Math.min(m.until, now);
+      let feat = null;
+      const n = Math.floor((until - m.from) * sr);
+      const back = Math.round((now - m.from) * sr); // samples from the start of the window to now
+      if (n >= 0.04 * sr && back <= this.recBuf.length) {
+        this.rec.getFloatTimeDomainData(this.recBuf);
+        const i0 = this.recBuf.length - back;
+        feat = root.StringId.analyze(this.recBuf.subarray(i0, i0 + n), sr, m.ev.freq);
+      }
+      this.emit('timbre', { id: m.ev.id, midi: m.ev.midi, feat });
     }
 
     // Pick-attack detection in an AudioWorklet (js/onset.js): every attack, pitched or not (a strum, a

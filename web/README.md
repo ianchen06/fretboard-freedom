@@ -74,6 +74,25 @@ The grade is the mic's score: accuracy over the last passes, with timing for seq
 - **Rhythm.** Every attack the onset detector hears is lined up with the nearest step of the pattern, as on the Rhythm page. A clean pass needs 95% of the hits, at most one extra, and timing within ±20 ms (average and spread). With the tempo ladder on, two clean passes in a row take the tempo up about 4%.
 - **Chords and improvising.** Each note is checked against the rule: chord tones of the chord sounding at that moment, the 3rd and 7th, scale + chord, or the three allowed notes. A note slightly ahead of a chord change also counts for the next chord. Landings are judged on the first note near beat 1.
 
+### Which string you played
+
+A pitch can be played in two to five places on the neck, and pitch alone can't tell them apart. The Scales page guesses the place from two things (`js/stringid.js`):
+
+- **The note's sound.** A real string is stiff, so its overtones run slightly sharp of whole multiples of the pitch: overtone *n* sits at *n*·f0·√(1 + B·n²). The stiffness B depends on the string's thickness and gets about 4× bigger every 12 frets, so the same E4 has a small B on the open high E string and a much bigger one at the 5th fret of the B string. About 30 ms after each attack, the app takes up to 170 ms of the note, finds its overtones in a zero-padded FFT, and fits B by least squares (outliers dropped).
+- **Where your hand has been.** The place nearest your recent notes (and the shape on screen) is more likely.
+
+The two are combined as probabilities: hand position as the prior, and how well the measured B fits each string and fret as the likelihood. The note is placed at once from the hand, then moved if its sound says otherwise, about 0.2 s later.
+
+**String hints.** *Find any note*, Scales sequences and the Daily session ask for each note at a given place. Notes still count by pitch, but when a found note's sound clearly says another string (90% sure from the sound alone), you get a hint: "Right note, but it sounded like the low E string, fret 8." It never costs you the note, and *Find any note* lists those notes after the round. Bends and any-octave exercises aren't checked.
+
+**Blind spot: G and D.** A plain G string is so stiff that the D string a few frets higher measures almost the same (for example A3 at fret 2 of the G and fret 7 of the D). About 13% of same-pitch pairs on the neck are like this, all of them G against D. There the app stays quiet instead of guessing. A wound G (most acoustic sets) doesn't have this problem as much.
+
+**Other tunings.** Tuning a string down lowers its tension, which makes it a little stiffer for its pitch; the model takes that into account (B ∝ 1/tension). Teaching it your guitar uses the tuning the page is set to, and remembers it.
+
+Out of the box the app assumes a typical 10–46 set. **Hearing → Teach it your guitar** asks for 12 notes (each open string, then each string at the 7th fret) and fits each string's stiffness to your guitar. Do it again after changing string gauge.
+
+How good is it? On synthetic notes that follow string physics, with realistic flaws added (detuned overtones, pitch glide after the pick, another string ringing), it picks the right string about 99% of the time after teaching and about 89% without it (`test/stringid.test.js`). A real guitar through a laptop mic in a room will do worse than that: chords, very fast playing, heavy distortion and loud backing in the mic all make the overtones harder to measure. So **Where you played** is still an estimate, and grading still goes by pitch, never by string.
+
 ### Why rules, not AI or machine learning, for the content
 
 The exercises have to be exactly right. A shape with one wrong dot teaches the wrong thing, and theory can compute every shape and check it. A language model would have to be checked by the same theory anyway, and it would need a network connection. Learning a generator from data would need a large set of graded practice sessions, which don't exist. The part that has to adapt to you, *what* to practice and *how fast*, is the learner model: a small knowledge-tracing and spaced-repetition model fed by your mic grades.
@@ -118,7 +137,7 @@ Both sequence modes have the same controls:
 
 The stats count notes in the scale and bars that start on a chord tone. They also count notes in the shape of the moment, or the shapes you used. The report shows notes per shape and per fret, with tips: you stayed in one box, beat 1 missed the chord, these notes were outside the scale.
 
-**What the mic can and can't tell.** It hears pitch, not strings. Sequences are checked note by note in order, with timing against the click. In the play-along, each note is placed where your hand has most likely been (`HandTracker`: the place nearest the hand, inside the shape you're asked to stay in). That makes "which shape" and "notes per fret" estimates. "In the shape" means the note's exact pitch is one of the shape's notes.
+**What the mic can and can't tell.** It hears pitch, not strings. Sequences are checked note by note in order, with timing against the click. In the play-along, each note is placed from its sound and where your hand has been (`StringLocator`, see *Which string you played*). That makes "which shape" and "notes per fret" estimates, though better ones once you've taught it your guitar. "In the shape" means the note's exact pitch is one of the shape's notes.
 
 **Progress.** Settings are kept in `ff.scales`. These runs update the Daily session's skill model and tempos in `ff.learner`:
 
@@ -279,7 +298,7 @@ On the Call & response page, **Sound and amp → Play my guitar through this amp
 
 When you pick a note an octave above a string that's still ringing, the detector compares which harmonics just got louder to tell the two notes apart.
 
-The mic hears **pitch, not strings**. It catches wrong notes and wrong octaves, but it can't tell G3 on the A string (fret 10) from G3 on the D string (fret 5).
+Grading goes by **pitch, not strings**. It catches wrong notes and wrong octaves, but it doesn't mark G3 on the A string (fret 10) wrong when the exercise asked for G3 on the D string (fret 5). The app does guess the string from each note's sound (see *Which string you played*) and gives a hint when a note seems to be on another string, but that guess isn't reliable enough to grade you on.
 
 Tips:
 - Tune up first. The *Hearing* panel doubles as a tuner.
