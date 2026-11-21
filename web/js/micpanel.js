@@ -11,6 +11,7 @@
   const gateToSens = (db) => Math.round(Math.min(100, Math.max(0, (-25 - db) / 0.45)));
   const dbToPct = (db) => Math.min(100, Math.max(0, ((db + 80) / 80) * 100));
   const NOTE_MIC = 'The app hears pitch, not which string you used. It catches wrong notes and wrong octaves; using the right string is up to you.';
+  const STRING_NAMES = { 1: 'high E (1st)', 2: 'B (2nd)', 3: 'G (3rd)', 4: 'D (4th)', 5: 'A (5th)', 6: 'low E (6th)' };
   const MIC_WORDS = /microphone|\bmic\b|built-in|macbook|airpods|headset|webcam|camera/i;
 
   // What kind of input a device label is: 'katana' | 'interface' | 'mic'.
@@ -57,7 +58,7 @@
         setPill('on', kind === 'mic' ? 'Listening' : 'Interface');
         $('micBtn').textContent = kind === 'mic' ? 'Turn microphone off' : 'Turn input off';
         $('micBtn').classList.add('on');
-        $('micNote').textContent = NOTE_MIC;
+        if (!has('strCal') || !root.StringId) $('micNote').textContent = NOTE_MIC;
         await refreshDevices();
         await refreshOutputs();
         await suggestOutput();
@@ -200,6 +201,76 @@
       applySensitivity();
       btn.textContent = 'Auto-set';
       btn.disabled = false;
+    }
+
+    // ---------- string detection: teach it your guitar ----------
+    // Pages that load js/stringid.js can tell strings apart from each note's stiffness (see that
+    // file). The default model is a typical string set; 12 notes fit it to this guitar. Each note
+    // must be the asked-for pitch and measure clearly, or it's asked for again.
+    let teaching = null;
+    function renderStrings() {
+      if (!has('strCal')) return;
+      if (!root.StringId) { $('strCal').hidden = true; return; }
+      const saved = store.get('ff.strings', null);
+      const on = !!(saved && saved.calibrated);
+      $('strCalStatus').textContent = teaching ? 'Learning your strings…'
+        : on ? `From the sound, fitted to your guitar${saved.date ? ` (${saved.date})` : ''}`
+          : 'From the sound and your hand position (typical strings)';
+      $('strCalStatus').classList.toggle('on', on && !teaching);
+      $('strCalBtn').hidden = !!teaching;
+      $('strCalBtn').textContent = on ? 'Teach it again' : 'Teach it your guitar';
+      $('strCalCancel').hidden = !teaching;
+      $('strCalForget').hidden = !!teaching || !on;
+      $('strCalStep').hidden = !teaching;
+      if (teaching) {
+        const st = root.StringId.CALIBRATION[teaching.i];
+        const fret = st.f === 0 ? `the open ${STRING_NAMES[st.s]} string` : `the ${STRING_NAMES[st.s]} string at the 7th fret`;
+        $('strCalStep').innerHTML = `${teaching.retry ? `${esc(teaching.retry)} ` : ''}Pick <b>${esc(fret)}</b> and let it ring. Mute the other strings.<span class="str-cal-step-n">${teaching.i + 1} / ${root.StringId.CALIBRATION.length}</span>`;
+      }
+    }
+    function stopTeaching() {
+      if (teaching) teaching.off();
+      teaching = null;
+      renderStrings();
+    }
+    async function teach() {
+      if (!root.StringId) return;
+      if (!engine.micOn) await enable();
+      if (!engine.micOn) return;
+      const SI = root.StringId;
+      const open = { 1: 64, 2: 59, 3: 55, 4: 50, 5: 45, 6: 40 };
+      teaching = { i: 0, got: [], retry: '', off: () => {} };
+      teaching.off = engine.on('timbre', ({ midi, feat }) => {
+        const t = teaching;
+        const st = SI.CALIBRATION[t.i];
+        const want = open[st.s] + st.f;
+        const nm = (m) => `${T.noteName(m)}${Math.floor(m / 12) - 1}`;
+        if (midi !== want) {
+          t.retry = T.noteName(midi) === T.noteName(want) ? `Heard ${nm(midi)}, an octave off from ${nm(want)}: check the string.` : `Heard ${nm(midi)}, not ${nm(want)}: is it the right string, and in tune?`;
+          renderStrings();
+          return;
+        }
+        if (!feat || feat.sigma > 0.6) { t.retry = 'Didn’t catch that clearly. Once more, a little harder.'; renderStrings(); return; }
+        t.got.push({ s: st.s, f: st.f, lnB: feat.lnB, sigma: feat.sigma });
+        t.retry = '';
+        t.i++;
+        if (t.i < SI.CALIBRATION.length) { renderStrings(); return; }
+        const model = SI.StringModel.fit(t.got);
+        store.set('ff.strings', { ...model.toJSON(), date: new Date().toISOString().slice(0, 10) });
+        stopTeaching();
+        root.dispatchEvent(new Event('ff:strings'));
+      });
+      renderStrings();
+    }
+    if (has('strCal')) {
+      $('strCalBtn').addEventListener('click', teach);
+      $('strCalCancel').addEventListener('click', stopTeaching);
+      $('strCalForget').addEventListener('click', () => {
+        store.set('ff.strings', null);
+        renderStrings();
+        root.dispatchEvent(new Event('ff:strings'));
+      });
+      renderStrings();
     }
 
     $('micBtn').addEventListener('click', (e) => { e.currentTarget.blur(); engine.micOn ? disable() : enable(); });

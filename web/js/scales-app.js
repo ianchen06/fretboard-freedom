@@ -354,7 +354,7 @@
     while (bars.length < 4) bars = bars.concat(once);
     run = {
       kind: 'jam', bpm, beatDur: 60 / bpm, countBeats: 4, musicStart: null, groove: b.groove,
-      jam: { bars, bar: -1, chord: 0, stats: new N.JamStats(S.SCALES[V.scaleId].steps.map((x) => mod12(V.keyPc + x))), tracker: new N.HandTracker(), recent: [], trail: [] },
+      jam: { bars, bar: -1, chord: 0, stats: new N.JamStats(S.SCALES[V.scaleId].steps.map((x) => mod12(V.keyPc + x))), tracker: newLocator(), recent: [], trail: [], placed: new Map() },
       sec: 0, unlogged: 0,
     };
     if (b.groove === 'drone') {
@@ -453,19 +453,40 @@
   const tempoStep = () => (settings.mode === 'jam' ? 4 : G.tempoStep(V.ex ? V.ex.npb : 2));
 
   // ---------- hearing notes ----------
-  engine.on('note', (ev) => played(ev.midi, ev.playedAt, false));
+  engine.on('note', (ev) => played(ev.midi, ev.playedAt, false, null, ev.id));
 
-  function played(midi, t, fromClick, at = null) {
+  // Where each note was played: placed at once from where the hand has been, then corrected from the
+  // note's sound (js/stringid.js) about 0.2 s later. The string model is the one fitted to your
+  // guitar under Hearing → Teach it your guitar, if you've done that.
+  const SI = window.StringId;
+  function newLocator() {
+    if (!SI) return new N.HandTracker();
+    return new SI.StringLocator({ model: SI.StringModel.fromJSON(store.get('ff.strings', null), tuning.open), tuning: tuning.open, maxFret: MAXF });
+  }
+  engine.on('timbre', ({ id, feat }) => {
+    if (!V || !feat) return;
+    if (run && run.kind === 'jam') { jamRefine(id, feat); return; }
+    if (!run && idleTracker.refine) {
+      const moved = idleTracker.refine(id, feat);
+      if (moved) flashLive(moved, idleNotes.get(id), S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(idleNotes.get(id))));
+    }
+  });
+
+  function played(midi, t, fromClick, at = null, id = null) {
     if (!V) return;
     const tt = t - (fromClick ? 0 : latency());
     if (run && run.kind === 'drill') { drillNote(midi, tt, fromClick); return; }
-    if (run && run.kind === 'jam') { jamNote(midi, tt, at); return; }
+    if (run && run.kind === 'jam') { jamNote(midi, tt, at, id); return; }
     // Idle: show where it probably was, nearest the shape on screen.
     const win = settings.mode === 'jam' && settings.move === 'free' ? null : V.shape;
-    const place = at || idleTracker.place(midi, win);
+    const place = at || idleTracker.place(midi, win, id);
+    if (id != null) { idleNotes.set(id, midi); if (idleNotes.size > 16) idleNotes.delete(idleNotes.keys().next().value); }
     if (place) flashLive(place, midi, S.pcsOf(V.keyPc, S.SCALES[V.scaleId].steps).has(mod12(midi)));
   }
-  const idleTracker = new N.HandTracker();
+  let idleTracker = newLocator();
+  const idleNotes = new Map();
+  // A new calibration (from the Hearing card) takes effect at once.
+  window.addEventListener('ff:strings', () => { idleTracker = newLocator(); if (run && run.kind === 'jam') run.jam.tracker = newLocator(); });
 
   function drillNote(midi, tt, fromClick) {
     const r = run;
@@ -551,7 +572,7 @@
     board.flash({ s: place.s, f: place.f, kind: `live${inScale ? '' : ' out'}`, label: settings.labels === 'note' || !inScale ? noteName(midi) : '' }, 1100);
   }
 
-  function jamNote(midi, tt, clicked) {
+  function jamNote(midi, tt, clicked, id = null) {
     const r = run;
     const J = r.jam;
     const barDur = 4 * r.beatDur;
@@ -568,11 +589,15 @@
       }
     }
     const active = activeShape(at ? at.bar : 0);
-    const place = clicked || J.tracker.place(midi, active);
+    const place = clicked || J.tracker.place(midi, active, id);
     if (clicked) J.tracker.center = J.tracker.center == null ? clicked.f : 0.6 * J.tracker.center + 0.4 * clicked.f;
     const shape = N.shapeAt(V.shapes, place, J.tracker.center);
     const inShape = active ? active.notes.some((n) => n.midi === midi) : null;
     const res = J.stats.note(midi, { at, chord, next, place, shapeKey: shape ? shape.idx : null, inShape });
+    if (id != null && place && !clicked) {
+      J.placed.set(id, { midi, place, shapeKey: shape ? shape.idx : null });
+      if (J.placed.size > 32) J.placed.delete(J.placed.keys().next().value);
+    }
     J.recent.push({ name: noteName(midi), ok: res.inScale && inShape !== false, land: res.land });
     if (J.recent.length > 16) J.recent.shift();
     if (place) {
@@ -586,6 +611,24 @@
     drawBoard();
     if (place) flashLive(place, midi, res.inScale);
     renderStats();
+    renderJamPanel();
+  }
+
+  // The note's sound says it was somewhere else on the neck: move it in the stats and on the board.
+  function jamRefine(id, feat) {
+    const J = run.jam;
+    const was = J.placed.get(id);
+    if (!was || !J.tracker.refine) return;
+    const moved = J.tracker.refine(id, feat);
+    if (!moved) return;
+    const place = { s: moved.s, f: moved.f };
+    const shape = N.shapeAt(V.shapes, place, J.tracker.center);
+    J.stats.relocate(was.place, place, was.shapeKey, shape ? shape.idx : null);
+    const ti = J.trail.findIndex((p) => p === was.place);
+    if (ti >= 0) J.trail[ti] = place;
+    J.placed.set(id, { midi: was.midi, place, shapeKey: shape ? shape.idx : null });
+    drawBoard();
+    flashLive(place, was.midi, J.stats.pcs.has(mod12(was.midi)));
     renderJamPanel();
   }
 

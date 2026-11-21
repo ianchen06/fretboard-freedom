@@ -277,7 +277,8 @@
   }
 
   // ---------- where a heard pitch was played ----------
-  // The mic hears pitch, not strings. Most pitches can be played in two or three places; this picks
+  // From the hand position alone. Pages that load js/stringid.js use its StringLocator instead,
+  // which adds each note's sound; this stays as the fallback. Most pitches can be played in two or three places; this picks
   // the one nearest where the hand has been (inside the shape you're asked to stay in, if any),
   // and moves its estimate of the hand toward each note.
   class HandTracker {
@@ -361,6 +362,15 @@
         if (inShape) this.inShape++;
       }
       return { inScale, chordTone, land };
+    }
+    // A note's place turned out to be elsewhere (string detection measured it after the fact).
+    relocate(from, to, fromShape, toShape) {
+      if (from && from.f >= 0 && from.f <= MAX_FRET && this.frets[from.f] > 0) this.frets[from.f]--;
+      if (to && to.f >= 0 && to.f <= MAX_FRET) this.frets[to.f]++;
+      if (fromShape != null && this.byShape[fromShape]) {
+        if (--this.byShape[fromShape] === 0) delete this.byShape[fromShape];
+      }
+      if (toShape != null) this.byShape[toShape] = (this.byShape[toShape] || 0) + 1;
     }
     // The span of frets that holds most of what you played (the 80% around the busiest fret).
     range() {
