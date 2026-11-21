@@ -1,6 +1,7 @@
 // Builds a deck. Usage:
 //   node build.js                         -> ../Fretboard-Freedom.pptx (Level 1, all sections)
 //   node build.js --deck 2                -> ../Fretboard-Freedom-Level-2.pptx (Level 2, all sections)
+//   node build.js --deck bridge           -> ../Fretboard-Freedom-Chords-Scales-Arpeggios.pptx (chord → arpeggio → pentatonic lesson)
 //   node build.js [--deck 2] --only a,b   -> out/a+b.pptx (chosen sections only, for checking)
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,10 @@ const DECKS = {
   2: {
     dir: 'sections2', out: 'Fretboard-Freedom-Level-2.pptx', title: 'Fretboard Freedom · Level 2', footer: 'Fretboard Freedom · Level 2',
     sections: ['l2_s0_intro', 'l2_s1_rhythm', 'l2_s2_scales', 'l2_s3_chordtones', 'l2_s4_chords', 'l2_s5_ear', 'l2_s6_metal', 'l2_s7_songs'],
+  },
+  bridge: {
+    dir: 'sections3', out: 'Fretboard-Freedom-Chords-Scales-Arpeggios.pptx', title: 'Find the Chord, Find the Scale', footer: 'Fretboard Freedom · Chords, arpeggios & pentatonics',
+    sections: ['b_s0_bridge'],
   },
 };
 

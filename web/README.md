@@ -97,13 +97,15 @@ Any scale across the whole neck: its CAGED shapes in any key, routes that travel
 
 **Learn a shape.** Pick a shape (E D C A G, or patterns 1–7) and a pattern: up & down, in 3s, in 4s, in 3rds or descending 6s. This is the Daily session's shape exercise, so it uses the same skill and the same tempo ladder.
 
+**Arpeggios.** Pick a root, a chord type and one of five positions. Play the chord tones up and down or in groups of three, following the fretboard and tab. Use **Play along** to hear the exercise and **From memory** to hide the frets. The mic grades each pass, and the Daily session shares its mastery and tempo history. You can also tap the fretboard without a guitar.
+
 **Up & down the neck.** Three routes:
 
 - **Shape ladder:** up one shape, down the next, up the next. At the top it turns around in the same shape and comes back down the same way. You shift between shapes on the high e and the low E strings. It links 2 or 3 shapes, or all 5 (the whole cycle). The strip and the neck follow the shape you're in.
 - **Diagonal:** 3 notes per string for pentatonics and the blues scale, 4 for 7-note scales, from the start shape's lowest note. The run climbs the neck as it crosses the strings.
 - **One string:** the scale from the root to the root an octave up, along one string.
 
-Both sequence modes have the same controls:
+The sequence modes share the same controls.
 
 - the click and the tempo ladder from the Daily session;
 - **Drone** on the root;

@@ -122,9 +122,8 @@
     return shapes.find((p) => p.k === k && p.alt === alt) || shapes.find((p) => p.k === k) || shapes[0] || null;
   }
 
-  // Every note of the scale on the neck, annotated with its degree and color role.
-  function neckNotes(keyPc, scaleId, { tuning = STD, maxFret = MAX_FRET } = {}) {
-    const pcs = S.pcsOf(keyPc, S.SCALES[scaleId].steps);
+  function neckPitches(keyPc, steps, tuning, maxFret) {
+    const pcs = S.pcsOf(keyPc, steps);
     const raw = [];
     for (const s of STRINGS_LOW_FIRST) {
       for (let f = 0; f <= maxFret; f++) {
@@ -132,7 +131,15 @@
         if (pcs.has(mod12(midi))) raw.push({ s, f, midi });
       }
     }
-    return S.annotateScale(raw, keyPc, scaleId);
+    return raw;
+  }
+
+  // Every note of the scale or chord on the neck, with its degree and color role.
+  function neckNotes(keyPc, scaleId, { tuning = STD, maxFret = MAX_FRET } = {}) {
+    return S.annotateScale(neckPitches(keyPc, S.SCALES[scaleId].steps, tuning, maxFret), keyPc, scaleId);
+  }
+  function chordNotes(root, chordId, { tuning = STD, maxFret = MAX_FRET } = {}) {
+    return S.annotateChord(neckPitches(root, S.CHORDS[chordId].steps, tuning, maxFret), root, chordId);
   }
 
   // 3 notes per string only makes positions for 7-note scales (a pentatonic with 3 per string runs
@@ -415,7 +422,7 @@
   }
 
   const api = {
-    MAX_FRET, GENRES, SCALE_GROUPS, LETTERS, GRIPS, ROOT_STRING_NAME, BACKINGS,
+    MAX_FRET, GENRES, SCALE_GROUPS, LETTERS, GRIPS, ROOT_STRING_NAME, BACKINGS, chordNotes,
     isMinorTonic, preferFlat, spell, keyName, cagedLetter, grip, hasNps, shapeList, findShape, neckNotes, shapeLabel, shapeNumber,
     joinSegments, ladder, diagonal, oneStringRun, cycleOrder, backingById, backingsFor, defaultBacking, backingBars,
     HandTracker, shapeAt, JamStats, jamTips,

@@ -256,6 +256,13 @@
     const rootPc = T.pcOf(rootName);
     return CHORDS[chordId].steps.map((x) => T.spellAbove(rootName, x, T.letterSteps(degreeLabel(x, { chordId }))) || T.noteName(rootPc + x, flat));
   }
+  // A chord on a root pitch class, spelled by letter. An accidental root takes the spelling that
+  // needs fewer accidentals (D♯° is D♯ F♯ A; E♭° would need B𝄫); preferFlat settles a tie.
+  // → { root, names (one per step), flat, byPc }. See Theory.spellSet.
+  function spellChordOn(rootPc, chordId, preferFlat = false) {
+    const steps = CHORDS[chordId].steps;
+    return T.spellSet(rootPc, steps, steps.map((x) => degreeLabel(x, { chordId })), preferFlat);
+  }
   // Letter steps of a chord root above the key's tonic, by semitones (♭2, 2, ♭3, 3, 4, ♭5, 5 …).
   const ROOT_LETTERS = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
   // The name of the chord root `off` semitones above a tonic called `tonic`: ('E♭', 8) → 'C♭'.
@@ -265,7 +272,7 @@
     SCALES, CHORDS, STRING_SETS, PENT, DEG,
     degreeLabel, scaleRole, chordRole, pcsOf, nextPitch, span,
     perString, windowWalk, boxPlacements, position, nps, arpeggio, triadVoicings, oneString, chordName,
-    spellScale, spellChord, rootNameIn,
+    spellScale, spellChord, spellChordOn, rootNameIn,
     annotateScale, annotateChord,
   };
   root.Scales = api;
