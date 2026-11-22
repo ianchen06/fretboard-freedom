@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const T = window.Theory;
-  const { TunerFilter } = window.Pitch;
+  const { TunerFilter, PluckGate } = window.Pitch;
   const { TuneGuide, gaugeAngle } = window.TuneGuideLib;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -19,7 +19,7 @@
   };
 
   const TOLS = [3, 1, 0.3];
-  const saved = { tol: 1, ...store.get('ff.tuner', {}) };
+  const saved = { tol: 1, noise: true, ...store.get('ff.tuner', {}) };
   if (!TOLS.includes(saved.tol)) saved.tol = 1;
   let tuningId = store.get('ff.settings', {}).tuning || 'standard';
   if (!T.TUNINGS[tuningId]) tuningId = 'standard';
@@ -38,6 +38,7 @@
       engine.setPrecise(!!kind);
       syncStart();
       if (kind) {
+        gate.reset();
         $('micNote').textContent = kind === 'mic'
           ? 'Hold the guitar close to the mic, in a quiet room. Pluck one string at a time.'
           : 'Listening to your interface. Pluck one string at a time.';
@@ -51,11 +52,14 @@
   });
 
   const filter = new TunerFilter({ a4: panel.a4() });
+  // The noise filter: only a plucked string reaches the gauge (hum, fans and voices don't). See Pitch.PluckGate.
+  const gate = new PluckGate();
   // A quiet guitar gives fewer, noisier readings: steady them over a longer stretch.
   const syncSound = () => {
     seg('tnSoundSeg', panel.quiet() ? 'quiet' : 'normal');
     filter.window = panel.quiet() ? window.Pitch.QUIET.tunerWindow : 0.3;
     filter.reset();
+    gate.reset(); // the note tracker starts afresh too
     guide.holdTime = panel.quiet() ? window.Pitch.QUIET.holdTime : 0.6;
   };
   const guide = new TuneGuide({ open: tuning().open, a4: panel.a4(), tolerance: saved.tol });
@@ -162,6 +166,18 @@
     if (!b) return;
     b.blur();
     panel.setQuiet(b.dataset.value === 'quiet');
+  });
+
+  seg('tnNoiseSeg', saved.noise ? 'on' : 'off');
+  $('tnNoiseSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    b.blur();
+    saved.noise = b.dataset.value === 'on';
+    store.set('ff.tuner', saved);
+    seg('tnNoiseSeg', saved.noise ? 'on' : 'off');
+    gate.reset();
+    filter.reset();
   });
 
   seg('tnTolSeg', saved.tol);
@@ -271,10 +287,12 @@
     if (text) say('info', text);
   }
 
-  engine.on('tune', ({ t, freq, attackT, db }) => {
+  engine.on('tune', (reading) => {
     if (performance.now() < pausedUntil) return;
-    const r = filter.push(freq, t, attackT, db);
+    let r = null;
+    for (const q of saved.noise ? gate.push(reading) : [reading]) r = filter.push(q.freq, q.t, q.attackT, q.db) || r;
     if (!r) return;
+    const { t } = reading;
     // Guide mode: the string you just tuned may still be ringing. Say so instead of reading it
     // against the next string.
     if (guide.mode === 'guide' && guide.pinned != null) {
@@ -290,7 +308,8 @@
     render(g, r.freq);
   });
 
-  engine.on('frame', () => {
+  engine.on('frame', (info) => {
+    gate.frame(info);
     if (!engine.micOn) return;
     if (lastReading && performance.now() - lastReading > 450) lost();
   });

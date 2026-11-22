@@ -99,6 +99,13 @@
               <button type="button" data-value="quiet" title="Filters out room hiss so the mic hears a quiet string">Unplugged electric</button>
             </div>
           </div>
+          <div class="tn-opt">
+            <span class="field-label">Noise filter</span>
+            <div class="seg seg-sm" id="tnNoiseSeg" role="radiogroup" aria-label="Ignore sounds that aren't a plucked string">
+              <button type="button" data-value="on" title="Only a plucked string moves the needle: hum, fans and people talking are ignored">On</button>
+              <button type="button" data-value="off" title="Read any steady pitch, plucked or not (a bowed string, an e-bow, a synth)">Off</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -143,10 +150,10 @@
   </main>
 
   <script src="js/theory.js?v=4"></script>
-  <script src="js/pitch.js?v=5"></script>
+  <script src="js/pitch.js?v=6"></script>
   <script src="js/audio.js?v=8"></script>
   <script src="js/micpanel.js?v=7"></script>
   <script src="js/tuneguide.js?v=1"></script>
-  <script src="js/tuner-app.js?v=2"></script>
+  <script src="js/tuner-app.js?v=3"></script>
 </body>
 </html>

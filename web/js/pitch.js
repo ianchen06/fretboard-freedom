@@ -364,6 +364,112 @@
     }
   }
 
+  // The Tuner's noise filter: it passes on only the readings that come from a plucked string, so hum,
+  // a fan's whine, a fridge, people talking or singing don't move the needle. A plucked string is told
+  // apart by how it starts and how it carries on:
+  //  - it starts with a pick attack (the note tracker's attackT). A hum or a whine that never stops has
+  //    none; one that was already there when listening started doesn't get one either;
+  //  - its pitch settles within `settle` s of the attack and then holds within `steadyCents` for
+  //    `settle` s. A voice glides (intonation), even on a held vowel;
+  //  - it starts loud and fades slowly. A voice swells into a syllable (a reading `swellDb` over the
+  //    first one rules it out) and dies away at its end (falling `fallDb` within `settle` s). A tone that hasn't faded `droneDb` after `droneTime` s isn't a string either
+  //    (an electrical hum switching on): it's dropped, and that pitch needs a louder pick to come back.
+  // Once a string is heard, readings are followed only while they stay close to the last one (a peg
+  // turned while the string rings moves the pitch smoothly; `maxRate` cents a second is plenty):
+  // someone talking over a ringing string, or the detector slipping to an overtone, is ignored. A new
+  // pick can take over at once, except at a sub- or overtone of the ringing string (×/÷ 2, 3, 4: the
+  // detector heard a voice and the string together): that waits until the string is gone.
+  // With no reading that fits for `lostTime` s the string is let go.
+  class PluckGate {
+    constructor({ settle = 0.09, steadyCents = 15, attackWindow = 0.7, swellDb = 4, fallDb = 5, maxRate = 600, lostTime = 0.3, droneTime = 1.5, droneDb = 2, warmup = 0.12 } = {}) {
+      Object.assign(this, { settle, steadyCents, attackWindow, swellDb, fallDb, maxRate, lostTime, droneTime, droneDb, warmup });
+      this.reset();
+    }
+
+    reset() {
+      this.cand = null; // { attackT, pts, db0 }: a pick being checked
+      this.lock = null; // { c, t, t0, dbs: [{ t, db }], faded }: the string being followed
+      this.lastAttack = null;
+      this.startT = null; // when listening started (first frame seen since reset)
+      this.drones = []; // { c, db }: steady tones that turned out not to be strings
+    }
+
+    // Every analysis frame ({ t }), so the gate knows when listening started.
+    frame({ t }) { if (this.startT === null) this.startT = t; }
+
+    get locked() { return !!this.lock; }
+
+    // r: a precise-tuner reading { t, freq, attackT, db }. Returns the readings to use, oldest first:
+    // usually none or this one, and when a pick has just been confirmed, its steady readings so far.
+    push(r) {
+      const c = 1200 * Math.log2(r.freq / 440);
+      const x = { r, c, t: r.t, db: r.db, sent: false };
+      if (this.startT === null) this.startT = r.t;
+      const out = [];
+
+      if (r.attackT != null && r.attackT !== this.lastAttack && r.attackT > -Infinity) {
+        this.lastAttack = r.attackT;
+        // An attack right as listening began is just the sound that was already there.
+        this.cand = r.attackT >= this.startT + this.warmup ? { attackT: r.attackT, pts: [], db0: null } : null;
+      }
+
+      if (this.lock) {
+        const L = this.lock;
+        const dt = x.t - L.t;
+        if (dt > this.lostTime) this.lock = null;
+        else if (Math.abs(c - L.c) <= 8 + this.maxRate * dt) {
+          L.c = c;
+          L.t = x.t;
+          x.sent = true;
+          out.push(r);
+          if (!this.checkDrone(x)) { out.length = 0; x.sent = false; }
+        }
+      }
+
+      const k = this.cand;
+      if (k) {
+        if (x.t - k.attackT > this.attackWindow) this.cand = null;
+        else if (k.db0 != null && x.db != null && x.db >= k.db0 + this.swellDb) this.cand = null; // swelling: a voice
+        else {
+          if (k.db0 == null && x.db != null) k.db0 = x.db;
+          k.pts.push(x);
+          k.pts = k.pts.filter((p) => p.t >= x.t - this.settle - 1e-6);
+          let lo = Infinity, hi = -Infinity, loud = -Infinity;
+          for (const p of k.pts) { lo = Math.min(lo, p.c); hi = Math.max(hi, p.c); if (p.db != null) loud = Math.max(loud, p.db); }
+          const dying = x.db != null && x.db <= loud - this.fallDb; // a syllable ending
+          const steady = k.pts.length >= 3 && x.t - k.pts[0].t >= this.settle - 0.035 && hi - lo <= this.steadyCents && !dying;
+          const drone = this.drones.find((d) => Math.abs(d.c - c) < 50);
+          const ringing = this.lock && x.t - this.lock.t <= this.lostTime;
+          const partial = ringing && [2, 3, 4].some((m) => Math.abs(Math.abs(c - this.lock.c) - 1200 * Math.log2(m)) < 30);
+          if (steady && !partial && !(drone && x.db != null && k.db0 < drone.db + 6)) {
+            this.cand = null;
+            this.lock = { c, t: x.t, t0: x.t, dbs: [], faded: false };
+            for (const p of k.pts) if (!p.sent) { out.push(p.r); p.sent = true; }
+            for (const p of k.pts) this.lock.dbs.push({ t: p.t, db: p.db });
+            out.sort((a, b) => a.t - b.t);
+          }
+        }
+      }
+      return out;
+    }
+
+    // Follows the level of the string being heard; false (and the string is dropped) when it's a drone.
+    checkDrone(x) {
+      const L = this.lock;
+      if (L.faded || x.db == null) return true;
+      L.dbs.push({ t: x.t, db: x.db });
+      if (x.t - L.t0 < this.droneTime) return true;
+      const mean = (a) => a.reduce((s, p) => s + p.db, 0) / a.length;
+      const early = L.dbs.filter((p) => p.t <= L.t0 + 0.3);
+      const late = L.dbs.filter((p) => p.t >= x.t - 0.3);
+      const e = mean(early);
+      if (e - mean(late) >= this.droneDb) { L.faded = true; L.dbs = []; return true; }
+      this.drones = this.drones.filter((d) => Math.abs(d.c - L.c) >= 50).concat({ c: L.c, db: Math.max(e, mean(late)) });
+      this.lock = null;
+      return false;
+    }
+  }
+
   // Quiet mode (AudioEngine.setQuiet), for a guitar the mic barely hears: the pitch detectors get the
   // input band-passed (highpass, then two lowpasses: room hiss is broadband, the strings are not) and
   // boosted, accept a noisier pitch, read the precise tuner over a longer stretch, and Auto-set puts
@@ -372,7 +478,7 @@
   const NORMAL = { maxCmnd: 0.2, clarity: 0.85, tuneSecs: 0.17, gateMargin: 12 };
   const QUIET = { highpass: 70, lowpass: 1500, boostDb: 20, maxCmnd: 0.35, clarity: 0.6, tuneSecs: 0.34, gateMargin: 5, tunerWindow: 0.5, holdTime: 0.45 };
 
-  const api = { Yin, NoteTracker, TunerFilter, harmonicShift, refinePitch, dbToLin, linToDb, NORMAL, QUIET };
+  const api = { Yin, NoteTracker, TunerFilter, PluckGate, harmonicShift, refinePitch, dbToLin, linToDb, NORMAL, QUIET };
   root.Pitch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
