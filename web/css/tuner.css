@@ -99,3 +99,42 @@
   .tn-str-note { font-size: 19px; }
   .tn-say { font-size: 16px; }
 }
+
+/* "Strum all six": every string from one strum */
+.tn-card.strum .tn-target, .tn-card.strum .tn-gauge-wrap, .tn-card.strum .tn-strobe, .tn-card.strum .tn-hold { display: none; }
+.tn-poly { display: grid; gap: 10px; }
+.tn-poly-cols { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tn-pcol {
+  display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border-radius: 12px;
+  background: var(--card-2); border: 1px solid transparent; cursor: pointer; color: var(--muted);
+}
+.tn-pcol:hover { border-color: var(--line-2); }
+.tn-pcol:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
+/* a vertical gauge: sharp up, flat down, ±30¢ end to end, the in-tune band ±3¢ */
+.tn-pbar { position: relative; width: 28px; height: 180px; border-radius: 8px; background: var(--card); overflow: hidden; }
+.tn-pzone { position: absolute; left: 0; right: 0; top: 45%; height: 10%; background: rgba(20, 184, 166, 0.22); }
+.tn-pmid { position: absolute; left: 3px; right: 3px; top: 50%; height: 2px; margin-top: -1px; background: var(--pearl); opacity: 0.6; }
+.tn-pneedle {
+  position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px;
+  background: var(--faint); opacity: 0; transition: top 0.2s ease-out, background 0.15s, opacity 0.2s;
+}
+.tn-pcol.live .tn-pneedle { opacity: 1; }
+.tn-pcol.stale .tn-pneedle { opacity: 0.45; }
+.tn-pcol[data-state="good"] .tn-pneedle { background: var(--teal); }
+.tn-pcol[data-state="close"] .tn-pneedle { background: var(--third); }
+.tn-pcol[data-state="off"] .tn-pneedle, .tn-pcol[data-state="far"] .tn-pneedle { background: var(--root); }
+.tn-pval { font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; min-height: 1.3em; color: var(--muted); white-space: nowrap; }
+.tn-pcol[data-state="good"] .tn-pval { color: var(--teal); }
+.tn-pcol[data-state="close"] .tn-pval { color: var(--third); }
+.tn-pcol[data-state="off"] .tn-pval, .tn-pcol[data-state="far"] .tn-pval { color: var(--root); }
+.tn-pdir { font-size: 12px; min-height: 1.2em; color: var(--faint); }
+.tn-pnote { font-size: 20px; font-weight: 750; color: var(--text); line-height: 1; }
+.tn-pnote small { font-size: 11px; color: var(--faint); font-weight: 600; margin-left: 1px; }
+.tn-poly-note { text-align: center; }
+@media (max-width: 560px) {
+  .tn-poly-cols { gap: 5px; }
+  .tn-pbar { width: 22px; height: 150px; }
+  .tn-pval { font-size: 13px; }
+  .tn-pnote { font-size: 17px; }
+}
+.tn-pcol[data-state="good"] .tn-pdir { color: var(--teal); font-size: 15px; font-weight: 800; }

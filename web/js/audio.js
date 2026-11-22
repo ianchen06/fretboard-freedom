@@ -239,6 +239,30 @@
       this.tuneBuf = new Float32Array(this.tuneAn.fftSize);
     }
 
+    // "Strum all six" (js/polytune.js): the last 32768 samples (~0.7 s) of what pitch detection hears,
+    // for one spectrum of the whole strum (32768 is an analyser's limit: at 88.2/96 kHz it's ~0.35 s,
+    // coarser but still within a few cents). readStrum() returns { x, sampleRate }.
+    setStrum(on) {
+      if (!on || this.strumAn || !this.ctx) return;
+      this.strumAn = this.ctx.createAnalyser();
+      this.strumAn.fftSize = 32768;
+      this.strumAn.smoothingTimeConstant = 0;
+      this.pitchIn.connect(this.strumAn);
+      const sink = this.ctx.createGain();
+      sink.gain.value = 0;
+      this.strumAn.connect(sink).connect(this.ctx.destination);
+      this.strumBuf = new Float32Array(32768);
+    }
+
+    get strumSeconds() { return this.ctx ? 32768 / this.ctx.sampleRate : 0.7; }
+
+    readStrum() {
+      if (!this.strumAn) this.setStrum(true);
+      if (!this.strumAn) return null;
+      this.strumAn.getFloatTimeDomainData(this.strumBuf);
+      return { x: this.strumBuf, sampleRate: this.ctx.sampleRate };
+    }
+
     measureTune(info) {
       if (!this.tuneAn) this.setPrecise(true);
       this.tuneAn.getFloatTimeDomainData(this.tuneBuf);
