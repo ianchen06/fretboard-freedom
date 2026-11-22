@@ -393,6 +393,7 @@
     function show(info) {
       const now = performance.now();
       const needle = $('tunerNeedle');
+      if (!needle) return; // a page with its own tuner (tuner.html) only uses the input controls
       if (precise) {
         if (!info || (info.midi == null && now - readingAt > 350)) {
           $('heard').dataset.on = 'false';
@@ -423,7 +424,15 @@
       show(info);
     });
 
-    return { enable, disable, inputKind, show };
+    // The reference pitch, for a page that sets it with its own controls (tuner.html).
+    const setA4 = (v) => {
+      shared.a4 = Math.min(A4_MAX, Math.max(A4_MIN, Math.round(Number(v) || 440)));
+      save();
+      applyA4();
+      return shared.a4;
+    };
+
+    return { enable, disable, inputKind, show, a4: () => shared.a4, setA4, A4_MIN, A4_MAX };
   }
 
   root.MicPanel = { setup, kindOf };

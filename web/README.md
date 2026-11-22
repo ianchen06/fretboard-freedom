@@ -10,7 +10,7 @@ The browser only allows microphone access on `localhost` or `https`, so serve th
 python3 -m http.server 8765 --directory web
 ```
 
-Then open http://localhost:8765/session.html (Daily session), http://localhost:8765 (Find any note), http://localhost:8765/scales.html (Scales), http://localhost:8765/licks.html (Call & response), http://localhost:8765/rhythm.html (Rhythm) or http://localhost:8765/write.html (Song writing) in Chrome, Edge, Firefox or Safari and click **Enable microphone**.
+Then open http://localhost:8765/tuner.html (Tuner), http://localhost:8765/session.html (Daily session), http://localhost:8765 (Find any note), http://localhost:8765/scales.html (Scales), http://localhost:8765/licks.html (Call & response), http://localhost:8765/rhythm.html (Rhythm) or http://localhost:8765/write.html (Song writing) in Chrome, Edge, Firefox or Safari and click **Enable microphone**.
 
 ### On a phone or tablet (iPhone Safari, Android Chrome)
 
@@ -43,6 +43,18 @@ The Daily session, Scales and Call & response pages have a **Stand mode** (top r
 - **Start turns the input on** the first time, since the Hearing card is folded away.
 
 Play to start and Auto next are under the controls, and shared by every page. With an interface on an iPhone, iOS routes both input and output through it. `js/stand.js` does the moving, the pedals and the flashes for all three pages; the layout is in `css/style.css`.
+
+## Tuner (`tuner.html`)
+
+A dedicated tuner, made so a beginner can tune quickly and still get it right to a cent.
+
+- **It finds the string.** In **Auto** it follows whichever open string you pluck (the nearest one in the chosen tuning; a stray reading doesn't flip it). **Pick a string** (or keys **1**–**6**, 1 = high e) locks the target, for a string so far out it would pass for its neighbour; it then says how many semitones to go. **Guide me** walks through low E to high e and moves on once each one is in tune; if the string you just did is still ringing, it says so instead of reading it against the next.
+- **It says what to do.** *Tighten* or *Loosen*, in words and an arrow, with "go a little below and come back up" when you're sharp, and a warning when a string is a few semitones high.
+- **Precise.** The readings are the precise tuner's (`refinePitch` + `TunerFilter`, under 0.1¢ on a clean note). The gauge gives half its swing to ±10¢, the readout shows tenths of a cent (hundredths in Exact), and the strobe stands still in tune. **Precision** sets what counts as in tune: Quick ±3¢, Precise ±1¢ (default), Exact ±0.3¢ for intonation. A string gets its ✓ after holding steady inside that for 0.6 s, and loses it if it drifts well out later.
+- **Play the note** (**R**) plays the target pitch as a clean tone; the tuner ignores the input while it plays.
+- Tuning and A4 (430–450 Hz) are shared with the practice pages. The screen stays on while tuning, where the browser allows it.
+
+The logic is in `js/tuneguide.js` (no DOM), tested by `test/tuneguide.test.js`, down to synthetic plucks through `refinePitch`; the page is `js/tuner-app.js` and `css/tuner.css`. The input card is the shared Hearing card (`js/micpanel.js`) without its own tuner.
 
 ## Daily session (`session.html`)
 
@@ -385,4 +397,5 @@ Tips:
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |
 | `test/lickgen.test.js` | Library, rules, generator and grader tests: `node web/test/lickgen.test.js` |
 | `test/pitch.test.js` | Detector tests on synthetic plucked strings: `node web/test/pitch.test.js` |
+| `test/tuneguide.test.js` | The Tuner page's logic: string choice, direction, holds, guided order, end to end: `node web/test/tuneguide.test.js` |
 | `test/tuner.test.js` | Precise-tuner accuracy (under 0.1¢) and smoothing: `node web/test/tuner.test.js` |
