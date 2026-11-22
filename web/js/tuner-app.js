@@ -64,6 +64,15 @@
   };
   const guide = new TuneGuide({ open: tuning().open, a4: panel.a4(), tolerance: saved.tol });
 
+  // Strum all six (see the end of this file).
+  const POLY_TOL = 3; // cents: in tune, in this view
+  const POLY_SPAN = 30; // cents from the middle of a bar to its end
+  let strumOn = false;
+  let strumAttack = null; // the attack the readings belong to
+  let nextStrumAt = Infinity;
+  let lastLoud = 0;
+  let poly = null; // the latest results, by string
+
   // ---------- the gauge ----------
   const R = 128;
   const polar = (deg, r) => {
@@ -125,6 +134,7 @@
   });
 
   function pick(s) {
+    stopStrum();
     guide.pin(s);
     filter.reset();
     syncMode();
@@ -139,7 +149,7 @@
       b.setAttribute('aria-checked', String(b.dataset.value === String(value)));
     });
   }
-  const syncMode = () => { seg('tnModeSeg', guide.mode); syncStrings(); };
+  const syncMode = () => { seg('tnModeSeg', strumOn ? 'strum' : guide.mode); syncStrings(); };
   $('tnModeSeg').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -147,9 +157,11 @@
     const m = b.dataset.value;
     if (m === 'auto') pick(null);
     else if (m === 'pin') pick(guide.current || guide.nextUndone() || 6);
+    else if (m === 'strum') startStrum();
     else startGuide();
   });
   function startGuide() {
+    stopStrum();
     guide.guide();
     filter.reset();
     syncMode();
@@ -203,6 +215,7 @@
     if (mode === 'guide') guide.guide();
     filter.reset();
     drawStrings();
+    if (strumOn) { poly = null; drawPoly(); }
     render(null);
   });
 
@@ -288,7 +301,7 @@
   }
 
   engine.on('tune', (reading) => {
-    if (performance.now() < pausedUntil) return;
+    if (strumOn || performance.now() < pausedUntil) return;
     let r = null;
     for (const q of saved.noise ? gate.push(reading) : [reading]) r = filter.push(q.freq, q.t, q.attackT, q.db) || r;
     if (!r) return;
@@ -311,6 +324,7 @@
   engine.on('frame', (info) => {
     gate.frame(info);
     if (!engine.micOn) return;
+    if (strumOn) { strumFrame(info); return; }
     if (lastReading && performance.now() - lastReading > 450) lost();
   });
 
@@ -347,6 +361,7 @@
 
   let flashUntil = 0;
   function render(g, freq) {
+    if (strumOn) { sayStrum(); return; }
     const now = performance.now();
     if (!g || g.string == null) {
       reading = null;
@@ -436,9 +451,123 @@
     else if (k === 'a') pick(null);
     else if (k === 'g') startGuide();
     else if (k === 'r') playRef();
+    else if (k === 's') startStrum();
     else return;
     e.preventDefault();
   });
+
+  // ---------- strum all six ----------
+  // One spectrum of the strum (js/polytune.js) gives every string at once: a quick look before the
+  // single-string tuner. It reads ~0.7 s of sound starting just after the strum's attack, then again
+  // every 0.3 s while the strings ring, so turning a peg shows up without strumming again.
+
+  function drawPoly() {
+    const tn = tuning();
+    $('tnPolyCols').innerHTML = [6, 5, 4, 3, 2, 1].map((s) => `<div class="tn-pcol" data-s="${s}" role="listitem" tabindex="0" aria-label="${esc(strName(s))}">
+      <div class="tn-pval">–</div>
+      <div class="tn-pbar" aria-hidden="true"><div class="tn-pzone"></div><div class="tn-pmid"></div><div class="tn-pneedle"></div></div>
+      <div class="tn-pdir">&nbsp;</div>
+      <div class="tn-pnote">${esc(noteOf(tn.open[s]))}<small>${octOf(tn.open[s])}</small></div></div>`).join('');
+  }
+  const pickCol = (e) => {
+    const c = e.target.closest('.tn-pcol');
+    if (c && (e.type === 'click' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(Number(c.dataset.s)); }
+  };
+  $('tnPolyCols').addEventListener('click', pickCol);
+  $('tnPolyCols').addEventListener('keydown', pickCol);
+
+  function startStrum() {
+    if (strumOn) return;
+    strumOn = true;
+    poly = null;
+    strumAttack = engine.tracker ? engine.tracker.lastOnsetT : null; // a strum before now doesn't count
+    nextStrumAt = Infinity;
+    reading = null;
+    $('tnCard').classList.add('strum');
+    $('tnPoly').hidden = false;
+    drawPoly();
+    syncMode();
+    sayStrum();
+    start().then(() => { engine.setStrum(true); if (strumAttack == null && engine.tracker) strumAttack = engine.tracker.lastOnsetT; });
+  }
+
+  function stopStrum() {
+    if (!strumOn) return;
+    strumOn = false;
+    $('tnCard').classList.remove('strum');
+    $('tnPoly').hidden = true;
+    filter.reset();
+    gate.reset();
+  }
+
+  function strumFrame(info) {
+    const tr = engine.tracker;
+    const now = performance.now();
+    if (info.loud) lastLoud = now;
+    if (tr.lastOnsetT !== strumAttack && tr.lastOnsetT > -Infinity) {
+      // A new strum: wait until the window holds only sound from after its attack.
+      strumAttack = tr.lastOnsetT;
+      nextStrumAt = strumAttack + 0.1 + engine.strumSeconds;
+    }
+    if (info.t >= nextStrumAt && info.loud) {
+      nextStrumAt = info.t + 0.3;
+      const buf = engine.readStrum();
+      if (!buf) return;
+      const an = new window.PolyTune.StrumAnalyzer({ sampleRate: buf.sampleRate, open: tuning().open, a4: panel.a4() });
+      poly = {};
+      for (const r of an.analyze(buf.x)) poly[r.s] = r;
+      showPoly(true);
+      sayStrum();
+    } else if (poly && now - lastLoud > 600 && !$('tnPolyCols').dataset.stale) {
+      showPoly(false);
+    }
+  }
+
+  function polyState(r) {
+    if (!r || !r.heard || r.cents == null) return '';
+    if (r.far) return 'far';
+    const a = Math.abs(r.cents);
+    return a <= POLY_TOL ? 'good' : a <= 10 ? 'close' : 'off';
+  }
+
+  function showPoly(live) {
+    $('tnPolyCols').dataset.stale = live ? '' : '1';
+    for (const col of $('tnPolyCols').querySelectorAll('.tn-pcol')) {
+      const s = Number(col.dataset.s);
+      const r = poly && poly[s];
+      const st = polyState(r);
+      col.dataset.state = st;
+      col.classList.toggle('live', !!st && live);
+      col.classList.toggle('stale', !!st && !live);
+      const val = col.querySelector('.tn-pval');
+      const dir = col.querySelector('.tn-pdir');
+      if (!st) { val.textContent = '–'; dir.innerHTML = '&nbsp;'; continue; }
+      const c = r.cents;
+      const shown = st === 'far' ? (c < 0 ? -POLY_SPAN : POLY_SPAN) : Math.max(-POLY_SPAN, Math.min(POLY_SPAN, c));
+      col.querySelector('.tn-pneedle').style.top = `${50 - (50 * shown) / POLY_SPAN}%`;
+      val.textContent = st === 'far' ? (c < 0 ? 'low!' : 'high!') : `${c > 0.05 ? '+' : c < -0.05 ? '−' : ''}${Math.abs(c).toFixed(1)}`;
+      dir.textContent = st === 'good' ? '✓' : c < 0 ? '↑ tighten' : '↓ loosen';
+      col.setAttribute('aria-label', `${strName(s)}: ${st === 'good' ? 'in tune' : st === 'far' ? `far too ${c < 0 ? 'low' : 'high'}` : `${Math.abs(c).toFixed(1)} cents ${c < 0 ? 'flat' : 'sharp'}`}`);
+    }
+  }
+
+  function sayStrum() {
+    if (!engine.micOn) { say('info', 'Press <b>Start tuning</b>, then strum all six open strings.'); return; }
+    const rs = poly ? Object.values(poly).filter((r) => r.heard && r.cents != null) : [];
+    if (!rs.length) { say('info', 'Strum all six open strings and let them ring.'); return; }
+    const far = rs.find((r) => r.far);
+    if (far) {
+      say('far', `The <b>${esc(strName(far.s))}</b> is far too ${far.cents < 0 ? 'low' : 'high'} to read in a strum. Tap it to tune it on its own first.`);
+      return;
+    }
+    const worst = rs.reduce((a, r) => (Math.abs(r.cents) > Math.abs(a.cents) ? r : a));
+    if (Math.abs(worst.cents) <= POLY_TOL) {
+      say('ok', `<b>All within ${POLY_TOL}¢.</b> For the last cent, tap a string, or <b>Guide me</b>.`);
+      return;
+    }
+    const n = Math.abs(worst.cents).toFixed(0);
+    say(worst.cents < 0 ? 'up' : 'down', `Most out: the <b>${esc(strName(worst.s))}</b>, ${n}¢ ${worst.cents < 0 ? 'flat: <b>tighten</b> it' : 'sharp: <b>loosen</b> it a little past, then come up'}. The bars follow while it rings; strum again any time.`);
+  }
 
   drawScale();
   drawStrings();

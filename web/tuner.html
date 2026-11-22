@@ -7,7 +7,7 @@
   <meta name="description" content="A precise guitar tuner for beginners: it finds the string, says which way to turn the peg, and ticks off each string once it's in tune.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css?v=9">
-  <link rel="stylesheet" href="css/tuner.css?v=1">
+  <link rel="stylesheet" href="css/tuner.css?v=2">
 </head>
 <body>
   <header class="topbar">
@@ -61,6 +61,11 @@
 
         <div class="tuner-strobe tn-strobe" id="tnStrobe" aria-hidden="true"></div>
 
+        <div class="tn-poly" id="tnPoly" hidden>
+          <div class="tn-poly-cols" id="tnPolyCols" role="list" aria-label="Every string from one strum"></div>
+          <p class="fine tn-poly-note">One strum reads all six to within a cent or two. Tap a string to fine-tune it on its own.</p>
+        </div>
+
         <div class="tn-say" id="tnSay" aria-live="polite">
           <span class="tn-say-icon" id="tnSayIcon" aria-hidden="true"></span>
           <span class="tn-say-text" id="tnSayText">Press <b>Start tuning</b>, then pluck a string.</span>
@@ -82,6 +87,7 @@
               <button type="button" data-value="auto">Auto <kbd>A</kbd></button>
               <button type="button" data-value="pin">Pick a string <kbd>1–6</kbd></button>
               <button type="button" data-value="guide">Guide</button>
+              <button type="button" data-value="strum" title="Strum all six open strings: see every string at once">Strum all six <kbd>S</kbd></button>
             </div>
           </div>
           <div class="tn-opt">
@@ -145,15 +151,16 @@
         <li><b>Always finish going up.</b> If you’re sharp, go a little below the note and come back up. The string then holds its tuning instead of slipping flat.</li>
         <li><b>Go round twice.</b> Tuning one string pulls on the neck and moves the others a little. The second time round is quick.</li>
       </ol>
-      <p class="fine">Electric, not plugged in? Choose <b>Unplugged electric</b> and hold the iPad or phone close, its mic towards the pickups, and pluck firmly: the tuner then filters out the room’s hiss to hear the quiet string. Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
+      <p class="fine">Electric, not plugged in? Choose <b>Unplugged electric</b> and hold the iPad or phone close, its mic towards the pickups, and pluck firmly: the tuner then filters out the room’s hiss to hear the quiet string. In a hurry? <b>Strum all six</b> (key <kbd>S</kbd>) shows every string from one strum of the open strings, like a polyphonic tuner pedal: fix the ones that are out, strum again, then fine-tune string by string. Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
     </section>
   </main>
 
   <script src="js/theory.js?v=4"></script>
   <script src="js/pitch.js?v=6"></script>
-  <script src="js/audio.js?v=8"></script>
+  <script src="js/audio.js?v=9"></script>
   <script src="js/micpanel.js?v=7"></script>
   <script src="js/tuneguide.js?v=1"></script>
-  <script src="js/tuner-app.js?v=3"></script>
+  <script src="js/polytune.js?v=1"></script>
+  <script src="js/tuner-app.js?v=4"></script>
 </body>
 </html>
