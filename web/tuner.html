@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tuner · Fretboard Freedom</title>
+  <meta name="description" content="A precise guitar tuner for beginners: it finds the string, says which way to turn the peg, and ticks off each string once it's in tune.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=9">
+  <link rel="stylesheet" href="css/tuner.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="tuner.html" aria-current="page">Tuner</a>
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card tn-card" id="tnCard" data-state="idle">
+        <div class="tn-head">
+          <div class="card-kicker">Tuner</div>
+          <div class="tn-head-ctl">
+            <label class="tn-tuning"><span class="sr-only">Tuning</span><select id="tnTuning" aria-label="Tuning"></select></label>
+            <span class="tuner-ref tn-ref">A4 =
+              <button type="button" class="tuner-step" id="tnA4Down" aria-label="Lower the reference pitch">−</button><span id="tnA4">440</span> Hz<button type="button" class="tuner-step" id="tnA4Up" aria-label="Raise the reference pitch">+</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="tn-target" aria-live="off">
+          <div class="tn-note" id="tnNote">–</div>
+          <div class="tn-target-meta">
+            <div class="tn-string" id="tnString">Pluck any open string</div>
+            <div class="tn-freq" id="tnFreq">&nbsp;</div>
+          </div>
+        </div>
+
+        <div class="tn-gauge-wrap">
+          <svg class="tn-gauge" id="tnGauge" viewBox="-160 -150 320 172" role="img" aria-label="Tuning gauge">
+            <g id="tnScale"></g>
+            <g id="tnNeedle" class="tn-needle"><line x1="0" y1="0" x2="0" y2="-128"></line><circle r="7"></circle></g>
+          </svg>
+          <div class="tn-cents" id="tnCents">&nbsp;</div>
+        </div>
+
+        <div class="tuner-strobe tn-strobe" id="tnStrobe" aria-hidden="true"></div>
+
+        <div class="tn-say" id="tnSay" aria-live="polite">
+          <span class="tn-say-icon" id="tnSayIcon" aria-hidden="true"></span>
+          <span class="tn-say-text" id="tnSayText">Press <b>Start tuning</b>, then pluck a string.</span>
+        </div>
+        <div class="tn-hold" aria-hidden="true"><div class="tn-hold-fill" id="tnHold"></div></div>
+
+        <div class="tn-strings" id="tnStrings" role="group" aria-label="Strings: pick one to tune it, or let the tuner follow you"></div>
+
+        <div class="tn-ctl">
+          <button class="btn btn-start" id="tnStart" type="button">Start tuning</button>
+          <button class="btn btn-ghost" id="tnGuide" type="button" title="Tune every string in turn, low E to high e">Guide me, string by string <kbd>G</kbd></button>
+          <button class="btn btn-ghost" id="tnRef" type="button" title="Hear the target note">Play the note <kbd>R</kbd></button>
+        </div>
+
+        <div class="tn-opts">
+          <div class="tn-opt">
+            <span class="field-label">Mode</span>
+            <div class="seg seg-sm" id="tnModeSeg" role="radiogroup" aria-label="Which string to tune">
+              <button type="button" data-value="auto">Auto <kbd>A</kbd></button>
+              <button type="button" data-value="pin">Pick a string <kbd>1–6</kbd></button>
+              <button type="button" data-value="guide">Guide</button>
+            </div>
+          </div>
+          <div class="tn-opt">
+            <span class="field-label">Precision</span>
+            <div class="seg seg-sm" id="tnTolSeg" role="radiogroup" aria-label="How close counts as in tune">
+              <button type="button" data-value="3">Quick ±3¢</button>
+              <button type="button" data-value="1">Precise ±1¢</button>
+              <button type="button" data-value="0.3">Exact ±0.3¢</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Input</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
+        <p class="fine" id="micNote">A phone or laptop mic works: hold the guitar close to it in a quiet room. A guitar cable into an audio interface is even steadier.</p>
+      </div>
+    </section>
+
+    <section class="card tn-help">
+      <div class="card-kicker">How to tune, step by step</div>
+      <ol class="tn-steps">
+        <li><b>Pluck one open string</b> firmly and let it ring. Don’t touch the other strings; rest your hand on them so they stay quiet.</li>
+        <li><b>Find its peg.</b> Follow the string up to the headstock. Turn the peg a little and watch which way the needle moves.</li>
+        <li><b>Follow the arrow.</b> <span class="tn-key up">↑ Tighten</span> raises the pitch, <span class="tn-key down">↓ Loosen</span> lowers it. Small turns: an eighth of a turn moves the high strings a lot.</li>
+        <li><b>Always finish going up.</b> If you’re sharp, go a little below the note and come back up. The string then holds its tuning instead of slipping flat.</li>
+        <li><b>Go round twice.</b> Tuning one string pulls on the neck and moves the others a little. The second time round is quick.</li>
+      </ol>
+      <p class="fine">Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=4"></script>
+  <script src="js/audio.js?v=7"></script>
+  <script src="js/micpanel.js?v=6"></script>
+  <script src="js/tuneguide.js?v=1"></script>
+  <script src="js/tuner-app.js?v=1"></script>
+</body>
+</html>

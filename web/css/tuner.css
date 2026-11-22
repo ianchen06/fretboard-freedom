@@ -1,0 +1,101 @@
+/* The Tuner page (tuner.html). Builds on style.css: tokens, cards, buttons, the strobe. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.tn-card { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.tn-head-ctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tn-tuning select { padding: 6px 10px; font-size: 13px; }
+
+/* the string being tuned */
+.tn-target { display: flex; align-items: center; gap: 16px; min-height: 72px; }
+.tn-note { font-size: 64px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; min-width: 1.6em; }
+.tn-note small { font-size: 22px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+.tn-target-meta { display: grid; gap: 4px; min-width: 0; }
+.tn-string { font-size: 18px; font-weight: 650; color: var(--text); }
+.tn-freq { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* the gauge */
+.tn-gauge-wrap { position: relative; display: grid; justify-items: center; }
+.tn-gauge { width: 100%; max-width: 460px; height: auto; display: block; overflow: visible; }
+.tn-track { fill: none; stroke: var(--card-2); stroke-width: 18; stroke-linecap: round; }
+.tn-near { fill: none; stroke: rgba(245, 165, 36, 0.12); stroke-width: 18; }
+.tn-zone { fill: none; stroke: var(--teal); stroke-width: 18; opacity: 0.55; }
+.tn-tick { stroke: var(--line-2); stroke-width: 1.5; }
+.tn-tick.zero { stroke: var(--pearl); stroke-width: 2.5; }
+.tn-lbl { fill: var(--faint); font: 600 11px var(--font); text-anchor: middle; dominant-baseline: middle; font-variant-numeric: tabular-nums; }
+.tn-side { fill: var(--faint); font: 600 12px var(--font); text-anchor: middle; letter-spacing: 0.08em; text-transform: uppercase; }
+.tn-needle { transform: rotate(0deg); transition: transform 0.12s ease-out; opacity: 0.35; }
+.tn-needle line { stroke: var(--faint); stroke-width: 4; stroke-linecap: round; transition: stroke 0.15s; }
+.tn-needle circle { fill: var(--line-2); }
+.tn-needle.live { opacity: 1; }
+.tn-needle.good line { stroke: var(--teal); }
+.tn-needle.close line { stroke: var(--third); }
+.tn-needle.off line { stroke: var(--root); }
+.tn-cents {
+  margin-top: -6px; font-size: 30px; font-weight: 750; letter-spacing: -0.01em; color: var(--muted);
+  font-variant-numeric: tabular-nums; min-height: 1.2em; line-height: 1.2;
+}
+.tn-cents[data-state="good"] { color: var(--teal); }
+.tn-cents[data-state="close"] { color: var(--third); }
+.tn-cents[data-state="off"] { color: var(--root); }
+.tn-strobe { height: 22px; border-radius: 8px; }
+
+/* what to do */
+.tn-say {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px;
+  border-radius: 12px; background: var(--card-2); font-size: 17px; line-height: 1.35; color: var(--text);
+}
+.tn-say-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; font-weight: 800; }
+.tn-say-icon:empty { display: none; }
+.tn-say[data-kind="up"] .tn-say-icon, .tn-say[data-kind="down"] .tn-say-icon { background: rgba(245, 165, 36, 0.16); color: var(--third); }
+.tn-say[data-kind="far"] .tn-say-icon { background: rgba(229, 72, 77, 0.16); color: var(--root); }
+.tn-say[data-kind="ok"] .tn-say-icon { background: rgba(20, 184, 166, 0.18); color: var(--teal); }
+.tn-say[data-kind="ok"] { color: var(--teal); }
+.tn-say[data-kind="ok"] b { color: inherit; }
+.tn-hold { height: 4px; border-radius: 2px; background: var(--card-2); overflow: hidden; margin-top: -8px; }
+.tn-hold-fill { height: 100%; width: 0; background: var(--teal); transition: width 0.1s linear; }
+
+/* the six strings */
+.tn-strings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tn-str {
+  position: relative; display: grid; justify-items: center; gap: 2px; padding: 10px 4px 8px;
+  border: 1px solid var(--line-2); border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.tn-str:hover { color: var(--text); border-color: #5a5a64; }
+.tn-str:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
+.tn-str-note { font-size: 22px; font-weight: 750; line-height: 1.1; color: var(--text); }
+.tn-str-note small { font-size: 12px; color: var(--faint); font-weight: 600; margin-left: 1px; }
+.tn-str-num { font-size: 11.5px; color: var(--faint); }
+.tn-str-tick {
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--teal); color: #0f2a27;
+  transform: scale(0); transition: transform 0.18s ease-out;
+}
+.tn-str.done { border-color: rgba(20, 184, 166, 0.55); }
+.tn-str.done .tn-str-tick { transform: scale(1); }
+.tn-str.current { border-color: var(--pearl); background: rgba(233, 223, 200, 0.08); }
+.tn-str[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--pearl); }
+
+.tn-ctl { display: flex; gap: 8px; flex-wrap: wrap; }
+.tn-ctl .btn { flex: 1 1 auto; }
+.tn-opts { display: flex; gap: 14px 24px; flex-wrap: wrap; }
+.tn-opt { display: grid; gap: 6px; }
+.tn-opts .seg.seg-sm { flex-wrap: wrap; }
+.tn-opts .seg kbd { margin-left: 4px; padding: 2px 4px; }
+
+/* the how-to */
+.tn-help { padding: 18px 20px; display: grid; gap: 10px; }
+.tn-steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--muted); line-height: 1.5; font-size: 14.5px; }
+.tn-key { display: inline-block; padding: 0 7px; border-radius: 6px; font-weight: 650; font-size: 13px; }
+.tn-key.up, .tn-key.down { background: rgba(245, 165, 36, 0.14); color: var(--third); }
+
+@media (hover: none) and (pointer: coarse) { .tn-opts .seg kbd { display: none; } }
+@media (max-width: 560px) {
+  .tn-card { padding: 16px; }
+  .tn-note { font-size: 52px; }
+  .tn-strings { gap: 6px; }
+  .tn-str { padding: 9px 2px 7px; }
+  .tn-str-note { font-size: 19px; }
+  .tn-say { font-size: 16px; }
+}
