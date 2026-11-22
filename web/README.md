@@ -334,7 +334,7 @@ When you pick a note an octave above a string that's still ringing, the detector
 Grading goes by **pitch, not strings**. It catches wrong notes and wrong octaves, but it doesn't mark G3 on the A string (fret 10) wrong when the exercise asked for G3 on the D string (fret 5). The app does guess the string from each note's sound (see *Which string you played*) and gives a hint when a note seems to be on another string, but that guess isn't reliable enough to grade you on.
 
 Tips:
-- Tune up first. The *Hearing* panel doubles as a tuner.
+- Tune up first. The *Hearing* panel doubles as a tuner. For fine tuning or setting intonation, press **Precise tuner**. The scale then spans ±10¢ and reads to a tenth of a cent, a strobe stands still when you're in tune, and you can set the reference pitch (A4 = 430–450 Hz; the note detection uses it too).
 - Wear headphones for the metronome.
 - If notes don't register, raise **Sensitivity**. If noise triggers notes, lower it, or press **Auto-set** while the room is quiet.
 - If your mic keeps hearing the wrong octave, turn off **Check the octave** under *More options*.
@@ -357,7 +357,7 @@ Tips:
 | `test/stand.test.js` | Stand mode's pedal keys, start notes and zoomed fret windows: `node web/test/stand.test.js` |
 | `index.html`, `css/style.css` | Page and styles. The colors match the deck: root red, 3rd amber, 5th blue. |
 | `js/theory.js` | Notes, tunings and fret math (a port of `build/lib/theory.js`) |
-| `js/pitch.js` | YIN detector + `NoteTracker` (turns audio frames into note events) |
+| `js/pitch.js` | YIN detector + `NoteTracker` (turns audio frames into note events); `refinePitch` + `TunerFilter` for the precise tuner |
 | `js/audio.js` | Input (mic or interface, channel routing), output device, analysis loop, the onset worklet, metronome, plucked-string synth |
 | `js/fretboard.js` | SVG fretboard |
 | `js/drill.js` | Drill logic, timing, scoring, speed stats (no DOM) |
@@ -367,7 +367,7 @@ Tips:
 | `js/lickgen.js` | Rule checker, chord fit, generator, retargeting, grading (no DOM) |
 | `js/band.js` | Backing band: synthesized drums/bass/guitars, amps (built-in or NAM), scheduler |
 | `js/tab.js` | SVG tab with bends, slides, hammer-ons and a playhead |
-| `js/micpanel.js` | The Hearing card shared by every page: input device and channel, output device, interface tips, sensitivity, tuner |
+| `js/micpanel.js` | The Hearing card shared by every page: input device and channel, output device, interface tips, sensitivity, tuner (and its precise mode) |
 | `js/licks-app.js` | Call & response UI wiring |
 | `vendor/nam/` | Neural Amp Modeler engine (third-party, MIT) |
 | `AI-OPTIONS.md` | Survey of AI models and open-source projects that could be added, with a recommendation (nothing in it is built yet) |
@@ -385,3 +385,4 @@ Tips:
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |
 | `test/lickgen.test.js` | Library, rules, generator and grader tests: `node web/test/lickgen.test.js` |
 | `test/pitch.test.js` | Detector tests on synthetic plucked strings: `node web/test/pitch.test.js` |
+| `test/tuner.test.js` | Precise-tuner accuracy (under 0.1¢) and smoothing: `node web/test/tuner.test.js` |

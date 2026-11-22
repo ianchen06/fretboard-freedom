@@ -4,6 +4,7 @@
 // NoteTracker: turns a stream of frames into "a note was played" events. It needs the pitch to hold
 // steady for a moment before reporting it, and it reports the same pitch again only after a new pick
 // attack, so a ringing string isn't counted twice and a re-picked one is.
+// refinePitch + TunerFilter: the precise tuner, to a tenth of a cent on a held note.
 (function (root) {
   'use strict';
 
@@ -259,7 +260,97 @@
     }
   }
 
-  const api = { Yin, NoteTracker, harmonicShift, dbToLin, linToDb };
+  // High-precision pitch for the precise tuner. x: a long stretch of raw (full-rate) input, ~170 ms;
+  // f0: a rough estimate (the note tracker's). Instead of one period, it compares the signal with
+  // itself k periods later (k as large as half the buffer allows), so a sub-sample error in the lag
+  // is k times smaller in the frequency. Normalized cross-correlation, so a decaying note doesn't
+  // bias it. Returns { freq, clarity } (clarity 0..1, the correlation at the peak) or null.
+  // A high note fits many periods, so the lag is found in steps (k = 1, 4, 16, …): each step's
+  // estimate is close enough that the next, longer lag can't land a whole period off.
+  function refinePitch(x, sr, f0) {
+    const kMax = Math.floor((x.length * 0.5) / (sr / f0));
+    if (kMax < 1) return null;
+    let res = null;
+    let f = f0;
+    let tol = 0.012; // ±20 cents of slack around the rough estimate
+    for (let k = 1; ; k = Math.min(kMax, k * 4)) {
+      res = ncclag(x, sr, f, k, tol);
+      if (!res) return null;
+      f = res.freq;
+      tol = 0.002; // the next step starts from a few cents at most
+      if (k === kMax) return res;
+    }
+  }
+
+  function ncclag(x, sr, f0, k, tol) {
+    const N = x.length;
+    const P = sr / f0;
+    const L = k * P;
+    const r = Math.min(Math.ceil(L * tol) + 3, Math.floor(P * 0.4));
+    const lo = Math.max(2, Math.floor(L - r));
+    const hi = Math.ceil(L + r);
+    const W = N - hi - 2;
+    if (W < P) return null;
+    let e0 = 0;
+    for (let j = 0; j < W; j++) e0 += x[j] * x[j];
+    if (e0 <= 0) return null;
+    const ncc = new Float64Array(hi - lo + 3);
+    // Energy of the shifted window, slid one sample at a time.
+    let e1 = 0;
+    for (let j = lo - 1; j < lo - 1 + W; j++) e1 += x[j] * x[j];
+    for (let tau = lo - 1; tau <= hi + 1; tau++) {
+      if (tau > lo - 1) e1 += x[tau + W - 1] * x[tau + W - 1] - x[tau - 1] * x[tau - 1];
+      let c = 0;
+      for (let j = 0; j < W; j++) c += x[j] * x[j + tau];
+      ncc[tau - lo + 1] = e1 > 0 ? c / Math.sqrt(e0 * e1) : 0;
+    }
+    let best = lo;
+    for (let tau = lo + 1; tau <= hi; tau++) if (ncc[tau - lo + 1] > ncc[best - lo + 1]) best = tau;
+    const i = best - lo + 1;
+    const a = ncc[i - 1];
+    const b = ncc[i];
+    const c = ncc[i + 1];
+    if (!(b > a && b >= c)) return null; // peak at the edge of the search: the estimate was off
+    const den = a - 2 * b + c;
+    const shift = den < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (a - c)) / den)) : 0;
+    return { freq: (k * sr) / (best + shift), clarity: b };
+  }
+
+  // Steadies the precise tuner's readings: the median of the last ~0.3 s on the same note, and how
+  // far they spread. A jump of more than ~60 cents is a new note and starts afresh.
+  class TunerFilter {
+    constructor({ a4 = 440, window = 0.3, minReadings = 4 } = {}) {
+      this.a4 = a4;
+      this.window = window;
+      this.minReadings = minReadings;
+      this.reset();
+    }
+
+    reset() { this.pts = []; this.midi = null; }
+
+    // Returns { midi, cents, freq, spread, stable } or null until there are enough readings.
+    push(freq, t) {
+      const mf = 69 + 12 * Math.log2(freq / this.a4);
+      if (this.midi === null || Math.abs(mf - this.midi) > 0.6) { this.pts = []; this.midi = Math.round(mf); }
+      this.pts.push({ t, c: (mf - this.midi) * 100 });
+      while (this.pts.length && this.pts[0].t < t - this.window) this.pts.shift();
+      // A note that settles into the neighbour: follow it.
+      if (this.pts.length >= this.minReadings && this.pts.every((p) => Math.abs(p.c) > 50)) {
+        const shift = Math.round(this.pts.reduce((s, p) => s + p.c, 0) / this.pts.length / 100);
+        this.midi += shift;
+        for (const p of this.pts) p.c -= shift * 100;
+      }
+      if (this.pts.length < this.minReadings) return null;
+      const cs = this.pts.map((p) => p.c).sort((x, y) => x - y);
+      const n = cs.length;
+      const med = n % 2 ? cs[(n - 1) / 2] : (cs[n / 2 - 1] + cs[n / 2]) / 2;
+      const spread = cs[Math.floor(n * 0.75)] - cs[Math.floor(n * 0.25)];
+      const fr = this.a4 * 2 ** ((this.midi + med / 100 - 69) / 12);
+      return { midi: this.midi, cents: med, freq: fr, spread, stable: spread < 1 };
+    }
+  }
+
+  const api = { Yin, NoteTracker, TunerFilter, harmonicShift, refinePitch, dbToLin, linToDb };
   root.Pitch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,7 +1,8 @@
 // The "Hearing" card: the input (a microphone or a USB audio interface such as a BOSS KATANA:GO),
 // which channel of it to listen to, the output device, sensitivity (the noise gate) with Auto-set,
 // and the live readout (note, tuner, level meter). These settings are kept in ff.settings, so every
-// practice page shares them.
+// practice page shares them. The tuner has a precise mode (a ±10¢ scale read to a tenth of a cent,
+// a strobe, and the reference pitch), added to the card here so every page gets it.
 (function (root) {
   'use strict';
   const T = root.Theory;
@@ -24,10 +25,10 @@
   function setup(engine, { store, preferFlat = () => false, onInputChange = () => {}, tuning = () => T.TUNINGS.standard }) {
     const $ = (id) => document.getElementById(id);
     const has = (id) => !!document.getElementById(id);
-    const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', ...store.get('ff.settings', {}) };
+    const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', a4: 440, ...store.get('ff.settings', {}) };
     const save = () => store.set('ff.settings', {
       ...store.get('ff.settings', {}),
-      sensitivity: shared.sensitivity, deviceId: shared.deviceId, channel: shared.channel, outputId: shared.outputId,
+      sensitivity: shared.sensitivity, deviceId: shared.deviceId, channel: shared.channel, outputId: shared.outputId, a4: shared.a4,
     });
     engine.channel = shared.channel;
     engine.outputId = engine.canPickOutput ? shared.outputId : '';
@@ -53,6 +54,7 @@
         setPill('off', 'Starting…');
         await engine.enableMic(shared.deviceId || undefined);
         applySensitivity();
+        applyA4();
         const info = engine.inputInfo() || { label: '' };
         kind = kindOf(info.label);
         setPill('on', kind === 'mic' ? 'Listening' : 'Interface');
@@ -275,6 +277,113 @@
       renderStrings();
     }
 
+    // ---------- precise tuner ----------
+    const P = root.Pitch;
+    const A4_MIN = 430;
+    const A4_MAX = 450;
+    shared.a4 = Math.min(A4_MAX, Math.max(A4_MIN, Math.round(Number(shared.a4) || 440)));
+    let precise = false;
+    const filter = P && P.TunerFilter ? new P.TunerFilter({ a4: shared.a4 }) : null;
+    let reading = null; // the latest steadied reading, and when it came
+    let readingAt = 0;
+    const tunerEl = has('tunerNeedle') ? $('tunerNeedle').parentElement : null;
+    let strobe = null;
+    const tunerIdle = has('tunerText') ? $('tunerText').textContent : '';
+    if (tunerEl && filter && engine.setPrecise) {
+      tunerEl.insertAdjacentHTML('afterend', '<div class="tuner-strobe" id="tunerStrobe" hidden aria-hidden="true"></div>');
+      strobe = $('tunerStrobe');
+      $('tunerText').insertAdjacentHTML('afterend', `<div class="tuner-mode" id="tunerMode">
+        <button type="button" class="link-btn" id="tunerPreciseBtn" aria-pressed="false" title="A finer scale, read to a tenth of a cent, for setting intonation and fine tuning">Precise tuner</button>
+        <span class="tuner-ref" id="tunerRef" hidden>A4 =
+          <button type="button" class="tuner-step" data-d="-1" aria-label="Lower the reference pitch">−</button><span id="tunerA4"></span> Hz<button type="button" class="tuner-step" data-d="1" aria-label="Raise the reference pitch">+</button>
+        </span></div>`);
+      $('tunerPreciseBtn').addEventListener('click', (e) => { e.currentTarget.blur(); setPrecise(!precise); });
+      $('tunerRef').addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        shared.a4 = Math.min(A4_MAX, Math.max(A4_MIN, shared.a4 + Number(b.dataset.d)));
+        save();
+        applyA4();
+      });
+    }
+    function applyA4() {
+      if (has('tunerA4')) {
+        $('tunerA4').textContent = shared.a4;
+        $('tunerRef').hidden = !precise && shared.a4 === 440; // a changed reference stays in view
+      }
+      if (engine.tracker) engine.tracker.a4 = shared.a4;
+      if (filter) { filter.a4 = shared.a4; filter.reset(); }
+    }
+    applyA4();
+
+    async function setPrecise(on) {
+      precise = on;
+      engine.setPrecise(on);
+      filter.reset();
+      reading = null;
+      tunerEl.classList.toggle('precise', on);
+      strobe.hidden = !on;
+      $('tunerRef').hidden = !on && shared.a4 === 440;
+      $('tunerPreciseBtn').setAttribute('aria-pressed', String(on));
+      $('tunerPreciseBtn').textContent = on ? 'Back to the normal tuner' : 'Precise tuner';
+      $('tunerNeedle').className = 'tuner-needle';
+      $('tunerText').textContent = on ? 'Pick one string and let it ring.' : tunerIdle;
+      $('tunerText').dataset.state = '';
+      if (on) {
+        requestAnimationFrame(spin);
+        if (!engine.micOn) await enable();
+      }
+    }
+
+    // Open strings of the page's tuning, to name the string a reading belongs to.
+    function stringOf(midi) {
+      const tn = tuning();
+      const s = Object.keys(tn.open).map(Number).find((k) => tn.open[k] === midi);
+      return s ? `${s}${['', 'st', 'nd', 'rd', 'th', 'th', 'th'][s]} string` : '';
+    }
+
+    if (filter && engine.setPrecise) {
+      engine.on('tune', ({ t, freq }) => {
+        if (!precise) return;
+        const r = filter.push(freq, t);
+        if (!r) return;
+        reading = r;
+        readingAt = performance.now();
+        const c = r.cents;
+        $('heardNote').textContent = T.noteName(r.midi, preferFlat());
+        $('heardOct').textContent = Math.floor(r.midi / 12) - 1;
+        $('heard').dataset.on = 'true';
+        const needle = $('tunerNeedle');
+        needle.style.left = `${50 + 5 * Math.max(-10, Math.min(10, c))}%`;
+        needle.className = `tuner-needle live ${Math.abs(c) < 1 ? 'good' : Math.abs(c) < 3 ? 'close' : 'off'}`;
+        const str = stringOf(r.midi);
+        const where = `${str ? `${str} · ` : ''}${r.freq.toFixed(2)} Hz`;
+        const shown = Math.abs(c) < 0.05 ? 0 : c;
+        $('tunerText').textContent = !r.stable ? `${shown > 0 ? '+' : ''}${shown.toFixed(1)}¢ · steadying… · ${where}`
+          : Math.abs(c) < 0.5 ? `In tune (${shown > 0 ? '+' : ''}${shown.toFixed(1)}¢) · ${where}`
+            : `${c > 0 ? '+' : ''}${c.toFixed(1)}¢ ${c > 0 ? 'sharp' : 'flat'} · ${where}`;
+        $('tunerText').dataset.state = r.stable && Math.abs(c) < 0.5 ? 'good' : '';
+      });
+    }
+
+    // The strobe: its stripes drift right when sharp and left when flat, faster the further off,
+    // and stand still in tune. It shows a fraction of a cent that a needle can't.
+    let strobeX = 0;
+    let lastSpin = 0;
+    function spin(now) {
+      if (!precise) return;
+      const dt = lastSpin ? Math.min(0.1, (now - lastSpin) / 1000) : 0;
+      lastSpin = now;
+      const live = reading && now - readingAt < 350;
+      if (live) {
+        strobeX += Math.max(-50, Math.min(50, reading.cents)) * 8 * dt;
+        strobe.style.backgroundPositionX = `${strobeX.toFixed(2)}px`;
+      }
+      strobe.classList.toggle('live', !!live);
+      strobe.classList.toggle('good', !!live && reading.stable && Math.abs(reading.cents) < 0.5);
+      requestAnimationFrame(spin);
+    }
+
     $('micBtn').addEventListener('click', (e) => { e.currentTarget.blur(); engine.micOn ? disable() : enable(); });
     $('micPill').addEventListener('click', () => (engine.micOn ? disable() : enable()));
     $('calBtn').addEventListener('click', () => (engine.micOn ? autoCalibrate() : enable()));
@@ -284,6 +393,15 @@
     function show(info) {
       const now = performance.now();
       const needle = $('tunerNeedle');
+      if (precise) {
+        if (!info || (info.midi == null && now - readingAt > 350)) {
+          $('heard').dataset.on = 'false';
+          needle.className = 'tuner-needle';
+          if (filter) filter.reset();
+          if (!info) { $('heardNote').textContent = '–'; $('heardOct').textContent = ''; }
+        }
+        return;
+      }
       if (info && info.midi != null) {
         $('heardNote').textContent = T.noteName(info.midi, preferFlat());
         $('heardOct').textContent = Math.floor(info.midi / 12) - 1;
