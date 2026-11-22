@@ -17,3 +17,9 @@ app/ios/build/
 *.p12
 *.mobileprovision
 AuthKey_*.p8
+
+# Deck build scratch (renders and partial builds)
+build/out/
+build/_render.pptx
+build/_render.pdf
+build/.render.lock

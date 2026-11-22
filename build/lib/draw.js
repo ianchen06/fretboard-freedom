@@ -187,13 +187,13 @@ function lineBetween(slide, x1, y1, x2, y2, opts) {
 }
 
 const looksLikeNote = (l) => /^[A-G][♯♭#b]?$/.test(l);
-const looksLikeInterval = (l) => /^(R|[♭♯#b]?(1[13]|[1-79]))$/.test(l);
+const looksLikeInterval = (l) => /^(R|(♭♭|[♭♯#b])?(1[13]|[1-79]))$/.test(l);
 // Semitones above the root for an interval label, including extensions and enharmonic spellings (♯4 = ♭5, ♯9 = ♭3, 13 = 6).
 const DEGREE_SEMIS = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11, 9: 2, 11: 5, 13: 9 };
 function intervalSemis(label) {
   if (label === 'R') return 0;
-  const m = label.replace(/#/g, '♯').match(/^([♭♯b]?)(\d+)$/);
-  const acc = m[1] === '♯' ? 1 : m[1] ? -1 : 0;
+  const m = label.replace(/#/g, '♯').match(/^(♭♭|[♭♯b]?)(\d+)$/);
+  const acc = m[1] === '♯' ? 1 : m[1] === '♭♭' ? -2 : m[1] ? -1 : 0;
   return ((DEGREE_SEMIS[Number(m[2])] + acc) % 12 + 12) % 12;
 }
 

@@ -198,8 +198,188 @@ function harmonize(keyName, mode = 'major') {
   });
 }
 
+// ---------- letter-aware spelling (Theory Intensive) ----------
+// Degree labels: '1', 'b3', '#4', 'bb7', '9', '#11', 'b13' (ASCII b/# or ♭/♯). Double sharps/flats print as ♯♯ / ♭♭.
+const MAJOR_SEMIS = [0, 2, 4, 5, 7, 9, 11];
+const mod7 = (n) => ((n % 7) + 7) % 7;
+const PERFECT_NUMS = new Set([1, 4, 5]);
+
+function accidental(diff) { return diff > 0 ? '♯'.repeat(diff) : '♭'.repeat(-diff); }
+// Name a pitch class using a given letter (e.g. letter 'E', pc 3 -> 'E♭').
+function spellWithLetter(letter, notePc) {
+  let diff = mod12(notePc - LETTER_PC[letter]);
+  if (diff > 6) diff -= 12;
+  if (Math.abs(diff) > 2) throw new Error(`Cannot spell pc ${notePc} with letter ${letter}`);
+  return letter + accidental(diff);
+}
+
+function parseDegree(label) {
+  const s = String(label).replace(/#/g, '♯').replace(/b/g, '♭');
+  const m = s.match(/^([♯♭]*)(\d+)$/);
+  if (!m) throw new Error(`Bad degree label: ${label}`);
+  const acc = [...m[1]].reduce((a, c) => a + (c === '♯' ? 1 : -1), 0);
+  const num = Number(m[2]);
+  const steps = (num - 1) % 7;
+  return { num, steps, semis: mod12(MAJOR_SEMIS[steps] + acc) };
+}
+// Pretty degree label: 'b3' -> '♭3', 'bb7' -> '♭♭7'.
+const prettyDegree = (label) => String(label).replace(/#/g, '♯').replace(/b/g, '♭');
+
+// Spell one degree above a root: spellDegree('A', 'b3') = 'C', spellDegree('C', 'bb7') = 'B♭♭'.
+function spellDegree(root, label) {
+  const R = normalizeName(root);
+  const d = parseDegree(label);
+  const letter = LETTERS[(LETTERS.indexOf(R[0]) + d.steps) % 7];
+  return spellWithLetter(letter, mod12(pc(R) + d.semis));
+}
+
+const FORMULAS = {
+  // scales
+  major: ['1', '2', '3', '4', '5', '6', '7'],
+  ionian: ['1', '2', '3', '4', '5', '6', '7'],
+  dorian: ['1', '2', 'b3', '4', '5', '6', 'b7'],
+  phrygian: ['1', 'b2', 'b3', '4', '5', 'b6', 'b7'],
+  lydian: ['1', '2', '3', '#4', '5', '6', '7'],
+  mixolydian: ['1', '2', '3', '4', '5', '6', 'b7'],
+  aeolian: ['1', '2', 'b3', '4', '5', 'b6', 'b7'],
+  minor: ['1', '2', 'b3', '4', '5', 'b6', 'b7'],
+  locrian: ['1', 'b2', 'b3', '4', 'b5', 'b6', 'b7'],
+  harmonicMinor: ['1', '2', 'b3', '4', '5', 'b6', '7'],
+  melodicMinor: ['1', '2', 'b3', '4', '5', '6', '7'],
+  phrygianDominant: ['1', 'b2', '3', '4', '5', 'b6', 'b7'],
+  majPent: ['1', '2', '3', '5', '6'],
+  minPent: ['1', 'b3', '4', '5', 'b7'],
+  blues: ['1', 'b3', '4', 'b5', '5', 'b7'],
+};
+const SCALE_NAMES = {
+  major: 'Major (Ionian)', ionian: 'Ionian', dorian: 'Dorian', phrygian: 'Phrygian', lydian: 'Lydian', mixolydian: 'Mixolydian',
+  aeolian: 'Aeolian', minor: 'Natural minor', locrian: 'Locrian', harmonicMinor: 'Harmonic minor', melodicMinor: 'Melodic minor',
+  phrygianDominant: 'Phrygian dominant', majPent: 'Major pentatonic', minPent: 'Minor pentatonic', blues: 'Blues',
+};
+// Chord formulas keyed by the suffix printed after the root (so the key IS the chord symbol).
+const CHORD_FORMULAS = {
+  '': ['1', '3', '5'], m: ['1', 'b3', '5'], '°': ['1', 'b3', 'b5'], '+': ['1', '3', '#5'], 5: ['1', '5'],
+  sus2: ['1', '2', '5'], sus4: ['1', '4', '5'], 6: ['1', '3', '5', '6'], m6: ['1', 'b3', '5', '6'], add9: ['1', '3', '5', '9'], madd9: ['1', 'b3', '5', '9'],
+  maj7: ['1', '3', '5', '7'], 7: ['1', '3', '5', 'b7'], m7: ['1', 'b3', '5', 'b7'], 'm7♭5': ['1', 'b3', 'b5', 'b7'], '°7': ['1', 'b3', 'b5', 'bb7'],
+  'm(maj7)': ['1', 'b3', '5', '7'], '+maj7': ['1', '3', '#5', '7'], '+7': ['1', '3', '#5', 'b7'], '7sus4': ['1', '4', '5', 'b7'],
+  maj9: ['1', '3', '5', '7', '9'], 9: ['1', '3', '5', 'b7', '9'], m9: ['1', 'b3', '5', 'b7', '9'], 11: ['1', '5', 'b7', '9', '11'], m11: ['1', 'b3', '5', 'b7', '9', '11'],
+  13: ['1', '3', '5', 'b7', '9', '13'], m13: ['1', 'b3', '5', 'b7', '9', '13'], maj13: ['1', '3', '5', '7', '9', '13'],
+  '7♭9': ['1', '3', '5', 'b7', 'b9'], '7♯9': ['1', '3', '5', 'b7', '#9'], '7♯11': ['1', '3', '5', 'b7', '#11'], '7♭13': ['1', '3', '5', 'b7', 'b13'],
+  'maj7♯11': ['1', '3', '5', '7', '#11'], '7alt': ['1', '3', 'b7', 'b9', '#9', 'b13'],
+};
+const spellFormula = (root, formula) => formula.map((d) => spellDegree(root, d));
+function spellScale(root, kind) {
+  if (!FORMULAS[kind]) throw new Error(`Unknown scale ${kind}`);
+  return spellFormula(root, FORMULAS[kind]);
+}
+function spellChord(root, suffix = '') {
+  const f = CHORD_FORMULAS[suffix];
+  if (!f) throw new Error(`Unknown chord suffix "${suffix}"`);
+  return spellFormula(root, f);
+}
+
+// Interval name from note a up to note b, by letters: intervalName('C', 'A♭') = 'm6', ('F♯', 'C') = 'd5'.
+// Same letter and pitch gives 'P1'; pass { octave: true } to call that 'P8'.
+function intervalName(a, b, { octave = false } = {}) {
+  const A = normalizeName(a); const B = normalizeName(b);
+  const steps = mod7(LETTERS.indexOf(B[0]) - LETTERS.indexOf(A[0]));
+  const num = steps + 1;
+  let diff = mod12(pc(B) - pc(A)) - MAJOR_SEMIS[steps];
+  if (diff > 6) diff -= 12;
+  if (diff < -6) diff += 12;
+  let q;
+  if (PERFECT_NUMS.has(num)) q = { 0: 'P', 1: 'A', '-1': 'd', 2: 'AA', '-2': 'dd' }[diff];
+  else q = { 0: 'M', '-1': 'm', 1: 'A', '-2': 'd', 2: 'AA', '-3': 'dd' }[diff];
+  if (!q) throw new Error(`Unnameable interval ${a}→${b}`);
+  return num === 1 && octave && q === 'P' ? 'P8' : q + num;
+}
+function parseInterval(iv) {
+  const m = String(iv).match(/^(AA|dd|P|M|m|A|d)(\d+)$/);
+  if (!m) throw new Error(`Bad interval ${iv}`);
+  const num = Number(m[2]); const steps = (num - 1) % 7; const simple = steps + 1;
+  const perfect = PERFECT_NUMS.has(simple);
+  if (perfect && (m[1] === 'M' || m[1] === 'm')) throw new Error(`${iv}: ${simple} is a perfect interval`);
+  if (!perfect && m[1] === 'P') throw new Error(`${iv}: ${simple} is not a perfect interval`);
+  const off = { P: 0, M: 0, m: -1, A: 1, AA: 2, d: perfect ? -1 : -2, dd: perfect ? -2 : -3 }[m[1]];
+  return { q: m[1], num, steps, simple, semis: MAJOR_SEMIS[steps] + off + (num > 7 ? 12 * Math.floor((num - 1) / 7) : 0) };
+}
+// Half steps in an interval: intervalSemitones('m6') = 8, ('M9') = 14.
+const intervalSemitones = (iv) => parseInterval(iv).semis;
+// Note a given interval above / below a note: noteAbove('B♭', 'M3') = 'D', noteBelow('E', 'm3') = 'C♯'.
+function noteAbove(root, iv) {
+  const R = normalizeName(root); const p = parseInterval(iv);
+  return spellWithLetter(LETTERS[(LETTERS.indexOf(R[0]) + p.steps) % 7], mod12(pc(R) + p.semis));
+}
+function noteBelow(root, iv) {
+  const R = normalizeName(root); const p = parseInterval(iv);
+  return spellWithLetter(LETTERS[mod7(LETTERS.indexOf(R[0]) - p.steps)], mod12(pc(R) - p.semis));
+}
+// Inversion within the octave: m3 <-> M6, P4 <-> P5, A4 <-> d5.
+function invertInterval(iv) {
+  const p = parseInterval(iv);
+  const q = { P: 'P', M: 'm', m: 'M', A: 'd', d: 'A', AA: 'dd', dd: 'AA' }[p.q];
+  return q + (9 - p.simple);
+}
+const INTERVAL_LONG = { P: 'Perfect', M: 'Major', m: 'Minor', A: 'Augmented', d: 'Diminished', AA: 'Doubly augmented', dd: 'Doubly diminished' };
+const ORDINAL = { 1: 'unison', 2: '2nd', 3: '3rd', 4: '4th', 5: '5th', 6: '6th', 7: '7th', 8: 'octave', 9: '9th', 10: '10th', 11: '11th', 12: '12th', 13: '13th' };
+function intervalLong(iv) { const p = parseInterval(iv); return `${INTERVAL_LONG[p.q]} ${ORDINAL[p.num]}`; }
+
+// Key signature of a major or minor key: { count, type: '♯'|'♭'|'', notes (in signature order), relative }.
+const SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const FLAT_ORDER = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+function keySignature(key, mode = 'major') {
+  const major = mode === 'major' ? normalizeName(key) : noteAbove(key, 'm3');
+  const notes = spellScale(major, 'major');
+  const sharps = notes.filter((n) => n.includes('♯')).map((n) => n[0]);
+  const flats = notes.filter((n) => n.includes('♭')).map((n) => n[0]);
+  if (sharps.length && flats.length) throw new Error(`Mixed signature for ${key}`);
+  if (notes.some((n) => n.length > 2)) throw new Error(`Theoretical key ${key} ${mode}`);
+  const relative = mode === 'major' ? noteBelow(major, 'm3') : major;
+  if (sharps.length) return { count: sharps.length, type: '♯', notes: SHARP_ORDER.filter((l) => sharps.includes(l)).map((l) => `${l}♯`), relative };
+  if (flats.length) return { count: flats.length, type: '♭', notes: FLAT_ORDER.filter((l) => flats.includes(l)).map((l) => `${l}♭`), relative };
+  return { count: 0, type: '', notes: [], relative };
+}
+const sigLabel = (sig) => (sig.count ? `${sig.count}${sig.type}` : 'none');
+
+// Quality of a stacked chord from its semitone content above the root.
+const TRIAD_Q = { '4,7': '', '3,7': 'm', '3,6': '°', '4,8': '+' };
+const SEVENTH_Q = { '4,7,11': 'maj7', '4,7,10': '7', '3,7,10': 'm7', '3,6,10': 'm7♭5', '3,6,9': '°7', '3,7,11': 'm(maj7)', '4,8,11': '+maj7', '4,8,10': '+7' };
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+// Roman numeral for a chord on scale step `steps` (0-6) whose root lies `rootSemis` above the tonic, with a chord suffix.
+function numeralFor(steps, rootSemis, suffix) {
+  let diff = rootSemis - MAJOR_SEMIS[steps];
+  if (diff > 6) diff -= 12;
+  if (diff < -6) diff += 12;
+  const minorish = ['m', '°', 'm7', 'm7♭5', '°7', 'm(maj7)', 'm6', 'm9', 'm11'].includes(suffix);
+  let n = ROMAN[steps]; if (minorish) n = n.toLowerCase();
+  const tail = { '': '', m: '', '°': '°', '+': '+', maj7: 'maj7', 7: '7', m7: '7', 'm7♭5': 'ø7', '°7': '°7', 'm(maj7)': '(maj7)', '+maj7': '+maj7', '+7': '+7' }[suffix] ?? suffix;
+  return accidental(diff) + n + tail;
+}
+// Diatonic chords of any 7-note scale: diatonicChords('C', 'major', 4) -> [{ numeral:'Imaj7', root:'C', suffix:'maj7', name:'Cmaj7', notes }...].
+function diatonicChords(key, kind = 'major', size = 3) {
+  const f = FORMULAS[kind];
+  if (!f || f.length !== 7) throw new Error(`diatonicChords needs a 7-note scale, got ${kind}`);
+  const names = spellScale(key, kind);
+  const pcs = names.map(pc);
+  return names.map((root, d) => {
+    const idx = [0, 2, 4, 6].slice(0, size).map((k) => (d + k) % 7);
+    const st = idx.slice(1).map((i) => mod12(pcs[i] - pcs[d]));
+    const suffix = (size === 3 ? TRIAD_Q : SEVENTH_Q)[st.join(',')];
+    if (suffix === undefined) throw new Error(`Unknown stack ${st} on ${root}`);
+    const rootSemis = mod12(pcs[d] - pc(key));
+    return { degree: d + 1, numeral: numeralFor(d, rootSemis, suffix), root, suffix, name: root + suffix, notes: idx.map((i) => names[i]) };
+  });
+}
+// Dominant 7 chord that resolves to a target root: dominantOf('D') = 'A7'.
+const dominantOf = (target) => `${noteAbove(target, 'P5')}7`;
+
 module.exports = {
   TUNINGS, stringName, SHARP, FLAT, OPEN_MIDI, STRING_NAME, INTERVAL, INTERVAL_FULL, SCALES, CHORDS,
   mod12, pc, midi, pcAt, semis, intervalLabel, spellIn, noteName, role, pcsOf,
   positions, scalePitchesFrom, npsPattern, pentBox, chordTonesIn, closedTriads, fingering, harmonize, normalizeName,
+  // Theory Intensive
+  LETTERS, MAJOR_SEMIS, FORMULAS, SCALE_NAMES, CHORD_FORMULAS, SHARP_ORDER, FLAT_ORDER,
+  parseDegree, prettyDegree, spellDegree, spellFormula, spellScale, spellChord, spellWithLetter,
+  intervalName, parseInterval, intervalSemitones, noteAbove, noteBelow, invertInterval, intervalLong,
+  keySignature, sigLabel, numeralFor, diatonicChords, dominantOf,
 };

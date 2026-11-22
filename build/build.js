@@ -1,6 +1,7 @@
 // Builds a deck. Usage:
 //   node build.js                         -> ../Fretboard-Freedom.pptx (Level 1, all sections)
 //   node build.js --deck 2                -> ../Fretboard-Freedom-Level-2.pptx (Level 2, all sections)
+//   node build.js --deck theory           -> ../Fretboard-Freedom-Theory-Intensive.pptx (deep music-theory course with exercises)
 //   node build.js --deck bridge           -> ../Fretboard-Freedom-Chords-Scales-Arpeggios.pptx (chord → arpeggio → pentatonic lesson)
 //   node build.js [--deck 2] --only a,b   -> out/a+b.pptx (chosen sections only, for checking)
 const fs = require('fs');
@@ -8,6 +9,7 @@ const path = require('path');
 const { newDeck, THEME } = require('./lib/deck');
 const D = require('./lib/draw');
 const { applyTheme } = require('./lib/apply_theme');
+const I = require('./lib/intensive');
 
 const DECKS = {
   1: {
@@ -22,6 +24,10 @@ const DECKS = {
     dir: 'sections3', out: 'Fretboard-Freedom-Chords-Scales-Arpeggios.pptx', title: 'Find the Chord, Find the Scale', footer: 'Fretboard Freedom · Chords, arpeggios & pentatonics',
     sections: ['b_s0_bridge'],
   },
+  theory: {
+    dir: 'sections4', out: 'Fretboard-Freedom-Theory-Intensive.pptx', title: 'Theory Intensive', footer: 'Fretboard Freedom · Theory Intensive',
+    sections: ['t_s0_intro', 't_s1_intervals', 't_s2_scales', 't_s3_chords', 't_s4_diatonic', 't_s5_function', 't_s6_chromatic', 't_s7_melody', 't_s8_form', 't_s9_capstone'],
+  },
 };
 
 (async () => {
@@ -33,6 +39,7 @@ const DECKS = {
   const list = only || deck.sections;
   const { pres } = newDeck({ title: deck.title, footer: deck.footer });
   D.init(pres);
+  I.init(pres);
   for (const name of list) {
     const file = path.join(__dirname, deck.dir, `${name}.js`);
     if (!fs.existsSync(file)) { console.warn(`(skipping missing section ${name})`); continue; }
@@ -43,5 +50,6 @@ const DECKS = {
   await pres.writeFile({ fileName: out });
   await applyTheme(out, THEME);
   const v = D.VERIFY;
-  console.log(`Wrote ${out}: ${pres.slides.length} slides. Verified ${v.dotsChecked}/${v.dots} fretboard dots and ${v.tabChecked}/${v.tabNotes} tab notes against the theory engine.`);
+  const q = I.questionCount();
+  console.log(`Wrote ${out}: ${pres.slides.length} slides. Verified ${v.dotsChecked}/${v.dots} fretboard dots and ${v.tabChecked}/${v.tabNotes} tab notes against the theory engine.${q ? ` ${q} worksheet questions with answers.` : ''}`);
 })().catch((e) => { console.error(e); process.exit(1); });

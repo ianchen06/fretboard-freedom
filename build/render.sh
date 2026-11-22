@@ -3,6 +3,10 @@
 # Exports the deck to PDF through Microsoft PowerPoint (addressing only this file's window by name),
 # then rasterizes slides with pdftoppm.
 set -e
+# One render at a time: PowerPoint is shared, and so is the copy below.
+LOCK="/Users/ianche/Code/guitar-teacher/build/.render.lock"
+until mkdir "$LOCK" 2>/dev/null; do sleep 2; done
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 SRC="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 # PowerPoint is sandboxed: it can only open files in the build folder it was granted, so render a copy from there.
 DECK="/Users/ianche/Code/guitar-teacher/build/_render.pptx"
