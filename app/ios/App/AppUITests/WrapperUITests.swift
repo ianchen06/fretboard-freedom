@@ -9,7 +9,7 @@ final class WrapperUITests: XCTestCase {
     }
 
     func testBundledPagesAndPracticeControls() {
-        app.launch()
+        launchApp()
         assertPage("Find Any Note")
 
         navigate(to: "Daily session")
@@ -34,7 +34,7 @@ final class WrapperUITests: XCTestCase {
     }
 
     func testPracticeSettingsSurviveRelaunchAndADrillStarts() {
-        app.launch()
+        launchApp()
         assertPage("Find Any Note")
         web.swipeUp()
         selectDrill("One note everywhere")
@@ -44,7 +44,7 @@ final class WrapperUITests: XCTestCase {
         navigate(to: "Rhythm")
         assertPage("Rhythm")
         app.terminate()
-        app.launch()
+        launchApp()
         XCTAssertTrue(drillOption("Naturals").waitForExistence(timeout: 8), "Flash card mode did not survive relaunch")
 
         web.swipeUp(velocity: .slow)
@@ -63,7 +63,7 @@ final class WrapperUITests: XCTestCase {
     }
 
     func testMicrophoneAndRhythmWorklet() {
-        app.launch()
+        launchApp()
         navigate(to: "Rhythm")
         let mic = web.buttons["Enable microphone"]
         XCTAssertTrue(mic.waitForExistence(timeout: 8))
@@ -83,7 +83,7 @@ final class WrapperUITests: XCTestCase {
     }
 
     func testBundledArpeggioPracticeStartsAndStops() {
-        app.launch()
+        launchApp()
         navigate(to: "Scales")
         let arpeggios = web.descendants(matching: .any).matching(NSPredicate(
             format: "label BEGINSWITH %@ AND elementType != %d", "Arpeggios", XCUIElement.ElementType.staticText.rawValue
@@ -104,6 +104,14 @@ final class WrapperUITests: XCTestCase {
     }
 
     private var web: XCUIElement { app.webViews.firstMatch }
+
+    /// Launches the app and waits for the bundled page to finish loading. A cold
+    /// simulator on a CI runner can take well over the usual 8 s to show the web view.
+    private func launchApp(file: StaticString = #filePath, line: UInt = #line) {
+        app.launch()
+        XCTAssertTrue(web.links["Scales"].waitForExistence(timeout: 30),
+                      "The bundled page did not load", file: file, line: line)
+    }
 
     private func navigate(to name: String, file: StaticString = #filePath, line: UInt = #line) {
         let link = web.links[name]

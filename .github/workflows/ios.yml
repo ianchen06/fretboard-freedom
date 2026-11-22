@@ -117,11 +117,13 @@ jobs:
           echo "udid=$(echo "$line" | sed -E 's/.*id:([^,]+),.*/\1/')" >> "$GITHUB_OUTPUT"
       - name: UI tests
         # The mic test needs an audio input device, which hosted runners don't have.
+        # A failed test is retried once, since a cold simulator on a shared runner is slow.
         run: |
           xcodebuild test \
             -project "$PROJECT" -scheme "$SCHEME" \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -parallel-testing-enabled NO \
+            -retry-tests-on-failure -test-iterations 2 \
             -skip-testing:AppUITests/WrapperUITests/testMicrophoneAndRhythmWorklet \
             -resultBundlePath build/UITests.xcresult \
             CODE_SIGNING_ALLOWED=NO
