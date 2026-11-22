@@ -2,14 +2,14 @@
 // the output device, the metronome, and a plucked-string synth for the clickable fretboard.
 (function (root) {
   'use strict';
-  const { NoteTracker, linToDb } = root.Pitch;
+  const { NoteTracker, linToDb, refinePitch } = root.Pitch;
 
   class AudioEngine {
     constructor() {
       this.ctx = null;
       this.stream = null;
       this.micSource = null;
-      this.handlers = { frame: new Set(), note: new Set(), onset: new Set(), timbre: new Set() };
+      this.handlers = { frame: new Set(), note: new Set(), onset: new Set(), timbre: new Set(), tune: new Set() };
       this.noteId = 0;
       this.measuring = null; // the note whose sound is waiting to be measured (string detection)
       this.onsetNode = null;
@@ -20,6 +20,8 @@
       this.channel = 'both'; // which input channel to listen to: both | left | right
       this.outputId = ''; // output device ('' = the system default)
       this.splitter = null;
+      this.precise = false; // the precise tuner: emits 'tune' readings while on
+      this.tick = 0;
     }
 
     on(type, fn) { this.handlers[type].add(fn); return () => this.handlers[type].delete(fn); }
@@ -172,7 +174,31 @@
           this.emit('note', info.event);
         }
         if (this.measuring && this.ctx.currentTime >= this.measuring.until) this.measureTimbre();
+        if (this.precise && info.freq && ++this.tick % 3 === 0) this.measureTune(info);
       }, 10);
+    }
+
+    // The precise tuner: on, it reads the last ~170 ms of raw input about 33 times a second while a
+    // pitch is heard and emits 'tune' { t, freq, clarity }, to a hundredth of a cent on a clean note.
+    setPrecise(on) {
+      this.precise = !!on;
+      if (!this.precise || this.tuneAn || !this.ctx) return;
+      const n = 2 ** Math.ceil(Math.log2(this.ctx.sampleRate * 0.17));
+      this.tuneAn = this.ctx.createAnalyser();
+      this.tuneAn.fftSize = Math.min(32768, n);
+      this.tuneAn.smoothingTimeConstant = 0;
+      this.input.connect(this.tuneAn);
+      const sink = this.ctx.createGain();
+      sink.gain.value = 0;
+      this.tuneAn.connect(sink).connect(this.ctx.destination);
+      this.tuneBuf = new Float32Array(this.tuneAn.fftSize);
+    }
+
+    measureTune(info) {
+      if (!this.tuneAn) this.setPrecise(true);
+      this.tuneAn.getFloatTimeDomainData(this.tuneBuf);
+      const r = refinePitch(this.tuneBuf, this.ctx.sampleRate, info.freq);
+      if (r && r.clarity > 0.85) this.emit('tune', { t: info.t, freq: r.freq, clarity: r.clarity });
     }
 
     // String detection: measure a note's sound from 30 ms after its attack (past the pick's noise) for

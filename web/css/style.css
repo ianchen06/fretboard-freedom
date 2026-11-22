@@ -173,7 +173,25 @@ kbd {
 .tuner-needle.good { background: var(--teal); }
 .tuner-needle.close { background: var(--third); }
 .tuner-needle.off { background: var(--root); }
-.tuner-text { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.tuner-text { font-size: 13px; color: var(--muted); min-height: 1.4em; font-variant-numeric: tabular-nums; }
+.tuner-text[data-state="good"] { color: var(--teal); }
+/* precise mode: ±10¢ across, the in-tune zone ±1¢ */
+.tuner.precise .tuner-zone { left: 45%; width: 10%; background: rgba(20, 184, 166, 0.2); }
+.tuner.precise .tuner-needle { width: 2px; margin-left: -1px; transition: left 0.12s ease-out, background 0.15s; }
+.tuner-strobe {
+  height: 14px; border-radius: 6px; opacity: 0.25; transition: opacity 0.2s;
+  background: repeating-linear-gradient(90deg, var(--pearl) 0 8px, transparent 8px 16px) var(--card-2);
+}
+.tuner-strobe.live { opacity: 0.85; }
+.tuner-strobe.good { background-image: repeating-linear-gradient(90deg, var(--teal) 0 8px, transparent 8px 16px); }
+.tuner-mode { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: -4px; }
+.tuner-mode .link-btn { padding-left: 0; }
+.tuner-ref { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.tuner-step {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--card-2);
+  color: var(--text); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.tuner-step:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
 .meter { position: relative; height: 6px; border-radius: 3px; background: var(--card-2); }
 .meter-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: linear-gradient(90deg, #3f6f5f, var(--teal)); transition: width 0.05s linear; }
 .meter-gate { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--third); left: 30%; border-radius: 1px; }
