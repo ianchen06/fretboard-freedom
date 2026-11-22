@@ -372,8 +372,12 @@
   //  - its pitch settles within `settle` s of the attack and then holds within `steadyCents` for
   //    `settle` s. A voice glides (intonation), even on a held vowel;
   //  - it starts loud and fades slowly. A voice swells into a syllable (a reading `swellDb` over the
-  //    first one rules it out) and dies away at its end (falling `fallDb` within `settle` s). A tone that hasn't faded `droneDb` after `droneTime` s isn't a string either
-  //    (an electrical hum switching on): it's dropped, and that pitch needs a louder pick to come back.
+  //    first one rules it out) and dies away at its end (falling `fallDb` within `settle` s). A tone that
+  //    isn't fading isn't a string either (an electrical hum switching on): from `droneTime` s on, one that
+  //    hasn't yet fallen `droneDb` must be falling at least `minFade` dB a second, or it's dropped, and
+  //    that pitch needs a pick 6 dB over the hum to come back, until the sound stops. A wound
+  //    string, the low E above all, can ring for seconds and take longer than `droneTime` to fall 2 dB:
+  //    it's a string as long as it keeps fading.
   // Once a string is heard, readings are followed only while they stay close to the last one (a peg
   // turned while the string rings moves the pitch smoothly; `maxRate` cents a second is plenty):
   // someone talking over a ringing string, or the detector slipping to an overtone, is ignored. A new
@@ -381,8 +385,8 @@
   // detector heard a voice and the string together): that waits until the string is gone.
   // With no reading that fits for `lostTime` s the string is let go.
   class PluckGate {
-    constructor({ settle = 0.09, steadyCents = 15, attackWindow = 0.7, swellDb = 4, fallDb = 5, maxRate = 600, lostTime = 0.3, droneTime = 1.5, droneDb = 2, warmup = 0.12 } = {}) {
-      Object.assign(this, { settle, steadyCents, attackWindow, swellDb, fallDb, maxRate, lostTime, droneTime, droneDb, warmup });
+    constructor({ settle = 0.09, steadyCents = 15, attackWindow = 0.7, swellDb = 4, fallDb = 5, maxRate = 600, lostTime = 0.3, droneTime = 1.5, droneDb = 2, minFade = 0.5, warmup = 0.12 } = {}) {
+      Object.assign(this, { settle, steadyCents, attackWindow, swellDb, fallDb, maxRate, lostTime, droneTime, droneDb, minFade, warmup });
       this.reset();
     }
 
@@ -392,10 +396,17 @@
       this.lastAttack = null;
       this.startT = null; // when listening started (first frame seen since reset)
       this.drones = []; // { c, db }: steady tones that turned out not to be strings
+      this.quietT = null; // since when the input has been under the note tracker's gate
     }
 
-    // Every analysis frame ({ t }), so the gate knows when listening started.
-    frame({ t }) { if (this.startT === null) this.startT = t; }
+    // Every analysis frame ({ t, loud }), so the gate knows when listening started, and when the
+    // sound stops: a hum that's gone is forgotten.
+    frame({ t, loud }) {
+      if (this.startT === null) this.startT = t;
+      if (loud !== false) this.quietT = null;
+      else if (this.quietT === null) this.quietT = t;
+      else if (t - this.quietT > this.lostTime) this.drones = [];
+    }
 
     get locked() { return !!this.lock; }
 
@@ -459,12 +470,16 @@
       if (L.faded || x.db == null) return true;
       L.dbs.push({ t: x.t, db: x.db });
       if (x.t - L.t0 < this.droneTime) return true;
-      const mean = (a) => a.reduce((s, p) => s + p.db, 0) / a.length;
+      const mean = (a, k) => a.reduce((s, p) => s + p[k], 0) / a.length;
       const early = L.dbs.filter((p) => p.t <= L.t0 + 0.3);
       const late = L.dbs.filter((p) => p.t >= x.t - 0.3);
-      const e = mean(early);
-      if (e - mean(late) >= this.droneDb) { L.faded = true; L.dbs = []; return true; }
-      this.drones = this.drones.filter((d) => Math.abs(d.c - L.c) >= 50).concat({ c: L.c, db: Math.max(e, mean(late)) });
+      const e = mean(early, 'db');
+      const l = mean(late, 'db');
+      if (e - l >= this.droneDb) { L.faded = true; L.dbs = []; return true; }
+      // Not down 2 dB yet, but still fading at a string's pace: keep following it.
+      if (e - l >= this.minFade * (mean(late, 't') - mean(early, 't'))) return true;
+      // Its level now: a new pick has to stand out over the hum, not over the hum's start.
+      this.drones = this.drones.filter((d) => Math.abs(d.c - L.c) >= 50).concat({ c: L.c, db: l });
       this.lock = null;
       return false;
     }
