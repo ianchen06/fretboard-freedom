@@ -270,6 +270,31 @@ console.log('the low E, plucked while the high e (two octaves up) still rings, t
   check(out.done.has(6), 'and gets its ✓');
 }
 
+console.log('a string that rings for seconds (a wound low E) isn\'t taken for a hum');
+{
+  // Falling ~1.2 dB a second: under 2 dB by the drone check at 1.5 s. Plucked, rung out to 4.5 s,
+  // stopped, plucked again just as hard: both plucks read all the way through.
+  const NL = sr * 9;
+  for (const [name, f0, s] of [['low E', 82.41, 6], ['A', 110, 5]]) {
+    const first = pluck(NL, 0.5, f0, -26, { decay: 0.15 });
+    for (let i = Math.round(4.5 * sr); i < NL; i++) first[i] = 0;
+    const out = tuner(mix(room(NL, -70), first, pluck(NL, 4.6, f0, -26, { decay: 0.15 })), { open: OPEN });
+    const on = (a, b) => out.filter((o) => o.t > a && o.t < b && Math.abs(cents(o.freq, f0)) < 2).length;
+    check(on(2.5, 4.5) >= 50, `${name}: ${on(2.5, 4.5)} readings from 2.5 s to 4.5 s, while the first pluck still rings`);
+    check(on(5.2, 9) >= 100, `${name}: ${on(5.2, 9)} readings after the second pluck`);
+    check(out.done.has(s), `${name}: gets its ✓`);
+  }
+}
+
+console.log('a hum that stops is forgotten: a string at its pitch reads again');
+{
+  const h = hum(N, 110, -40, 0.5);
+  for (let i = Math.round(3 * sr); i < N; i++) h[i] = 0;
+  const out = tuner(mix(room(N, -75), h, pluck(N, 4, 110, -44)), { open: OPEN });
+  check(out.filter((o) => o.t > 2.2 && o.t < 3).length === 0, 'the hum is dropped');
+  check(out.done.has(5), 'the A, plucked no louder than the hum was, gets its ✓');
+}
+
 console.log('a hum that was there first doesn\'t block a string at the same pitch');
 {
   const x = mix(room(N, -70), hum(N, 110, -45), pluck(N, 1, 110, -24));
