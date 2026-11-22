@@ -92,6 +92,13 @@
               <button type="button" data-value="0.3">Exact ±0.3¢</button>
             </div>
           </div>
+          <div class="tn-opt">
+            <span class="field-label">Guitar</span>
+            <div class="seg seg-sm" id="tnSoundSeg" role="radiogroup" aria-label="How loud the guitar is to the mic">
+              <button type="button" data-value="normal" title="An acoustic, or an electric through a cable or an amp">Acoustic or plugged in</button>
+              <button type="button" data-value="quiet" title="Filters out room hiss so the mic hears a quiet string">Unplugged electric</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -131,15 +138,15 @@
         <li><b>Always finish going up.</b> If you’re sharp, go a little below the note and come back up. The string then holds its tuning instead of slipping flat.</li>
         <li><b>Go round twice.</b> Tuning one string pulls on the neck and moves the others a little. The second time round is quick.</li>
       </ol>
-      <p class="fine">Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
+      <p class="fine">Electric, not plugged in? Choose <b>Unplugged electric</b> and hold the iPad or phone close, its mic towards the pickups, and pluck firmly: the tuner then filters out the room’s hiss to hear the quiet string. Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
     </section>
   </main>
 
   <script src="js/theory.js?v=4"></script>
-  <script src="js/pitch.js?v=4"></script>
-  <script src="js/audio.js?v=7"></script>
-  <script src="js/micpanel.js?v=6"></script>
+  <script src="js/pitch.js?v=5"></script>
+  <script src="js/audio.js?v=8"></script>
+  <script src="js/micpanel.js?v=7"></script>
   <script src="js/tuneguide.js?v=1"></script>
-  <script src="js/tuner-app.js?v=1"></script>
+  <script src="js/tuner-app.js?v=2"></script>
 </body>
 </html>
