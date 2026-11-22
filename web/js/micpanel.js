@@ -25,12 +25,13 @@
   function setup(engine, { store, preferFlat = () => false, onInputChange = () => {}, tuning = () => T.TUNINGS.standard }) {
     const $ = (id) => document.getElementById(id);
     const has = (id) => !!document.getElementById(id);
-    const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', a4: 440, ...store.get('ff.settings', {}) };
+    const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', a4: 440, quiet: false, ...store.get('ff.settings', {}) };
     const save = () => store.set('ff.settings', {
       ...store.get('ff.settings', {}),
-      sensitivity: shared.sensitivity, deviceId: shared.deviceId, channel: shared.channel, outputId: shared.outputId, a4: shared.a4,
+      sensitivity: shared.sensitivity, deviceId: shared.deviceId, channel: shared.channel, outputId: shared.outputId, a4: shared.a4, quiet: shared.quiet,
     });
     engine.channel = shared.channel;
+    engine.setQuiet(shared.quiet);
     engine.outputId = engine.canPickOutput ? shared.outputId : '';
 
     const applySensitivity = () => {
@@ -40,6 +41,21 @@
     $('sens').value = shared.sensitivity;
     applySensitivity();
     $('sens').addEventListener('input', (e) => { shared.sensitivity = Number(e.target.value); save(); applySensitivity(); });
+
+    // ---------- quiet guitar (an unplugged electric) ----------
+    // See AudioEngine.setQuiet. Switching it changes the noise floor the gate sits on: set it again.
+    $('sens').closest('.sens-row').insertAdjacentHTML('afterend', `<label class="check quiet-row" title="Filters out room hiss and lowers the gate, so the mic can hear a quiet string">
+      <input type="checkbox" id="quietChk"> <span><b>Unplugged guitar.</b> Turn on if the mic barely hears your strings (an unplugged electric, or the device far away).</span></label>`);
+    $('quietChk').checked = shared.quiet;
+    async function setQuiet(on) {
+      shared.quiet = !!on;
+      save();
+      engine.setQuiet(shared.quiet);
+      $('quietChk').checked = shared.quiet;
+      root.dispatchEvent(new CustomEvent('ff:quiet', { detail: shared.quiet }));
+      if (engine.micOn) await autoCalibrate();
+    }
+    $('quietChk').addEventListener('change', (e) => setQuiet(e.target.checked));
 
     function setPill(state, text) {
       $('micPill').dataset.state = state;
@@ -196,7 +212,8 @@
       btn.textContent = 'Listening… stay quiet';
       btn.disabled = true;
       const noise = await engine.measureNoise(0.8);
-      const gate = Math.min(-32, Math.max(-68, noise + 12));
+      // A quiet guitar is only a few dB over the (filtered) hiss; its pitch checks are what keep noise out.
+      const gate = Math.min(-32, Math.max(-68, noise + (shared.quiet ? root.Pitch.QUIET : root.Pitch.NORMAL).gateMargin));
       shared.sensitivity = gateToSens(gate);
       $('sens').value = shared.sensitivity;
       save();
@@ -343,9 +360,9 @@
     }
 
     if (filter && engine.setPrecise) {
-      engine.on('tune', ({ t, freq }) => {
+      engine.on('tune', ({ t, freq, attackT, db }) => {
         if (!precise) return;
-        const r = filter.push(freq, t);
+        const r = filter.push(freq, t, attackT, db);
         if (!r) return;
         reading = r;
         readingAt = performance.now();
@@ -432,7 +449,7 @@
       return shared.a4;
     };
 
-    return { enable, disable, inputKind, show, a4: () => shared.a4, setA4, A4_MIN, A4_MAX };
+    return { enable, disable, inputKind, show, a4: () => shared.a4, setA4, A4_MIN, A4_MAX, quiet: () => shared.quiet, setQuiet };
   }
 
   root.MicPanel = { setup, kindOf };

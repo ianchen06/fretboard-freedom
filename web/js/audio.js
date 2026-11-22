@@ -2,7 +2,7 @@
 // the output device, the metronome, and a plucked-string synth for the clickable fretboard.
 (function (root) {
   'use strict';
-  const { NoteTracker, linToDb, refinePitch } = root.Pitch;
+  const { NoteTracker, linToDb, dbToLin, refinePitch, NORMAL, QUIET } = root.Pitch;
 
   class AudioEngine {
     constructor() {
@@ -21,6 +21,8 @@
       this.outputId = ''; // output device ('' = the system default)
       this.splitter = null;
       this.precise = false; // the precise tuner: emits 'tune' readings while on
+      this.quiet = false; // a quiet guitar (an unplugged electric): see setQuiet
+      this.tuneClarity = NORMAL.clarity;
       this.tick = 0;
     }
 
@@ -42,10 +44,24 @@
         const decim = Math.max(1, Math.round(ctx.sampleRate / 24000));
         this.frameSize = 2 ** Math.ceil(Math.log2(1024 * decim));
         this.input = ctx.createGain();
+        // Pitch detection listens to pitchIn: the input itself, or (quiet mode) a filtered, boosted copy.
+        this.pitchIn = ctx.createGain();
+        this.quietChain = [
+          Object.assign(ctx.createBiquadFilter(), { type: 'highpass' }),
+          Object.assign(ctx.createBiquadFilter(), { type: 'lowpass' }),
+          Object.assign(ctx.createBiquadFilter(), { type: 'lowpass' }),
+        ];
+        this.quietChain[0].frequency.value = QUIET.highpass;
+        this.quietChain[1].frequency.value = QUIET.lowpass;
+        this.quietChain[2].frequency.value = QUIET.lowpass;
+        this.quietChain.reduce((a, b) => a.connect(b));
+        this.quietBoost = ctx.createGain();
+        this.quietBoost.gain.value = dbToLin(QUIET.boostDb); // so the gate and the meter keep their range
+        this.quietChain[2].connect(this.quietBoost);
         this.analyser = ctx.createAnalyser();
         this.analyser.fftSize = this.frameSize;
         this.analyser.smoothingTimeConstant = 0;
-        this.input.connect(this.analyser);
+        this.pitchIn.connect(this.analyser);
         // Some browsers only pull audio through nodes that reach the destination.
         const sink = ctx.createGain();
         sink.gain.value = 0;
@@ -64,6 +80,7 @@
           this.recBuf = new Float32Array(this.rec.fftSize);
         }
         this.tracker = new NoteTracker({ sampleRate: ctx.sampleRate, frameSize: this.frameSize });
+        this.wireQuiet();
       }
       const resumed = unlock(this.ctx); // synchronous part first, while the gesture still counts
       if (this.outputId && !this.sinkSet) { this.sinkSet = true; await this.setOutput(this.outputId).catch(() => {}); }
@@ -178,16 +195,44 @@
       }, 10);
     }
 
+    // Quiet mode, for a guitar the mic can barely hear (an unplugged electric, a tablet across the
+    // room). Room hiss covers the whole spectrum while the strings sit between ~80 Hz and ~1.5 kHz, so
+    // the pitch detectors get a band-passed copy (70 Hz–1.5 kHz, which cuts most of the hiss), boosted
+    // 20 dB. They also accept a noisier pitch, and the precise tuner looks at twice as much sound.
+    // Timing (onsets) and string detection keep the untouched input.
+    setQuiet(on) {
+      this.quiet = !!on;
+      if (this.ctx) this.wireQuiet();
+    }
+
+    wireQuiet() {
+      try { this.input.disconnect(this.pitchIn); } catch { /* wasn't connected */ }
+      try { this.input.disconnect(this.quietChain[0]); } catch { /* wasn't connected */ }
+      try { this.quietBoost.disconnect(); } catch { /* wasn't connected */ }
+      if (this.quiet) {
+        this.input.connect(this.quietChain[0]);
+        this.quietBoost.connect(this.pitchIn);
+      } else {
+        this.input.connect(this.pitchIn);
+      }
+      const p = this.quiet ? QUIET : NORMAL;
+      this.tracker.maxCmnd = p.maxCmnd;
+      this.tuneClarity = p.clarity;
+      if (this.tuneAn) { this.tuneAn.disconnect(); this.tuneAn = null; }
+      if (this.precise) this.setPrecise(true);
+      this.tracker.reset();
+    }
+
     // The precise tuner: on, it reads the last ~170 ms of raw input about 33 times a second while a
-    // pitch is heard and emits 'tune' { t, freq, clarity }, to a hundredth of a cent on a clean note.
+    // pitch is heard and emits 'tune' { t, freq, clarity, attackT, db }, to a hundredth of a cent on a clean note.
     setPrecise(on) {
       this.precise = !!on;
       if (!this.precise || this.tuneAn || !this.ctx) return;
-      const n = 2 ** Math.ceil(Math.log2(this.ctx.sampleRate * 0.17));
+      const n = 2 ** Math.ceil(Math.log2(this.ctx.sampleRate * (this.quiet ? QUIET : NORMAL).tuneSecs));
       this.tuneAn = this.ctx.createAnalyser();
       this.tuneAn.fftSize = Math.min(32768, n);
       this.tuneAn.smoothingTimeConstant = 0;
-      this.input.connect(this.tuneAn);
+      this.pitchIn.connect(this.tuneAn);
       const sink = this.ctx.createGain();
       sink.gain.value = 0;
       this.tuneAn.connect(sink).connect(this.ctx.destination);
@@ -198,7 +243,7 @@
       if (!this.tuneAn) this.setPrecise(true);
       this.tuneAn.getFloatTimeDomainData(this.tuneBuf);
       const r = refinePitch(this.tuneBuf, this.ctx.sampleRate, info.freq);
-      if (r && r.clarity > 0.85) this.emit('tune', { t: info.t, freq: r.freq, clarity: r.clarity });
+      if (r && r.clarity > this.tuneClarity) this.emit('tune', { t: info.t, freq: r.freq, clarity: r.clarity, attackT: this.tracker.lastOnsetT, db: info.db });
     }
 
     // String detection: measure a note's sound from 30 ms after its attack (past the pick's noise) for

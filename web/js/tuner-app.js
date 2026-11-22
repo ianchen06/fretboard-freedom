@@ -51,6 +51,13 @@
   });
 
   const filter = new TunerFilter({ a4: panel.a4() });
+  // A quiet guitar gives fewer, noisier readings: steady them over a longer stretch.
+  const syncSound = () => {
+    seg('tnSoundSeg', panel.quiet() ? 'quiet' : 'normal');
+    filter.window = panel.quiet() ? window.Pitch.QUIET.tunerWindow : 0.3;
+    filter.reset();
+    guide.holdTime = panel.quiet() ? window.Pitch.QUIET.holdTime : 0.6;
+  };
   const guide = new TuneGuide({ open: tuning().open, a4: panel.a4(), tolerance: saved.tol });
 
   // ---------- the gauge ----------
@@ -147,6 +154,15 @@
     start();
   }
   $('tnGuide').addEventListener('click', (e) => { e.currentTarget.blur(); startGuide(); });
+
+  syncSound();
+  window.addEventListener('ff:quiet', syncSound);
+  $('tnSoundSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    b.blur();
+    panel.setQuiet(b.dataset.value === 'quiet');
+  });
 
   seg('tnTolSeg', saved.tol);
   $('tnTolSeg').addEventListener('click', (e) => {
@@ -255,9 +271,9 @@
     if (text) say('info', text);
   }
 
-  engine.on('tune', ({ t, freq }) => {
+  engine.on('tune', ({ t, freq, attackT, db }) => {
     if (performance.now() < pausedUntil) return;
-    const r = filter.push(freq, t);
+    const r = filter.push(freq, t, attackT, db);
     if (!r) return;
     // Guide mode: the string you just tuned may still be ringing. Say so instead of reading it
     // against the next string.
@@ -320,7 +336,11 @@
       if (now < flashUntil) return;
       if (!engine.micOn) say('info', 'Press <b>Start tuning</b>, then pluck a string.');
       else if (guide.allDone) say('ok', 'All strings in tune. Go round once more to be sure: <b>Guide me</b>.');
-      else if (guide.mode === 'auto') say('info', 'Pluck any open string and let it ring.');
+      else if (guide.mode === 'auto') {
+        say('info', panel.inputKind() === 'mic' && !panel.quiet()
+          ? 'Pluck any open string and let it ring. Electric, not plugged in? Choose <b>Unplugged electric</b> below.'
+          : 'Pluck any open string and let it ring.');
+      }
       else say('info', `Pluck the <b>${esc(strName(guide.pinned))}</b> and let it ring.`);
       return;
     }

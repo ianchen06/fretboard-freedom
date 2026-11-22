@@ -317,7 +317,10 @@
   }
 
   // Steadies the precise tuner's readings: the median of the last ~0.3 s on the same note, and how
-  // far they spread. A jump of more than ~60 cents is a new note and starts afresh.
+  // far they spread. A jump of more than ~60 cents is a new note and starts afresh, except when it's
+  // the detector slipping, which happens as a note fades into the noise: a jump to a sub- or overtone
+  // (×/÷ 2, 3, 4) with no new pick attack (attackT, the note tracker's latest), or any jump while the
+  // sound is 10 dB or more under the note's peak (db). A new pluck is loud. Those readings are ignored.
   class TunerFilter {
     constructor({ a4 = 440, window = 0.3, minReadings = 4 } = {}) {
       this.a4 = a4;
@@ -326,12 +329,23 @@
       this.reset();
     }
 
-    reset() { this.pts = []; this.midi = null; }
+    reset() { this.pts = []; this.midi = null; this.attackT = null; this.peakDb = -Infinity; }
 
     // Returns { midi, cents, freq, spread, stable } or null until there are enough readings.
-    push(freq, t) {
+    push(freq, t, attackT, db) {
       const mf = 69 + 12 * Math.log2(freq / this.a4);
-      if (this.midi === null || Math.abs(mf - this.midi) > 0.6) { this.pts = []; this.midi = Math.round(mf); }
+      if (this.midi !== null && Math.abs(mf - this.midi) > 0.6) {
+        // A jump to 2, 3 or 4 times the frequency, or a half, a third or a quarter of it.
+        const d = Math.abs(mf - this.midi);
+        const slip = [2, 3, 4].some((k) => Math.abs(d - 12 * Math.log2(k)) < 0.5);
+        const noPick = attackT != null && this.attackT != null && attackT <= this.attackT;
+        const fading = db != null && db < this.peakDb - 10;
+        if ((slip && noPick) || fading) return null;
+        this.pts = [];
+        this.midi = null;
+      }
+      if (this.midi === null) { this.midi = Math.round(mf); this.attackT = attackT == null ? null : attackT; this.peakDb = -Infinity; }
+      if (db != null) this.peakDb = Math.max(this.peakDb, db);
       this.pts.push({ t, c: (mf - this.midi) * 100 });
       while (this.pts.length && this.pts[0].t < t - this.window) this.pts.shift();
       // A note that settles into the neighbour: follow it.
@@ -350,7 +364,15 @@
     }
   }
 
-  const api = { Yin, NoteTracker, TunerFilter, harmonicShift, refinePitch, dbToLin, linToDb };
+  // Quiet mode (AudioEngine.setQuiet), for a guitar the mic barely hears: the pitch detectors get the
+  // input band-passed (highpass, then two lowpasses: room hiss is broadband, the strings are not) and
+  // boosted, accept a noisier pitch, read the precise tuner over a longer stretch, and Auto-set puts
+  // the gate closer to the noise. The Tuner page steadies over tunerWindow and needs holdTime in tune
+  // (a quiet note fades into the hiss sooner). NORMAL holds the usual values. test/quiet.test.js checks both.
+  const NORMAL = { maxCmnd: 0.2, clarity: 0.85, tuneSecs: 0.17, gateMargin: 12 };
+  const QUIET = { highpass: 70, lowpass: 1500, boostDb: 20, maxCmnd: 0.35, clarity: 0.6, tuneSecs: 0.34, gateMargin: 5, tunerWindow: 0.5, holdTime: 0.45 };
+
+  const api = { Yin, NoteTracker, TunerFilter, harmonicShift, refinePitch, dbToLin, linToDb, NORMAL, QUIET };
   root.Pitch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
