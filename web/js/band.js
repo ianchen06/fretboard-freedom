@@ -591,5 +591,5 @@
   }
 
   root.Band = Band;
-  root.BandLib = { renderString, renderDrums, makeAmp, biquad, TPB, BAR };
+  root.BandLib = { renderString, renderDrums, renderRoom, makeAmp, biquad, TPB, BAR };
 })(window);

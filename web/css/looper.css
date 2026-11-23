@@ -1,0 +1,121 @@
+/* Looper. Each track has its own colour (--trk); the state colours mean what they mean on a
+   hardware looper: red = recording, amber = overdub, teal = playing, grey = empty or stopped. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.dim { opacity: 0.5; }
+
+.lp-card { padding: 20px 20px 18px; display: grid; gap: 16px; min-width: 0; }
+.lp-top { display: flex; align-items: center; gap: 16px; min-height: 22px; }
+.lp-pos { margin-left: auto; font: 600 14px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.lp-card[data-run="running"] .lp-pos { color: var(--pearl); }
+
+.lp-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.lp-tap { padding: 7px 10px; font-size: 13px; }
+.lp-meter select, .lp-drums select { padding: 7px 8px; border-radius: 9px; background: var(--card-2); border: 1px solid var(--line-2); font-size: 13.5px; }
+.tempo-btn:disabled, .lp-tap:disabled, .lp-meter select:disabled, .seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.lp-opts { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.lp-opt { display: grid; gap: 6px; min-width: 0; }
+.lp-beat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lp-beat-row .vol { margin-left: 4px; font-size: 13px; color: var(--muted); }
+.lp-beat-row .vol input { width: 90px; }
+.chip-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- tracks ---------- */
+.lp-tracks { display: grid; gap: 10px; }
+.lp-track {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: stretch;
+  padding: 10px; border-radius: 12px; background: var(--card-2); border: 1px solid transparent;
+  --st: var(--line-2);
+}
+.lp-track.sel { border-color: color-mix(in srgb, var(--trk) 55%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--trk) 12%, transparent); }
+.lp-track[data-state="rec"] { --st: var(--root); }
+.lp-track[data-state="armed"] { --st: var(--root); }
+.lp-track[data-state="dub"] { --st: var(--third); }
+.lp-track[data-state="play"] { --st: var(--teal); }
+.lp-track.muted .lp-wave { opacity: 0.3; }
+
+.lp-big {
+  position: relative; display: grid; align-content: center; justify-items: center; gap: 2px;
+  min-height: 104px; padding: 8px 6px; border-radius: 12px; cursor: pointer; overflow: hidden;
+  background: var(--card); border: 2px solid var(--st); color: var(--text);
+}
+.lp-big::after { /* the recording's progress */
+  content: ""; position: absolute; inset: auto 0 0 0; height: 4px; width: var(--fill, 0%); background: var(--st);
+}
+.lp-big:hover { background: #2c2c35; }
+.lp-big:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
+.lp-num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: var(--trk); color: #111; }
+.lp-st { font-weight: 750; font-size: 15px; }
+.lp-sub { font-size: 11.5px; color: var(--faint); text-align: center; line-height: 1.25; }
+.lp-track[data-state="rec"] .lp-big { background: rgba(229, 72, 77, 0.14); }
+.lp-track[data-state="rec"] .lp-st { color: #fca5a5; }
+.lp-track[data-state="armed"] .lp-big { animation: lpblink 0.6s steps(2, start) infinite; }
+.lp-track[data-state="dub"] .lp-big { background: rgba(245, 165, 36, 0.12); }
+.lp-track[data-state="dub"] .lp-st { color: #fcd34d; }
+.lp-track[data-state="play"] .lp-st { color: #5eead4; }
+@keyframes lpblink { to { border-color: var(--line-2); } }
+
+.lp-body { display: grid; gap: 8px; min-width: 0; }
+.lp-wave-wrap { position: relative; height: 54px; border-radius: 8px; background: var(--bg); overflow: hidden; }
+.lp-wave { display: block; width: 100%; height: 100%; }
+.lp-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--pearl); left: -10px; opacity: 0.9; pointer-events: none; }
+.lp-meta { position: absolute; left: 8px; top: 4px; font-size: 11.5px; color: var(--muted); pointer-events: none; text-shadow: 0 1px 2px #000; }
+.lp-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.lp-btns .chip-btn { padding: 4px 9px; font-size: 12.5px; }
+.lp-clear.armed { color: #fca5a5; border-color: rgba(229, 72, 77, 0.6); }
+.lp-knobs { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.lp-knobs label { display: inline-flex; align-items: center; gap: 6px; }
+.lp-knobs input[type="range"] { width: 76px; accent-color: var(--trk); }
+.lp-knobs select { padding: 3px 6px; border-radius: 7px; background: var(--card); border: 1px solid var(--line-2); font-size: 12px; }
+
+.lp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.lp-keys { flex-basis: 100%; }
+.lp-keys kbd { margin-left: 0; }
+
+/* ---------- side cards ---------- */
+.lp-side-card { padding: 18px 18px 16px; display: grid; gap: 10px; }
+.lp-slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.lp-slider input { flex: 1; min-width: 0; accent-color: var(--teal); }
+.lp-slider output { min-width: 44px; text-align: right; font: 600 12.5px var(--mono); }
+.lp-lat-row { display: flex; align-items: center; gap: 6px; }
+
+/* ---------- key & scales ---------- */
+.lp-key { padding: 20px; display: grid; gap: 14px; }
+.lp-key-head { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; justify-content: space-between; }
+.lp-key-head > div { min-width: 0; flex: 1 1 280px; display: grid; gap: 4px; }
+.lp-key-name { margin: 0; font-size: clamp(24px, 3.4vw, 34px); font-weight: 800; letter-spacing: -0.02em; }
+.lp-key[data-state="empty"] .lp-key-name { color: var(--line-2); }
+.lp-key[data-state="unclear"] .lp-key-name { color: var(--muted); }
+.lp-chroma { width: min(360px, 100%); height: auto; flex: 0 1 360px; }
+.lp-bar.root { fill: var(--root); }
+.lp-bar.in { fill: var(--pearl); opacity: 0.85; }
+.lp-bar.out { fill: var(--line-2); }
+.lp-bar-label { font: 600 11px var(--font); fill: var(--faint); }
+.lp-bar-label.root { fill: var(--root); }
+.lp-bar-label.in { fill: var(--pearl); }
+.lp-suggest { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.lp-suggest button {
+  display: grid; gap: 3px; text-align: left; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  background: var(--card-2); border: 1px solid var(--line-2);
+}
+.lp-suggest button small { color: var(--faint); font-size: 12.5px; line-height: 1.35; }
+.lp-suggest button[aria-checked="true"] { border-color: var(--pearl); background: rgba(233, 223, 200, 0.08); }
+.lp-suggest button[aria-checked="true"] b { color: var(--pearl); }
+.lp-board-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* ---------- ideas ---------- */
+.lp-ideas { padding: 20px; display: grid; gap: 10px; }
+.lp-idea-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--muted); font-size: 14.5px; }
+.lp-how summary { cursor: pointer; color: var(--pearl); font-size: 14px; }
+.lp-how p { margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .lp-card { padding: 16px; }
+}
+@media (max-width: 560px) {
+  .lp-track { grid-template-columns: 1fr; }
+  .lp-big { min-height: 64px; grid-auto-flow: column; justify-content: start; gap: 10px; padding: 8px 12px; }
+  .lp-sub { text-align: left; }
+  .lp-knobs input[type="range"] { width: 64px; }
+}
