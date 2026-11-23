@@ -2,7 +2,7 @@
 // the output device, the metronome, and a plucked-string synth for the clickable fretboard.
 (function (root) {
   'use strict';
-  const { NoteTracker, linToDb, dbToLin, refinePitch, NORMAL, QUIET } = root.Pitch;
+  const { NoteTracker, linToDb, dbToLin, NORMAL, QUIET } = root.Pitch;
 
   class AudioEngine {
     constructor() {
@@ -21,8 +21,9 @@
       this.outputId = ''; // output device ('' = the system default)
       this.splitter = null;
       this.precise = false; // the precise tuner: emits 'tune' readings while on
+      this.tuner = null; // its pitch engine (js/tunerengine.js), made when it's first turned on
+      this.tunerOpts = { a4: 440, noiseFilter: true, strings: null, pinned: null };
       this.quiet = false; // a quiet guitar (an unplugged electric): see setQuiet
-      this.tuneClarity = NORMAL.clarity;
       this.tick = 0;
     }
 
@@ -112,6 +113,7 @@
       this.micSource = this.ctx.createMediaStreamSource(this.stream);
       this.routeInput(this.channel);
       this.tracker.reset();
+      if (this.tuner) this.tuner.reset(); // another device: another room, another noise floor
       this.startLoop();
     }
 
@@ -191,15 +193,18 @@
           this.emit('note', info.event);
         }
         if (this.measuring && this.ctx.currentTime >= this.measuring.until) this.measureTimbre();
-        if (this.precise && info.freq && ++this.tick % 3 === 0) this.measureTune(info);
+        // The precise tuner listens all the time it's on, not only while the note gate is open: it
+        // hears a string far quieter than the gate lets through (an unplugged electric).
+        if (this.precise && ++this.tick % 3 === 0) this.measureTune();
       }, 10);
     }
 
     // Quiet mode, for a guitar the mic can barely hear (an unplugged electric, a tablet across the
-    // room). Room hiss covers the whole spectrum while the strings sit between ~80 Hz and ~1.5 kHz, so
-    // the pitch detectors get a band-passed copy (70 Hz–1.5 kHz, which cuts most of the hiss), boosted
-    // 20 dB. They also accept a noisier pitch, and the precise tuner looks at twice as much sound.
-    // Timing (onsets) and string detection keep the untouched input.
+    // room), for the note detection the practice pages use: room hiss covers the whole spectrum
+    // while the strings sit between ~80 Hz and ~1.5 kHz, so it gets a band-passed copy (70 Hz–1.5 kHz,
+    // which cuts most of the hiss), boosted 20 dB, and accepts a noisier pitch. Timing (onsets),
+    // string detection and the precise tuner keep the untouched input (the tuner needs no mode:
+    // js/tunerengine.js hears a quiet string by itself).
     setQuiet(on) {
       this.quiet = !!on;
       if (this.ctx) this.wireQuiet();
@@ -217,26 +222,41 @@
       }
       const p = this.quiet ? QUIET : NORMAL;
       this.tracker.maxCmnd = p.maxCmnd;
-      this.tuneClarity = p.clarity;
-      if (this.tuneAn) { this.tuneAn.disconnect(); this.tuneAn = null; }
-      if (this.precise) this.setPrecise(true);
       this.tracker.reset();
     }
 
-    // The precise tuner: on, it reads the last ~170 ms of raw input about 33 times a second while a
-    // pitch is heard and emits 'tune' { t, freq, clarity, attackT, db }, to a hundredth of a cent on a clean note.
+    // The precise tuner (js/tunerengine.js): while on, it reads the latest 32768 samples of the
+    // untouched input (~0.7 s at 48 kHz) about 33 times a second and emits 'tune' with what the
+    // engine makes of them: { t, heard, state, freq, cents, midi, spread, sigma, ... } (freq null
+    // while there's nothing to show; see TunerEngine.process).
     setPrecise(on) {
       this.precise = !!on;
       if (!this.precise || this.tuneAn || !this.ctx) return;
-      const n = 2 ** Math.ceil(Math.log2(this.ctx.sampleRate * (this.quiet ? QUIET : NORMAL).tuneSecs));
       this.tuneAn = this.ctx.createAnalyser();
-      this.tuneAn.fftSize = Math.min(32768, n);
+      this.tuneAn.fftSize = 32768;
       this.tuneAn.smoothingTimeConstant = 0;
-      this.pitchIn.connect(this.tuneAn);
+      this.input.connect(this.tuneAn);
       const sink = this.ctx.createGain();
       sink.gain.value = 0;
       this.tuneAn.connect(sink).connect(this.ctx.destination);
       this.tuneBuf = new Float32Array(this.tuneAn.fftSize);
+      if (!this.tuner) {
+        this.tuner = new root.TunerEngineLib.TunerEngine({ sampleRate: this.ctx.sampleRate });
+        this.setTuner({});
+      }
+    }
+
+    // The precise tuner's settings: { a4, noiseFilter, strings (MIDI of the open strings: favoured
+    // when it's unclear which octave a note is in; null for a chromatic tuner), pinned (the string
+    // being tuned, MIDI) }. Kept for when the engine is made.
+    setTuner(opts) {
+      Object.assign(this.tunerOpts, opts);
+      const t = this.tuner;
+      if (!t) return;
+      const o = this.tunerOpts;
+      t.setA4(o.a4);
+      if (t.noiseFilter !== o.noiseFilter) { t.noiseFilter = o.noiseFilter; t.reset(); }
+      t.setPrior({ strings: o.strings, pinned: o.pinned });
     }
 
     // "Strum all six" (js/polytune.js): the last 32768 samples (~0.7 s) of what pitch detection hears,
@@ -263,11 +283,10 @@
       return { x: this.strumBuf, sampleRate: this.ctx.sampleRate };
     }
 
-    measureTune(info) {
+    measureTune() {
       if (!this.tuneAn) this.setPrecise(true);
       this.tuneAn.getFloatTimeDomainData(this.tuneBuf);
-      const r = refinePitch(this.tuneBuf, this.ctx.sampleRate, info.freq);
-      if (r && r.clarity > this.tuneClarity) this.emit('tune', { t: info.t, freq: r.freq, clarity: r.clarity, attackT: this.tracker.lastOnsetT, db: info.db });
+      this.emit('tune', this.tuner.process(this.tuneBuf, this.ctx.currentTime));
     }
 
     // String detection: measure a note's sound from 30 ms after its attack (past the pick's noise) for

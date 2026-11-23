@@ -2,7 +2,8 @@
 // which channel of it to listen to, the output device, sensitivity (the noise gate) with Auto-set,
 // and the live readout (note, tuner, level meter). These settings are kept in ff.settings, so every
 // practice page shares them. The tuner has a precise mode (a ±10¢ scale read to a tenth of a cent,
-// a strobe, and the reference pitch), added to the card here so every page gets it.
+// a strobe, and the reference pitch; the Tuner page's pitch engine, js/tunerengine.js), added to the
+// card here so every page gets it.
 (function (root) {
   'use strict';
   const T = root.Theory;
@@ -22,7 +23,9 @@
     return l && !MIC_WORDS.test(l) ? 'interface' : 'mic';
   }
 
-  function setup(engine, { store, preferFlat = () => false, onInputChange = () => {}, tuning = () => T.TUNINGS.standard }) {
+  // quietOption: offer the "Unplugged guitar" switch (quiet mode, for note detection). The Tuner page
+  // doesn't: its pitch engine hears a quiet string without it.
+  function setup(engine, { store, preferFlat = () => false, onInputChange = () => {}, tuning = () => T.TUNINGS.standard, quietOption = true }) {
     const $ = (id) => document.getElementById(id);
     const has = (id) => !!document.getElementById(id);
     const shared = { sensitivity: 58, deviceId: '', channel: 'both', outputId: '', a4: 440, quiet: false, ...store.get('ff.settings', {}) };
@@ -44,18 +47,20 @@
 
     // ---------- quiet guitar (an unplugged electric) ----------
     // See AudioEngine.setQuiet. Switching it changes the noise floor the gate sits on: set it again.
-    $('sens').closest('.sens-row').insertAdjacentHTML('afterend', `<label class="check quiet-row" title="Filters out room hiss and lowers the gate, so the mic can hear a quiet string">
+    if (quietOption) {
+      $('sens').closest('.sens-row').insertAdjacentHTML('afterend', `<label class="check quiet-row" title="Filters out room hiss and lowers the gate, so the mic can hear a quiet string">
       <input type="checkbox" id="quietChk"> <span><b>Unplugged guitar.</b> Turn on if the mic barely hears your strings (an unplugged electric, or the device far away).</span></label>`);
-    $('quietChk').checked = shared.quiet;
+      $('quietChk').checked = shared.quiet;
+    }
     async function setQuiet(on) {
       shared.quiet = !!on;
       save();
       engine.setQuiet(shared.quiet);
-      $('quietChk').checked = shared.quiet;
+      if (has('quietChk')) $('quietChk').checked = shared.quiet;
       root.dispatchEvent(new CustomEvent('ff:quiet', { detail: shared.quiet }));
       if (engine.micOn) await autoCalibrate();
     }
-    $('quietChk').addEventListener('change', (e) => setQuiet(e.target.checked));
+    if (quietOption) $('quietChk').addEventListener('change', (e) => setQuiet(e.target.checked));
 
     function setPill(state, text) {
       $('micPill').dataset.state = state;
@@ -295,18 +300,18 @@
     }
 
     // ---------- precise tuner ----------
-    const P = root.Pitch;
     const A4_MIN = 430;
     const A4_MAX = 450;
     shared.a4 = Math.min(A4_MAX, Math.max(A4_MIN, Math.round(Number(shared.a4) || 440)));
     let precise = false;
-    const filter = P && P.TunerFilter ? new P.TunerFilter({ a4: shared.a4 }) : null;
-    let reading = null; // the latest steadied reading, and when it came
+    // The precise tuner is the Tuner page's pitch engine (js/tunerengine.js), chromatic here: any note.
+    const canPrecise = !!(root.TunerEngineLib && engine.setPrecise);
+    let reading = null; // the latest reading, and when it came
     let readingAt = 0;
     const tunerEl = has('tunerNeedle') ? $('tunerNeedle').parentElement : null;
     let strobe = null;
     const tunerIdle = has('tunerText') ? $('tunerText').textContent : '';
-    if (tunerEl && filter && engine.setPrecise) {
+    if (tunerEl && canPrecise) {
       tunerEl.insertAdjacentHTML('afterend', '<div class="tuner-strobe" id="tunerStrobe" hidden aria-hidden="true"></div>');
       strobe = $('tunerStrobe');
       $('tunerText').insertAdjacentHTML('afterend', `<div class="tuner-mode" id="tunerMode">
@@ -329,14 +334,14 @@
         $('tunerRef').hidden = !precise && shared.a4 === 440; // a changed reference stays in view
       }
       if (engine.tracker) engine.tracker.a4 = shared.a4;
-      if (filter) { filter.a4 = shared.a4; filter.reset(); }
+      if (engine.setTuner) engine.setTuner({ a4: shared.a4 });
     }
     applyA4();
 
     async function setPrecise(on) {
       precise = on;
+      if (on) engine.setTuner({ strings: null, pinned: null, noiseFilter: true });
       engine.setPrecise(on);
-      filter.reset();
       reading = null;
       tunerEl.classList.toggle('precise', on);
       strobe.hidden = !on;
@@ -359,12 +364,10 @@
       return s ? `${s}${['', 'st', 'nd', 'rd', 'th', 'th', 'th'][s]} string` : '';
     }
 
-    if (filter && engine.setPrecise) {
-      engine.on('tune', ({ t, freq, attackT, db }) => {
-        if (!precise) return;
-        const r = filter.push(freq, t, attackT, db);
-        if (!r) return;
-        reading = r;
+    if (canPrecise) {
+      engine.on('tune', (r) => {
+        if (!precise || r.freq == null) return;
+        reading = { cents: r.cents, midi: r.midi, freq: r.freq, stable: r.spread < 1 };
         readingAt = performance.now();
         const c = r.cents;
         $('heardNote').textContent = T.noteName(r.midi, preferFlat());
@@ -376,10 +379,10 @@
         const str = stringOf(r.midi);
         const where = `${str ? `${str} · ` : ''}${r.freq.toFixed(2)} Hz`;
         const shown = Math.abs(c) < 0.05 ? 0 : c;
-        $('tunerText').textContent = !r.stable ? `${shown > 0 ? '+' : ''}${shown.toFixed(1)}¢ · steadying… · ${where}`
+        $('tunerText').textContent = !reading.stable ? `${shown > 0 ? '+' : ''}${shown.toFixed(1)}¢ · steadying… · ${where}`
           : Math.abs(c) < 0.5 ? `In tune (${shown > 0 ? '+' : ''}${shown.toFixed(1)}¢) · ${where}`
             : `${c > 0 ? '+' : ''}${c.toFixed(1)}¢ ${c > 0 ? 'sharp' : 'flat'} · ${where}`;
-        $('tunerText').dataset.state = r.stable && Math.abs(c) < 0.5 ? 'good' : '';
+        $('tunerText').dataset.state = reading.stable && Math.abs(c) < 0.5 ? 'good' : '';
       });
     }
 
@@ -415,7 +418,6 @@
         if (!info || (info.midi == null && now - readingAt > 350)) {
           $('heard').dataset.on = 'false';
           needle.className = 'tuner-needle';
-          if (filter) filter.reset();
           if (!info) { $('heardNote').textContent = '–'; $('heardOct').textContent = ''; }
         }
         return;

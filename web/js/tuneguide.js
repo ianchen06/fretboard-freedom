@@ -1,7 +1,7 @@
 // The Tuner page's logic, without any DOM: which string you're tuning, how far it is from its
 // target (in cents, or semitones when it's far off), which way to turn, and when it counts as tuned.
 //
-// Readings come from the precise tuner (Pitch.TunerFilter): { freq, spread, t }. A string counts as
+// Readings come from the precise tuner (js/tunerengine.js): { freq, spread, t }. A string counts as
 // tuned once it has stayed inside the tolerance, steadily, for `holdTime` seconds. Strings can be
 // picked by hand (pin), followed automatically (the nearest open string), or walked through in
 // order, low to high (guide).

@@ -1,10 +1,10 @@
 // The Tuner page: a big gauge, a strobe, which way to turn the peg, and a ✓ for each string in tune.
-// The pitch comes from the precise tuner (AudioEngine 'tune' readings → Pitch.TunerFilter); what it
-// means for the string you're tuning comes from TuneGuide (js/tuneguide.js).
+// The pitch comes from the precise tuner (AudioEngine 'tune' readings from js/tunerengine.js, which
+// also does the noise filter); what it means for the string you're tuning comes from TuneGuide
+// (js/tuneguide.js).
 (function () {
   'use strict';
   const T = window.Theory;
-  const { TunerFilter, PluckGate } = window.Pitch;
   const { TuneGuide, gaugeAngle } = window.TuneGuideLib;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,11 +34,12 @@
     store,
     preferFlat: () => tuning().flat,
     tuning,
+    quietOption: false, // the tuner's engine hears an unplugged electric without it
     onInputChange: (kind) => {
+      syncPrior();
       engine.setPrecise(!!kind);
       syncStart();
       if (kind) {
-        gate.reset();
         $('micNote').textContent = kind === 'mic'
           ? 'Hold the guitar close to the mic, in a quiet room. Pluck one string at a time.'
           : 'Listening to your interface. Pluck one string at a time.';
@@ -51,18 +52,16 @@
     },
   });
 
-  const filter = new TunerFilter({ a4: panel.a4() });
-  // The noise filter: only a plucked string reaches the gauge (hum, fans and voices don't). See Pitch.PluckGate.
-  const gate = new PluckGate();
-  // A quiet guitar gives fewer, noisier readings: steady them over a longer stretch.
-  const syncSound = () => {
-    seg('tnSoundSeg', panel.quiet() ? 'quiet' : 'normal');
-    filter.window = panel.quiet() ? window.Pitch.QUIET.tunerWindow : 0.3;
-    filter.reset();
-    gate.reset(); // the note tracker starts afresh too
-    guide.holdTime = panel.quiet() ? window.Pitch.QUIET.holdTime : 0.6;
-  };
   const guide = new TuneGuide({ open: tuning().open, a4: panel.a4(), tolerance: saved.tol });
+
+  // What the pitch engine is told: the tuning's open strings (to settle which octave a note is in),
+  // the string being tuned if there is one, the reference pitch, and whether to filter out sounds
+  // that aren't a plucked string (hum, fans, voices: see TunerEngine).
+  function syncPrior() {
+    const open = tuning().open;
+    const pinned = guide.mode !== 'auto' && guide.pinned != null ? open[guide.pinned] : null;
+    engine.setTuner({ strings: Object.values(open), pinned, a4: panel.a4(), noiseFilter: saved.noise });
+  }
 
   // Strum all six (see the end of this file).
   const POLY_TOL = 3; // cents: in tune, in this view
@@ -136,7 +135,7 @@
   function pick(s) {
     stopStrum();
     guide.pin(s);
-    filter.reset();
+    syncPrior();
     syncMode();
     render(null);
     start();
@@ -163,22 +162,13 @@
   function startGuide() {
     stopStrum();
     guide.guide();
-    filter.reset();
+    syncPrior();
     syncMode();
     pauseFor(0, null);
     render(null);
     start();
   }
   $('tnGuide').addEventListener('click', (e) => { e.currentTarget.blur(); startGuide(); });
-
-  syncSound();
-  window.addEventListener('ff:quiet', syncSound);
-  $('tnSoundSeg').addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    b.blur();
-    panel.setQuiet(b.dataset.value === 'quiet');
-  });
 
   seg('tnNoiseSeg', saved.noise ? 'on' : 'off');
   $('tnNoiseSeg').addEventListener('click', (e) => {
@@ -188,8 +178,7 @@
     saved.noise = b.dataset.value === 'on';
     store.set('ff.tuner', saved);
     seg('tnNoiseSeg', saved.noise ? 'on' : 'off');
-    gate.reset();
-    filter.reset();
+    syncPrior();
   });
 
   seg('tnTolSeg', saved.tol);
@@ -213,7 +202,7 @@
     const mode = guide.mode;
     guide.setTuning(tuning().open);
     if (mode === 'guide') guide.guide();
-    filter.reset();
+    syncPrior();
     drawStrings();
     if (strumOn) { poly = null; drawPoly(); }
     render(null);
@@ -224,8 +213,7 @@
     const a4 = panel.setA4(v);
     $('tnA4').textContent = a4;
     guide.setA4(a4);
-    filter.a4 = a4;
-    filter.reset();
+    syncPrior();
   }
   $('tnA4').textContent = panel.a4();
   $('tnA4Down').addEventListener('click', () => setA4(panel.a4() - 1));
@@ -295,34 +283,34 @@
   let reading = null; // { cents, ok } for the strobe
   function pauseFor(ms, text) {
     pausedUntil = performance.now() + ms;
-    filter.reset();
     guide.silence();
     if (text) say('info', text);
   }
 
-  engine.on('tune', (reading) => {
-    if (strumOn || performance.now() < pausedUntil) return;
-    let r = null;
-    for (const q of saved.noise ? gate.push(reading) : [reading]) r = filter.push(q.freq, q.t, q.attackT, q.db) || r;
-    if (!r) return;
-    const { t } = reading;
+  engine.on('tune', (r) => {
+    if (strumOn) return;
+    // While the reference tone plays (or just after a string got its ✓), the engine starts afresh
+    // all the time: it mustn't carry on with the tone, or with the string still ringing.
+    if (performance.now() < pausedUntil) { if (engine.tuner) engine.tuner.reset(); return; }
+    if (r.freq == null) return;
+    const { t, freq, spread } = r;
     // Guide mode: the string you just tuned may still be ringing. Say so instead of reading it
     // against the next string.
     if (guide.mode === 'guide' && guide.pinned != null) {
-      const near = guide.nearestString(r.freq);
-      if (near !== guide.pinned && guide.done.has(near) && Math.abs(1200 * Math.log2(r.freq / guide.targetFreq(near))) < 30) {
+      const near = guide.nearestString(freq);
+      if (near !== guide.pinned && guide.done.has(near) && Math.abs(1200 * Math.log2(freq / guide.targetFreq(near))) < 30) {
         lastReading = performance.now();
         say('info', `That’s the ${strName(near)}, already in tune. Now pluck the <b>${esc(strName(guide.pinned))}</b>.`);
         return;
       }
     }
-    const g = guide.push({ freq: r.freq, spread: r.spread, t });
+    const g = guide.push({ freq, spread, t });
+    if (g.justTuned) syncPrior(); // guide mode moves on to the next string
     lastReading = performance.now();
-    render(g, r.freq);
+    render(g, freq);
   });
 
   engine.on('frame', (info) => {
-    gate.frame(info);
     if (!engine.micOn) return;
     if (strumOn) { strumFrame(info); return; }
     if (lastReading && performance.now() - lastReading > 450) lost();
@@ -332,7 +320,6 @@
     if (!lastReading) return;
     lastReading = 0;
     reading = null;
-    filter.reset();
     guide.silence();
     $('tnNeedle').classList.remove('live', 'good', 'close', 'off');
     $('tnCents').textContent = ' ';
@@ -371,8 +358,8 @@
       if (!engine.micOn) say('info', 'Press <b>Start tuning</b>, then pluck a string.');
       else if (guide.allDone) say('ok', 'All strings in tune. Go round once more to be sure: <b>Guide me</b>.');
       else if (guide.mode === 'auto') {
-        say('info', panel.inputKind() === 'mic' && !panel.quiet()
-          ? 'Pluck any open string and let it ring. Electric, not plugged in? Choose <b>Unplugged electric</b> below.'
+        say('info', panel.inputKind() === 'mic'
+          ? 'Pluck any open string and let it ring. Electric, not plugged in? Hold the device close, its mic towards the strings.'
           : 'Pluck any open string and let it ring.');
       }
       else say('info', `Pluck the <b>${esc(strName(guide.pinned))}</b> and let it ring.`);
@@ -496,8 +483,7 @@
     strumOn = false;
     $('tnCard').classList.remove('strum');
     $('tnPoly').hidden = true;
-    filter.reset();
-    gate.reset();
+    if (engine.tuner) engine.tuner.reset();
   }
 
   function strumFrame(info) {
@@ -569,6 +555,7 @@
     say(worst.cents < 0 ? 'up' : 'down', `Most out: the <b>${esc(strName(worst.s))}</b>, ${n}¢ ${worst.cents < 0 ? 'flat: <b>tighten</b> it' : 'sharp: <b>loosen</b> it a little past, then come up'}. The bars follow while it rings; strum again any time.`);
   }
 
+  syncPrior();
   drawScale();
   drawStrings();
   syncMode();
