@@ -1,0 +1,105 @@
+/* The Pickup height page (pickups.html). Builds on style.css: tokens, cards, buttons, segments. */
+.pk-card { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pk-lede { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.pk-opts { display: flex; gap: 14px 24px; flex-wrap: wrap; }
+.pk-opt { display: grid; gap: 6px; }
+.pk-opts .seg.seg-sm { flex-wrap: wrap; }
+
+/* the diagrams */
+.pk-figure { margin: 0; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 10px 18px; align-items: center; }
+.pk-figure figcaption { grid-column: 1 / -1; }
+.pk-side, .pk-top { width: 100%; height: auto; display: block; overflow: visible; }
+.pk-body { fill: var(--card-2); }
+.pk-board { fill: #3a2f27; }
+.pk-fret { stroke: var(--line-2); stroke-width: 3; }
+.pk-finger { fill: rgba(233, 223, 200, 0.18); stroke: var(--pearl); stroke-width: 1.5; }
+.pk-string { fill: none; stroke: var(--text); stroke-width: 2; }
+.pk-bridge { fill: var(--line-2); }
+.pk-pu-body { fill: #2b2b33; stroke: var(--line-2); }
+.pk-pole { fill: var(--muted); }
+.pk-gap { stroke: var(--teal); stroke-width: 2; }
+.pk-gap-mark { stroke: var(--teal); stroke-width: 1.5; fill: none; }
+.pk-lbl { fill: var(--muted); font: 600 12px var(--font); }
+.pk-lbl.faint { fill: var(--faint); }
+.pk-ring { fill: #26262d; stroke: var(--line-2); stroke-width: 1.5; }
+.pk-cover { fill: #303039; stroke: var(--line-2); stroke-width: 1.2; }
+.pk-cover.p90 { fill: #2f2b27; }
+.pk-seam { stroke: var(--line-2); }
+.pk-screwpole { fill: #8f8f99; }
+.pk-slug { fill: #7a7a84; }
+.pk-slot { stroke: #2a2a31; stroke-width: 1.6; }
+.pk-hscrew { fill: var(--third); }
+.pk-mscrew { fill: #8f8f99; stroke: var(--root); stroke-width: 1.5; }
+.pk-str { stroke: rgba(228, 228, 231, 0.55); }
+
+/* the source of the figures */
+.pk-src { padding: 10px 14px; border-radius: 12px; background: var(--card-2); font-size: 14px; line-height: 1.5; color: var(--muted); }
+.pk-src b { color: var(--text); }
+.pk-src[data-kind="warn"] { box-shadow: inset 3px 0 0 var(--third); }
+
+/* the two pickups */
+.pk-pickups { display: grid; gap: 12px; }
+.pk-pu { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+.pk-pu-head { font-size: 16px; }
+.pk-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pk-sidebox { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.pk-side-name { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.pk-target { display: flex; align-items: baseline; gap: 8px; }
+.pk-target-lbl { font-size: 13px; color: var(--muted); }
+.pk-target-val { font-size: 26px; font-weight: 750; color: var(--pearl); font-variant-numeric: tabular-nums; }
+.pk-target-val small { font-size: 13px; font-weight: 600; color: var(--faint); margin-left: 4px; }
+.pk-meas-lbl { font-size: 13px; color: var(--muted); }
+.pk-measure { display: flex; align-items: stretch; gap: 6px; }
+.pk-measure input {
+  flex: 1; min-width: 0; padding: 8px 10px; font-size: 17px; font-weight: 650; text-align: center;
+  background: var(--card-2); color: var(--text); border: 1px solid var(--line); border-radius: 9px; font-variant-numeric: tabular-nums;
+}
+.pk-measure input:focus-visible { outline: 2px solid var(--pearl); outline-offset: 1px; }
+.pk-step {
+  width: 42px; flex: none; font-size: 20px; font-weight: 700; color: var(--text); background: var(--card-2);
+  border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
+}
+.pk-step:hover { border-color: #5a5a64; }
+.pk-step:focus-visible { outline: 2px solid var(--pearl); outline-offset: 2px; }
+.pk-advice { margin: 0; font-size: 14px; line-height: 1.45; color: var(--faint); min-height: 2.9em; }
+.pk-advice[data-status="ok"] { color: var(--teal); font-weight: 650; }
+.pk-advice[data-status="raise"], .pk-advice[data-status="lower"] { color: var(--text); }
+.pk-advice[data-status="raise"]::before { content: "↑ "; color: var(--third); font-weight: 800; }
+.pk-advice[data-status="lower"]::before { content: "↓ "; color: var(--third); font-weight: 800; }
+.pk-summary { margin: 0; font-size: 14px; color: var(--muted); }
+.pk-summary:empty { display: none; }
+.pk-ctl { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* the level check */
+.pk-level { padding: 18px 20px; display: grid; gap: 12px; }
+.pk-level-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pk-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
+.pk-col { display: grid; gap: 6px; justify-items: center; }
+.pk-col-bars { height: 120px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; border-bottom: 1px solid var(--line); }
+.pk-bar { width: 16px; border-radius: 4px 4px 0 0; transition: height 0.2s ease-out; }
+.pk-bar.neck { background: var(--fifth); }
+.pk-bar.bridge { background: var(--third); }
+.pk-bar.odd { box-shadow: 0 0 0 2px var(--root); }
+.pk-col-note { font-weight: 700; }
+.pk-col-note small { color: var(--muted); font-size: 11px; margin-left: 1px; }
+.pk-legend { display: grid; gap: 4px; align-self: center; }
+.pk-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+.pk-key.neck { background: var(--fifth); }
+.pk-key.bridge { background: var(--third); }
+.pk-say { padding: 10px 14px; border-radius: 12px; background: var(--card-2); font-size: 15px; line-height: 1.45; color: var(--text); min-height: 46px; }
+
+/* how to */
+.pk-help { padding: 18px 20px; display: grid; gap: 12px; }
+.pk-steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--muted); line-height: 1.5; font-size: 14.5px; }
+.pk-steps b { color: var(--text); }
+.pk-sources { display: grid; gap: 6px; }
+.pk-sources ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.pk-sources a { color: var(--pearl); }
+
+@media (max-width: 640px) {
+  .pk-figure { grid-template-columns: minmax(0, 1fr); }
+  .pk-top { max-width: 320px; justify-self: center; }
+  .pk-sides { grid-template-columns: minmax(0, 1fr); }
+  .pk-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .pk-legend { grid-column: 1 / -1; display: flex; gap: 10px; }
+}

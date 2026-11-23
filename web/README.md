@@ -10,7 +10,7 @@ The browser only allows microphone access on `localhost` or `https`, so serve th
 python3 -m http.server 8765 --directory web
 ```
 
-Then open http://localhost:8765/tuner.html (Tuner), http://localhost:8765/session.html (Daily session), http://localhost:8765 (Find any note), http://localhost:8765/scales.html (Scales), http://localhost:8765/licks.html (Call & response), http://localhost:8765/rhythm.html (Rhythm) or http://localhost:8765/write.html (Song writing) in Chrome, Edge, Firefox or Safari and click **Enable microphone**.
+Then open http://localhost:8765/tuner.html (Tuner), http://localhost:8765/pickups.html (Pickup height), http://localhost:8765/session.html (Daily session), http://localhost:8765 (Find any note), http://localhost:8765/scales.html (Scales), http://localhost:8765/licks.html (Call & response), http://localhost:8765/rhythm.html (Rhythm) or http://localhost:8765/write.html (Song writing) in Chrome, Edge, Firefox or Safari and click **Enable microphone**.
 
 ### On a phone or tablet (iPhone Safari, Android Chrome)
 
@@ -84,6 +84,15 @@ Measured on 53 real recordings (steel-string, electric and nylon guitars, E2 to 
 ("Shown": the median share of the 0.3–3 s after each pick with a reading on the gauge, all takes and the low strings.) Where both engines read, they're as steady as each other (the needle within ~0.2¢ of where it's going), and the new one reads about a cent lower: the old one followed the strongest harmonics, which a stiff string stretches sharp; the new one reads the fundamental. On synthetic plucks with known truth the median error is 0.14¢ (0.44¢ before) and a quiet guitar is read all the time (a quarter of the time before). `test/tunerengine.test.js` and `test/realguitar.test.js` check all of this.
 
 Sources: A. de Cheveigné & H. Kawahara, *YIN* (JASA 2002); M. Mauch & S. Dixon, *pYIN* (ICASSP 2014); P. McLeod & G. Wyvill, *A smarter way to find pitch* (ICMC 2005); A. Camacho & J. Harris, *A sawtooth waveform inspired pitch estimator* (JASA 2008); J. K. Nielsen et al., *Fast fundamental frequency estimation* (Signal Processing 2017); J. Rauhala, H.-M. Lehtonen & V. Välimäki, *Fast automatic inharmonicity estimation algorithm* (JASA-EL 2007); N. Lee, J. O. Smith et al. on the pitch glide of plucked strings (DAFx 2009); the open-source tuners LINGOT (spectral SNR, harmonic comb, Newton refinement, lock/unlock hysteresis), aubio's `yinfft` and Cycfi Q's pitch detector.
+
+## Pickup height (`pickups.html`)
+
+Sets the height of Gibson-style pickups, humbuckers and P-90s (soapbar or dogear), to Gibson's factory setting or StewMac's starting point, then by ear.
+
+- **The figures.** **Gibson factory setting:** neck 3/32″ (2.4 mm), bridge 1/16″ (1.6 mm), the same under both E strings, measured with the string pressed at the last fret from the bottom of the string to the highest point of the pickup, the pole pieces flat. That's Gibson's factory setup sheet as Gibson support gives it (quoted by Gibson staff on [Gibson's forums](https://forum.gibson.com/topic/14515-measuring-pickup-height/)); Gibson's own site and manuals weren't reachable to check it against, and the same figures are what [Sweetwater](https://www.sweetwater.com/insync/high-set-pickups/) and [Premier Guitar](https://www.premierguitar.com/diy/mod-garage/humbucker-pickup-height) report as Gibson's. Gibson gives it for its humbucker guitars and publishes no separate P-90 figure, so the page says so when you pick a P-90 with it. **StewMac starting point:** about 3/32″ under the low E and 1/16″ under the high E, at the highest fret, the same for humbuckers ([StewMac's humbucker wiring diagrams](https://www.stewmac.com/video-and-ideas/online-resources/learn-about-guitar-pickups-and-electronics-and-wiring/learn-about-wiring-stewmac-pickups/stewmac-humbucker-pickup-wiring-diagrams/)) and P-90s ([StewMac's P-90 wiring diagrams](https://www.stewmac.com/video-and-ideas/online-resources/learn-about-guitar-pickups-and-electronics-and-wiring/learn-about-wiring-stewmac-pickups/stewmac-p-90-pickup-wiring-diagrams/): P-90s "are usually set closer to the strings than single-coils, because they have less of a focused magnetic pull"), then raised or lowered for the balance you prefer.
+- **What to turn.** Enter the gap you measured under each E string on each pickup (step in 64ths or tenths of a mm, or type `3/32`, `2.4 mm`), and it says which way and how far. A humbucker's height screws (Gibson's are [3-48](https://gibson.com/en-GB/p/pickup-height-adjustment-screw/gibson-Historic-Reissue-Pickup-Height-Adjustment-Screws-Slotted-Nickel/PRTH-PHSN): 48 threads to the inch, a turn is 0.53 mm) turn clockwise to draw that end up, so it gives the turns, to a quarter. A soapbar P-90 is held down on foam or springs by two screws between its pole pieces: tighten to lower, loosen to raise (if nothing's under it, it needs a shim). A dogear P-90 has no height screws: it goes up or down on shims, as a whole (the two sides' average), and the pole screws even out the sides. Within 0.2 mm counts as there. Gibson's owner's manual: height by the two screws at either end of the pickup, in the mounting ring; each string's volume by its pole screw; closer is hotter.
+- **The level check.** With the guitar plugged in (an audio interface, a KATANA:GO; a mic hears the strings, not the pickups), pluck each open string two or three times on the neck pickup, then on the bridge pickup. The bars show how loud each string comes out (the loudest moment of each pluck, the last three averaged), a string 3 dB or more off the others on a pickup is pointed out for its pole screw, and the two pickups are compared (within 2 dB: about as loud as each other).
+- The measurements are kept in the browser. The logic is `js/pickups.js` (no DOM), tested by `test/pickups.test.js`; the page is `js/pickups-app.js` and `css/pickups.css`.
 
 ## Daily session (`session.html`)
 
@@ -384,6 +393,9 @@ Tips:
 
 | File | What it does |
 |---|---|
+| `pickups.html`, `css/pickups.css`, `js/pickups-app.js` | Pickup height page, styles and UI wiring: the figures, the measurements, the diagrams, the level check |
+| `js/pickups.js` | Gibson's and StewMac's pickup heights, units, what to turn and how far, the level check (no DOM) |
+| `test/pickups.test.js` | The pickup figures, units, the screw and shim advice, the level check: `node web/test/pickups.test.js` |
 | `session.html`, `css/session.css`, `js/session-app.js` | Daily session page, styles and UI wiring |
 | `js/scales.js` | Scales, chords and shapes computed from pitches: pentatonic boxes, 7-note positions, 3-notes-per-string, arpeggios, triads on string sets (no DOM) |
 | `js/sessiongen.js` | Exercise families (rhythm included), sequences, the session planner and its rules, the learner model, sequence, free-play and rhythm graders (no DOM) |

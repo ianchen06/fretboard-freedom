@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pickup height · Fretboard Freedom</title>
+  <meta name="description" content="Set the height of Gibson-style humbuckers and P-90s: Gibson's factory setting and StewMac's starting point, what to turn and how far, and a level check by ear.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=9">
+  <link rel="stylesheet" href="css/pickups.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Fretboard Freedom</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <nav class="pages" aria-label="Practices">
+        <a href="tuner.html">Tuner</a>
+        <a href="pickups.html" aria-current="page">Pickup height</a>
+        <a href="session.html">Daily session</a>
+        <a href="index.html">Find any note</a>
+        <a href="scales.html">Scales</a>
+        <a href="licks.html">Call &amp; response</a>
+        <a href="rhythm.html">Rhythm</a>
+        <a href="write.html">Song writing 写歌</a>
+      </nav>
+    </div>
+    <button class="mic-pill" id="micPill" type="button" data-state="off">
+      <span class="mic-dot" aria-hidden="true"></span><span id="micPillText">Mic off</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div class="card pk-card">
+        <div class="card-kicker">Pickup height</div>
+        <p class="pk-lede">How far the strings sit above the pickups sets their volume and their tone: closer is louder and fuller, too close muddies the sound and the magnets start pulling on the strings. Set them to Gibson’s factory gap or StewMac’s starting point, then by ear.</p>
+
+        <div class="pk-opts">
+          <div class="pk-opt">
+            <span class="field-label">Pickups</span>
+            <div class="seg seg-sm" id="pkTypeSeg" role="radiogroup" aria-label="Kind of pickup">
+              <button type="button" data-value="humbucker" title="A Les Paul, SG, ES-335: two coils, in a mounting ring with a height screw at each end">Humbucker</button>
+              <button type="button" data-value="soapbar" title="A P-90 with a plain rectangular cover, its two screws between the pole pieces">P-90 soapbar</button>
+              <button type="button" data-value="dogear" title="A P-90 with ‘ears’ either side, screwed down through them">P-90 dogear</button>
+            </div>
+          </div>
+          <div class="pk-opt">
+            <span class="field-label">Go by</span>
+            <div class="seg seg-sm" id="pkSrcSeg" role="radiogroup" aria-label="Whose recommendation">
+              <button type="button" data-value="gibson" title="The gap Gibson sets its guitars to at the factory">Gibson factory</button>
+              <button type="button" data-value="stewmac" title="StewMac’s recommended starting point">StewMac</button>
+            </div>
+          </div>
+          <div class="pk-opt">
+            <span class="field-label">Units</span>
+            <div class="seg seg-sm" id="pkUnitSeg" role="radiogroup" aria-label="Units">
+              <button type="button" data-value="in">Inches</button>
+              <button type="button" data-value="mm">mm</button>
+            </div>
+          </div>
+        </div>
+
+        <figure class="pk-figure">
+          <svg class="pk-side" viewBox="0 0 520 150" role="img" aria-labelledby="pkSideTitle">
+            <title id="pkSideTitle">Measuring the gap: the string pressed at the last fret, the gap from the bottom of the string to the top of the pole piece</title>
+            <rect class="pk-body" x="0" y="96" width="520" height="54" rx="6"/>
+            <rect class="pk-board" x="0" y="70" width="190" height="26"/>
+            <line class="pk-fret" x1="40" y1="70" x2="40" y2="62"/><line class="pk-fret" x1="96" y1="70" x2="96" y2="62"/><line class="pk-fret" x1="146" y1="70" x2="146" y2="62"/><line class="pk-fret" x1="186" y1="70" x2="186" y2="61"/>
+            <circle class="pk-finger" cx="172" cy="52" r="11"/>
+            <polyline class="pk-string" points="0,40 172,62 494,72"/>
+            <rect class="pk-bridge" x="486" y="72" width="16" height="24"/>
+            <rect class="pk-pu-body" x="276" y="80" width="70" height="16" rx="3"/>
+            <rect class="pk-pole" x="304" y="74" width="14" height="6" rx="1"/>
+            <line class="pk-gap" x1="311" y1="73" x2="311" y2="67.5"/>
+            <path class="pk-gap-mark" d="M300 67 h22 M300 74 h22"/>
+            <text class="pk-lbl" x="172" y="24" text-anchor="middle">press at the last fret</text>
+            <text class="pk-lbl" x="356" y="44" text-anchor="start">the gap: bottom of the string</text>
+            <text class="pk-lbl" x="356" y="58" text-anchor="start">to the top of the pole piece</text>
+            <text class="pk-lbl faint" x="311" y="118" text-anchor="middle">pickup</text>
+          </svg>
+          <svg class="pk-top" id="pkTop" viewBox="0 0 380 190" role="img" aria-label="The pickup from above, and its screws"></svg>
+          <figcaption class="fine" id="pkFigNote"></figcaption>
+        </figure>
+
+        <div class="pk-src" id="pkSrcNote" aria-live="polite"></div>
+        <div class="pk-pickups" id="pkPickups"></div>
+        <div class="pk-ctl">
+          <button class="btn btn-ghost" id="pkClear" type="button">Clear the measurements</button>
+        </div>
+      </div>
+
+      <div class="card listen-card">
+        <div class="card-kicker">Input</div>
+        <div class="meter" title="Input level">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-gate" id="meterGate" title="Noise gate: quieter sounds are ignored"></div>
+        </div>
+        <div class="sens-row">
+          <label for="sens">Sensitivity</label>
+          <input type="range" id="sens" min="0" max="100" step="1">
+          <button class="link-btn" id="calBtn" type="button" title="Measure the room noise and set the gate just above it">Auto-set</button>
+        </div>
+        <select id="deviceSelect" class="device" aria-label="Input device" hidden></select>
+        <div class="io-row" id="channelRow" hidden>
+          <span class="io-label">Channel</span>
+          <div class="seg seg-sm" id="channelSeg" role="radiogroup" aria-label="Input channel">
+            <button type="button" data-value="both">Both</button>
+            <button type="button" data-value="left">1 · Left</button>
+            <button type="button" data-value="right">2 · Right</button>
+          </div>
+        </div>
+        <label class="io-row" id="outputRow" hidden><span class="io-label">Output</span><select id="outputSelect" class="device" aria-label="Output device"></select></label>
+        <p class="fine io-tip" id="ioTip" hidden></p>
+        <button class="btn btn-mic" id="micBtn" type="button">Enable input</button>
+        <p class="fine" id="micNote">For the level check, plug the guitar into an audio interface (or a KATANA:GO): a mic hears the strings, not the pickups.</p>
+      </div>
+    </section>
+
+    <section class="card pk-level">
+      <div class="pk-level-head">
+        <div class="card-kicker">Check the balance by ear</div>
+        <div class="seg seg-sm" id="pkLvSeg" role="radiogroup" aria-label="The pickup you're playing through">
+          <button type="button" data-value="neck">Neck pickup</button>
+          <button type="button" data-value="bridge">Bridge pickup</button>
+        </div>
+      </div>
+      <p class="pk-lede">With the guitar plugged in, pluck each open string two or three times, as evenly as you can: each bar is how loud that string comes out. Do it on the neck pickup, then switch to the bridge pickup and do it again.</p>
+      <div class="pk-bars" id="pkBars" role="list" aria-label="How loud each string is, on each pickup"></div>
+      <div class="pk-say" id="pkLvSay" aria-live="polite">Plug the guitar in and press <b>Enable input</b>.</div>
+      <div class="pk-ctl">
+        <button class="btn btn-ghost" id="pkLvClear" type="button">Start the level check again</button>
+      </div>
+    </section>
+
+    <section class="card pk-help">
+      <div class="card-kicker">How to set it, step by step</div>
+      <ol class="pk-steps">
+        <li><b>Tune up first.</b> The gap is measured with the strings at pitch.</li>
+        <li><b>Press the low E at the last fret</b> and hold it there. Measure from the bottom of the string to the top of the pole piece (Gibson measures to the highest point of the pickup: the cover, or a pole screw if one is raised above it). A steel rule marked in 64ths or half-millimetres, or a string action gauge, does it.</li>
+        <li><b>Do the same under the high E</b>, then on the other pickup. Enter what you measured above.</li>
+        <li><b>Turn the screw it says</b>, a little at a time, and measure again. Hold the screwdriver firmly in the slot: a slotted screw that jumps out scratches the top.</li>
+        <li><b>Retune and listen.</b> These gaps are starting points. Switch between the pickups: if one is much louder, lower it or raise the other. If one string is louder or quieter than the rest, turn its pole screw: in for quieter, out for louder.</li>
+        <li><b>Listen for the magnets.</b> Too close, a pickup’s magnets pull on the strings: notes high up the neck on the wound strings sound wobbly or out of tune, and the sustain dies. Lower it a little.</li>
+      </ol>
+      <div class="pk-sources" id="pkSources">
+        <span class="field-label">Where the figures come from</span>
+        <ul class="fine">
+          <li><b>Gibson factory setting:</b> neck 3/32″ (2.4 mm), bridge 1/16″ (1.6 mm), at the last fret, the pole pieces flat; as Gibson support gives it (its factory setup sheet, quoted by Gibson staff on <a href="https://forum.gibson.com/topic/14515-measuring-pickup-height/" rel="noopener">Gibson’s forums</a>). Gibson’s <a href="https://c3.zzounds.com/media/USA_Owners_Manual-737b6e52b41d95b60f10ffe22ea0a739.pdf" rel="noopener">owner’s manual</a>: height by the two screws at either end, in the mounting ring; each string’s volume by its pole screw. Gibson’s <a href="https://gibson.com/en-GB/p/pickup-height-adjustment-screw/gibson-Historic-Reissue-Pickup-Height-Adjustment-Screws-Slotted-Nickel/PRTH-PHSN" rel="noopener">height screws</a> are 3-48: a full turn is 1/48″ (0.53 mm).</li>
+          <li><b>StewMac starting point:</b> about 3/32″ under the low E and 1/16″ under the high E, at the highest fret, for <a href="https://www.stewmac.com/video-and-ideas/online-resources/learn-about-guitar-pickups-and-electronics-and-wiring/learn-about-wiring-stewmac-pickups/stewmac-humbucker-pickup-wiring-diagrams/" rel="noopener">humbuckers</a> and <a href="https://www.stewmac.com/video-and-ideas/online-resources/learn-about-guitar-pickups-and-electronics-and-wiring/learn-about-wiring-stewmac-pickups/stewmac-p-90-pickup-wiring-diagrams/" rel="noopener">P-90s</a> alike, then by ear for the balance you prefer.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/theory.js?v=4"></script>
+  <script src="js/pitch.js?v=7"></script>
+  <script src="js/tunerengine.js?v=1"></script>
+  <script src="js/audio.js?v=10"></script>
+  <script src="js/micpanel.js?v=8"></script>
+  <script src="js/pickups.js?v=1"></script>
+  <script src="js/pickups-app.js?v=1"></script>
+</body>
+</html>
