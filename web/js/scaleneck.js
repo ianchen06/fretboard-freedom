@@ -247,7 +247,7 @@
     { id: 'popRoyal', genre: 'pop', name: '王道 IV – V – iii – vi', groove: 'pop', chords: [[5, 'maj'], [7, 'maj'], [4, 'min'], [9, 'min']], fits: ['ionian', 'majPent'] },
     { id: 'popMin', genre: 'pop', name: 'i – ♭VI – ♭III – ♭VII', groove: 'pop', chords: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']], fits: ['aeolian', ...PENT_MIN] },
     { id: 'lydianVamp', genre: 'pop', name: 'Lydian I – II', groove: 'pop', chords: [[0, 'maj'], [2, 'maj']], fits: ['lydian'] },
-    { id: 'canon', genre: 'ballad', name: '卡农 Canon', groove: 'ballad', chords: [[0, 'maj'], [7, 'maj'], [9, 'min'], [4, 'min'], [5, 'maj'], [0, 'maj'], [5, 'maj'], [7, 'maj']], fits: ['ionian', 'majPent'] },
+    { id: 'canon', genre: 'ballad', name: '卡農 Canon', groove: 'ballad', chords: [[0, 'maj'], [7, 'maj'], [9, 'min'], [4, 'min'], [5, 'maj'], [0, 'maj'], [5, 'maj'], [7, 'maj']], fits: ['ionian', 'majPent'] },
     { id: 'balladMin', genre: 'ballad', name: 'i – ♭VI – ♭III – ♭VII', groove: 'ballad', chords: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']], fits: ['aeolian', ...PENT_MIN] },
     { id: 'drone', genre: '*', name: 'Drone on the root', groove: 'drone', chords: [[0, null]], fits: Object.keys(S.SCALES) },
   ];
@@ -264,7 +264,7 @@
     return b ? b.id : 'drone';
   }
 
-  // Bars as chords in a key: [{ root, chordId, pcs, name, sym }]. sym: the chord as a 简谱 number
+  // Bars as chords in a key: [{ root, chordId, pcs, name, sym }]. sym: the chord as a 簡譜 number
   // for the song band ('1m', '♭6'); roman: the blues band's 'I' / 'IV' / 'V'.
   const DEGREE_SYM = ['1', '♭2', '2', '♭3', '3', '4', '♭5', '5', '♭6', '6', '♭7', '7'];
   const QUAL_SYM = { maj: '', min: 'm', dom7: '7', min7: 'm7' };

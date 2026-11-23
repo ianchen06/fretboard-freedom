@@ -1,7 +1,7 @@
 // The song writing page's band: the Call & response band (band.js) with three new grooves.
 // - Ballad 抒情: fingerpicked clean guitar, root bass, brushes of drums that grow into the chorus, a pad.
 // - Mandopop 流行: an 8-beat groove, strummed clean guitar (D D U U D U), eighth-note bass, a pad.
-// - Rock 摇滚: palm-muted power chords in the verse, open ones in the chorus, double-tracked.
+// - Rock 搖滾: palm-muted power chords in the verse, open ones in the chorus, double-tracked.
 // Every section has an energy level, so verses are lighter than choruses. It also sings the
 // melody with a soft guide voice (or the lead guitar), so you hear your lyrics' tune.
 (function (root) {

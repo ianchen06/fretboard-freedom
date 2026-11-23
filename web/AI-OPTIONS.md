@@ -28,11 +28,11 @@ Each option below is a new dependency or download, so each needs a deliberate ye
 
 ## 1. Lyric partner and weekly coach
 
-**What you'd get.** In Song writing: ask for a next line, a rewrite, or a line that ends in a given 辙. In Daily session: a weekly review of what improved, what's stuck and what to change.
+**What you'd get.** In Song writing: ask for a next line, a rewrite, or a line that ends in a given 轍. In Daily session: a weekly review of what improved, what's stuck and what to change.
 
 **How it fits.** The LLM drafts and the rules check, the same pattern as the lick library (`licks-blues.js` was drafted by AI and is checked by `lickgen.js`).
 
-- For lyrics, `zh.js` already judges tone fit against the melody and sorts line endings into the 十三辙. Each suggested line can be shown with its 倒字 and rhyme result, or filtered before you see it.
+- For lyrics, `zh.js` already judges tone fit against the melody and sorts line endings into the 十三轍. Each suggested line can be shown with its 倒字 and rhyme result, or filtered before you see it.
 - For the coach, the practice history is already in browser storage (`ff.days`, `ff.learner`).
 
 **Limits.**
@@ -105,7 +105,7 @@ Each option below is a new dependency or download, so each needs a deliberate ye
 
 ## 5. A small win without ML: fuller pinyin for 多音字
 
-`pinyin-data.js` gives each character one reading. `zh.js` adds about 100 words where the reading differs (长大, 音乐, 了解), and you can tap a syllable to fix a wrong one. [pinyin-pro](https://github.com/zh-lx/pinyin-pro) (MIT) would replace that hand-written list with a full phrase dictionary. The gain is modest and the cost is a dependency.
+`pinyin-data.js` gives each character one reading. `zh.js` adds about 100 words where the reading differs (長大, 音樂, 瞭解), and you can tap a syllable to fix a wrong one. [pinyin-pro](https://github.com/zh-lx/pinyin-pro) (MIT) would replace that hand-written list with a full phrase dictionary. The gain is modest and the cost is a dependency.
 
 ## Looked at and skipped
 

@@ -1,5 +1,5 @@
 // Tests the song writing modules: pinyin and tones, tone sandhi, rhymes, the tone/melody judge,
-// chords, the melody generator, quantizing and 简谱.
+// chords, the melody generator, quantizing and 簡譜.
 // Run: node web/test/songwriter.test.js
 'use strict';
 const Zh = require('../js/zh.js');
@@ -12,18 +12,18 @@ const sung = (text) => Zh.syllables(text).map((s) => `${s.base}${s.sung}`).join(
 // ---------- pinyin ----------
 console.log('pinyin');
 check(Zh.PY.size > 20000, `pinyin data covers the CJK block (${Zh.PY.size})`);
-check(sung('我爱你') === 'wo2 ai4 ni3' || sung('我爱你') === 'wo3 ai4 ni3', `我爱你 (got ${sung('我爱你')})`);
+check(sung('我愛你') === 'wo2 ai4 ni3' || sung('我愛你') === 'wo3 ai4 ni3', `我愛你 (got ${sung('我愛你')})`);
 check(sung('月亮代表我的心') === 'yue4 liang4 dai4 biao2 wo3 de5 xin1', `3+3 sandhi in 表我 (got ${sung('月亮代表我的心')})`);
 check(sung('我也想你') === 'wo2 ye3 xiang2 ni3', `3+3+3+3 (got ${sung('我也想你')})`);
-check(sung('一个') === 'yi2 ge4', `一 before 4th → 2nd (got ${sung('一个')})`);
+check(sung('一個') === 'yi2 ge4', `一 before 4th → 2nd (got ${sung('一個')})`);
 check(sung('一起') === 'yi4 qi3', `一 before 3rd → 4th (got ${sung('一起')})`);
 check(sung('第一') === 'di4 yi1', `第一 keeps 1st (got ${sung('第一')})`);
 check(sung('不要') === 'bu2 yao4', `不 before 4th → 2nd (got ${sung('不要')})`);
-check(sung('长大') === 'zhang3 da4' && sung('长久') === 'chang2 jiu3', 'word readings: 长大 / 长久');
-check(sung('少年') === 'shao4 nian2' && sung('音乐') === 'yin1 yue4' && sung('重来') === 'chong2 lai2', 'word readings: 少年 音乐 重来');
+check(sung('長大') === 'zhang3 da4' && sung('長久') === 'chang2 jiu3', 'word readings: 長大 / 長久');
+check(sung('少年') === 'shao4 nian2' && sung('音樂') === 'yin1 yue4' && sung('重來') === 'chong2 lai2', 'word readings: 少年 音樂 重來');
 check(sung('慢慢地') === 'man4 man4 de5' && sung('天地') === 'tian1 di4', 'AA地 is the particle de; 天地 is dì');
 {
-  const syl = Zh.syllables('baby 你好，再见');
+  const syl = Zh.syllables('baby 你好，再見');
   check(syl.length === 5 && !syl[0].han && syl[0].tone === 0, 'a Latin word is one syllable with no tone');
   check(syl[1].gap === 'space' && syl[3].gap === 'comma', 'spaces and commas mark breaths');
   const fixed = Zh.syllables('行', { 0: 'hang2' });
@@ -34,14 +34,14 @@ check(Zh.marked('lv4') === 'lǜ' && Zh.marked('xiu1') === 'xiū' && Zh.marked('g
 // ---------- rhyme ----------
 console.log('rhyme');
 const groupOf = (ch) => { const s = Zh.syllables(ch)[0]; const g = Zh.rhymeOf(s.base); return g && g.zh; };
-check(groupOf('来') === '怀来' && groupOf('在') === '怀来', '来 在 → 怀来');
+check(groupOf('來') === '懷來' && groupOf('在') === '懷來', '來 在 → 懷來');
 check(groupOf('歌') === '梭波' && groupOf('落') === '梭波' && groupOf('我') === '梭波', '歌 落 我 → 梭波');
 check(groupOf('夜') === '乜斜' && groupOf('月') === '乜斜', '夜 月 → 乜斜');
-check(groupOf('心') === '人辰' && groupOf('云') === '人辰' && groupOf('春') === '人辰', '心 云 春 → 人辰');
-check(groupOf('风') === '中东' && groupOf('星') === '中东' && groupOf('翁') === '中东', '风 星 翁 → 中东');
+check(groupOf('心') === '人辰' && groupOf('雲') === '人辰' && groupOf('春') === '人辰', '心 雲 春 → 人辰');
+check(groupOf('風') === '中東' && groupOf('星') === '中東' && groupOf('翁') === '中東', '風 星 翁 → 中東');
 check(groupOf('雨') === '一七' && groupOf('子') === '一七' && groupOf('去') === '一七', '雨 子 去 → 一七');
 check(groupOf('秋') === '油求' && groupOf('走') === '油求', '秋 走 → 油求');
-check(groupOf('醉') === '灰堆' && groupOf('飞') === '灰堆', '醉 飞 → 灰堆');
+check(groupOf('醉') === '灰堆' && groupOf('飛') === '灰堆', '醉 飛 → 灰堆');
 for (const g of Zh.RHYME_GROUPS) {
   for (const w of g.words.split(' ')) {
     const r = Zh.rhymeSyllable(Zh.syllables(w));
@@ -49,7 +49,7 @@ for (const g of Zh.RHYME_GROUPS) {
     check(got && got.id === g.id, `bank word ${w} rhymes in ${g.zh} (got ${got && got.zh})`);
   }
 }
-check(Zh.rhymeSyllable(Zh.syllables('等你回来吧')).ch === '来', 'a trailing particle is skipped for the rhyme');
+check(Zh.rhymeSyllable(Zh.syllables('等你回來吧')).ch === '來', 'a trailing particle is skipped for the rhyme');
 
 // ---------- tones vs melody ----------
 console.log('tone judge');
@@ -106,7 +106,7 @@ for (const sym of ['1', '2m', '3m', '3', '4', '4m', '5', '6m', '6', '2', '♭7',
 
 // ---------- melody ----------
 console.log('melody');
-const LINES = ['路灯一盏一盏 亮起来', '我在老地方 等你回来', '如果时间 可以倒带', '在你听不见的 角落', '燃烧吧 我的青春 不要回头', '一二三四五六七八九十一二三四五六七八'];
+const LINES = ['路燈一盞一盞 亮起來', '我在老地方 等你回來', '如果時間 可以倒帶', '在你聽不見的 角落', '燃燒吧 我的青春 不要回頭', '一二三四五六七八九十一二三四五六七八'];
 let scoreSum = 0;
 let lines = 0;
 for (const style of ['ballad', 'pop', 'rock']) {
@@ -128,7 +128,7 @@ for (const style of ['ballad', 'pop', 'rock']) {
 }
 check(scoreSum / lines >= 90, `generated melodies follow the tones (average fit ${(scoreSum / lines).toFixed(1)})`);
 {
-  const syl = Zh.syllables('我爱你');
+  const syl = Zh.syllables('我愛你');
   const a = S.suggestMelody(syl, { bars: [['1'], ['5']], seed: 42 });
   const b = S.suggestMelody(syl, { bars: [['1'], ['5']], seed: 42 });
   check(JSON.stringify(a) === JSON.stringify(b), 'same seed, same melody');
@@ -156,23 +156,23 @@ check(scoreSum / lines >= 90, `generated melodies follow the tones (average fit 
   }
   check(clashes === 0, `no note a half step against a borrowed chord tone (${clashes} of ${total})`);
   check(altered > 0, `the borrowed notes get sung (${altered} of ${total})`);
-  check(S.jianpuText(S.doMidi(0) + 8, 0, '3') === '♯5' && S.jianpuText(S.doMidi(0) + 8, 0, '4m') === '♭6' && S.jianpuText(S.doMidi(0) + 8, 0) === '♭6', '简谱 writes a chord’s altered note on its own degree');
+  check(S.jianpuText(S.doMidi(0) + 8, 0, '3') === '♯5' && S.jianpuText(S.doMidi(0) + 8, 0, '4m') === '♭6' && S.jianpuText(S.doMidi(0) + 8, 0) === '♭6', '簡譜 writes a chord’s altered note on its own degree');
 }
 {
   const r = S.makeRhythm(30, { style: 'pop', rand: S.rng(3) });
   check(r.length === 30 && r[29].t + r[29].d <= S.LINE, 'a long line still fits two bars (16ths)');
 }
 
-// ---------- quantize, 简谱 ----------
-console.log('quantize and 简谱');
+// ---------- quantize, 簡譜 ----------
+console.log('quantize and 簡譜');
 {
   const spt = 60 / 90 / S.TPB;
   const ev = [{ time: 0.02, midi: 60.2 }, { time: spt * 6 - 0.01, midi: 62 }, { time: spt * 12 + 0.01, midi: 64 }, { time: 99, midi: 70 }];
   const q = S.quantize(ev, { secPerTick: spt });
   check(q.length === 3 && q[0].t === 0 && q[1].t === 6 && q[2].t === 12 && q[0].d === 6 && q[0].midi === 60, `quantize to 16ths (got ${JSON.stringify(q)})`);
 }
-check(S.jianpuText(S.doMidi(0), 0) === '1' && S.jianpuText(S.doMidi(0) + 12, 0) === '1̇' && S.jianpuText(S.doMidi(0) - 5, 0) === '5̣', '简谱 octave dots');
-check(S.jianpuText(S.doMidi(2) + 3, 2) === '♭3', '简谱 accidentals');
+check(S.jianpuText(S.doMidi(0), 0) === '1' && S.jianpuText(S.doMidi(0) + 12, 0) === '1̇' && S.jianpuText(S.doMidi(0) - 5, 0) === '5̣', '簡譜 octave dots');
+check(S.jianpuText(S.doMidi(2) + 3, 2) === '♭3', '簡譜 accidentals');
 check(S.melodyText([{ t: 0, d: 24, midi: S.doMidi(0) }, { t: 30, d: 6, midi: S.doMidi(0) + 2 }], 0, 1) === '1 - 02 0', `melody text (got ${S.melodyText([{ t: 0, d: 24, midi: S.doMidi(0) }, { t: 30, d: 6, midi: S.doMidi(0) + 2 }], 0, 1)})`);
 check(S.stepNote(S.doMidi(0) + 4, 1, 0) === S.doMidi(0) + 5 && S.stepNote(S.doMidi(0), -1, 0) === S.doMidi(0) - 1, 'scale steps');
 {

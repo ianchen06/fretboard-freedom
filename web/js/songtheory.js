@@ -1,7 +1,7 @@
-// Song writing theory (no DOM): chords written as 简谱 numbers ('1', '6m', '5/7', '♭7'), the
+// Song writing theory (no DOM): chords written as 簡譜 numbers ('1', '6m', '5/7', '♭7'), the
 // progressions Mandopop and rock lean on, chord swaps, song forms per style, a melody generator
 // that sets a lyric line to the chords while following its tones, captured-note quantizing,
-// and 简谱 (numbered notation) for the melody.
+// and 簡譜 (numbered notation) for the melody.
 (function (root) {
   'use strict';
   const Zh = root.Zh || (typeof require !== 'undefined' ? require('./zh.js') : null);
@@ -104,11 +104,11 @@
 
   // ---------- the progression library ----------
   const PROGRESSIONS = [
-    { id: 'canon', zh: '卡农进行', name: 'Canon', bars: '1 | 5 | 6m | 3m | 4 | 1 | 4 | 5', for: ['verse', 'chorus'],
+    { id: 'canon', zh: '卡農進行', name: 'Canon', bars: '1 | 5 | 6m | 3m | 4 | 1 | 4 | 5', for: ['verse', 'chorus'],
       desc: 'The most-used ballad progression in Mandopop. The bass walks down slowly; tender and nostalgic.' },
-    { id: 'canonWalk', zh: '卡农 · 低音下行', name: 'Canon with walking bass', bars: '1 | 5/7 | 6m | 6m/5 | 4 | 1/3 | 2m | 5', for: ['verse', 'chorus'],
+    { id: 'canonWalk', zh: '卡農 · 低音下行', name: 'Canon with walking bass', bars: '1 | 5/7 | 6m | 6m/5 | 4 | 1/3 | 2m | 5', for: ['verse', 'chorus'],
       desc: 'The same idea with slash chords: the bass steps 1-7-6-5-4-3-2 and turns on 5. The classic piano-ballad verse.' },
-    { id: 'royal', zh: '王道进行', name: 'Royal road (4536)', bars: '4 | 5 | 3m | 6m', for: ['chorus', 'pre'],
+    { id: 'royal', zh: '王道進行', name: 'Royal road (4536)', bars: '4 | 5 | 3m | 6m', for: ['chorus', 'pre'],
       desc: 'Bittersweet and lifting. Starts away from home on 4, so it never sounds finished: the go-to chorus loop in J-pop and Mandopop.' },
     { id: 'royalHome', zh: '王道 · 回到 1', name: 'Royal road, home', bars: '4maj7 | 5 | 3m7 | 6m | 2m7 | 5 | 1 | 1', for: ['chorus'],
       desc: '4536 then 2-5-1: the chorus lands home at the end, so it feels complete.' },
@@ -118,11 +118,11 @@
       desc: 'Old-school love song: innocent and warm. 5 at the end pulls back to 1.' },
     { id: 'sadAxis', zh: '6415', name: 'Minor axis', bars: '6m | 4 | 1 | 5', for: ['verse', 'chorus'],
       desc: 'The pop axis started on 6m: darker and more dramatic. A power-ballad and rock favorite.' },
-    { id: 'tug', zh: '大三和弦 3', name: 'Major 3 heart-tug', bars: '1 | 3 | 6m | 1/5 | 4 | 1/3 | 2m | 5', for: ['verse', 'chorus'],
+    { id: 'tug', zh: '大三和絃 3', name: 'Major 3 heart-tug', bars: '1 | 3 | 6m | 1/5 | 4 | 1/3 | 2m | 5', for: ['verse', 'chorus'],
       desc: 'Major 3 (borrowed: it is the 5 of 6m) pulls hard into 6m. That pull is the lump-in-the-throat moment of many ballads.' },
     { id: 'climb', zh: '2345 上行', name: 'The climb', bars: '2m | 3m | 4 | 5', for: ['pre'],
       desc: 'Chords step up 2-3-4-5: the pre-chorus builds and hands off to the chorus.' },
-    { id: 'hold', zh: '4 · 5 悬停', name: 'Hold before the drop', bars: '4 | 4 | 5sus4 | 5', for: ['pre'],
+    { id: 'hold', zh: '4 · 5 懸停', name: 'Hold before the drop', bars: '4 | 4 | 5sus4 | 5', for: ['pre'],
       desc: 'Stay on 4, then 5sus4 → 5: suspense right before the chorus hits.' },
     { id: 'minorFour', zh: '4 → 4m', name: 'Minor four', bars: '4 | 4m | 3m | 6m | 2m | 5 | 1 | 1', for: ['bridge', 'outro'],
       desc: 'Borrowed 4m after 4: the tear-jerker color. Great for a bridge or the last line of a ballad.' },
@@ -169,15 +169,15 @@
       sections: { I: '1 | 5/7 | 6m | 4', V: 'canonWalk', P: 'royal', C: 'tug', B: '4 | 4m | 3m | 6m | 2m | 5 | 5sus4 | 5', O: '4 | 4m | 1 | 1' } },
     pop: { id: 'pop', zh: '流行', name: 'Mandopop', bpm: 92, swing: 0, melisma: 0.35,
       sections: { I: '4 | 5 | 3m | 6m', V: '1 | 5 | 6m | 4 | 1 | 5 | 6m | 4', P: 'climb', C: 'royalHome', B: '6m | 4 | 1 | 5', O: '4 | 5 | 1 | 1' } },
-    rock: { id: 'rock', zh: '摇滚', name: 'Rock', bpm: 128, swing: 0, melisma: 0.15,
+    rock: { id: 'rock', zh: '搖滾', name: 'Rock', bpm: 128, swing: 0, melisma: 0.15,
       sections: { I: '6m | 4 | 5 | 5', V: '6m | 4 | 5 | 6m | 6m | 4 | 5 | 5', P: 'hold', C: '6m | 4 | 1 | 5 | 6m | 4 | 1 | 5', B: 'lift', O: '6m | 4 | 5 | 6m' } },
   };
   const SECTION_TYPES = {
     I: { name: 'Intro', zh: '前奏', role: 'intro', lyrics: false },
     V: { name: 'Verse', zh: '主歌', role: 'verse', lyrics: true },
-    P: { name: 'Pre-chorus', zh: '导歌', role: 'pre', lyrics: true },
+    P: { name: 'Pre-chorus', zh: '導歌', role: 'pre', lyrics: true },
     C: { name: 'Chorus', zh: '副歌', role: 'chorus', lyrics: true },
-    B: { name: 'Bridge', zh: '桥段', role: 'bridge', lyrics: true },
+    B: { name: 'Bridge', zh: '橋段', role: 'bridge', lyrics: true },
     O: { name: 'Outro', zh: '尾奏', role: 'outro', lyrics: false },
   };
   const FORM = ['I', 'V', 'P', 'C', 'V2', 'P2', 'C2', 'B', 'C', 'O'];
@@ -202,7 +202,7 @@
   const newLine = () => ({ lyrics: ['', ''], fix: [{}, {}], notes: [] });
   const formEntry = (f) => ({ sec: f[0], take: f.length > 1 && f[1] === '2' ? 1 : 0 });
 
-  // ---------- 简谱 ----------
+  // ---------- 簡譜 ----------
   // The melody's 1 (do): the key's tonic between G3 and F♯4, so most of a song sits around middle C.
   const doMidi = (keyPc) => 55 + mod12(keyPc - 7);
   const JIANPU = [['1', ''], ['1', '♯'], ['2', ''], ['3', '♭'], ['3', ''], ['4', ''], ['4', '♯'], ['5', ''], ['6', '♭'], ['6', ''], ['7', '♭'], ['7', '']];
@@ -220,7 +220,7 @@
     }
     return { num, acc, oct: Math.floor(semis / 12) };
   }
-  // Plain-text 简谱 for one note: '♯4', '5̣' (low), '1̇' (high).
+  // Plain-text 簡譜 for one note: '♯4', '5̣' (low), '1̇' (high).
   function jianpuText(midi, keyPc, chord = null) {
     const j = jianpu(midi, keyPc, chord);
     const dots = j.oct > 0 ? '̇'.repeat(j.oct) : j.oct < 0 ? '̣'.repeat(-j.oct) : '';
