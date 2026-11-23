@@ -163,7 +163,7 @@
       cues: ['Loose wrist, small motion.', 'Mute between strums with the fretting hand.'],
     },
     {
-      id: 'arp8', cat: 'strum', name: 'Fingerpicked 8ths', zh: '分解和弦', meter: 4, bpm: 70,
+      id: 'arp8', cat: 'strum', name: 'Fingerpicked 8ths', zh: '分解和絃', meter: 4, bpm: 70,
       bars: [{ grid: 2, hits: 'oooooooo', acc: '>...>...' }],
       how: 'Pick a chord one string at a time in 8ths: the bass note on 1 and 3, then the treble strings (for example bass, 3, 2, 3, 1, 3, 2, 3).',
       why: 'The verse accompaniment of countless ballads. Even fingerpicking makes a song flow; uneven picking makes it limp.',

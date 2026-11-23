@@ -39,9 +39,9 @@
     s.id = uid();
     s.title = '老地方 (demo)';
     const words = {
-      V: ['路灯一盏一盏 亮起来', '我在老地方 等你回来', '风吹过空荡荡的站台', '说好的明天 还在不在'],
-      P: ['如果时间 可以倒带', '我会不会 勇敢一点说爱'],
-      C: ['我把思念 唱成一首歌', '在你听不见的 角落', '每一句 都是我', '舍不得'],
+      V: ['路燈一盞一盞 亮起來', '我在老地方 等你回來', '風吹過空蕩蕩的站臺', '說好的明天 還在不在'],
+      P: ['如果時間 可以倒帶', '我會不會 勇敢一點說愛'],
+      C: ['我把思念 唱成一首歌', '在你聽不見的 角落', '每一句 都是我', '捨不得'],
     };
     for (const [sec, lines] of Object.entries(words)) {
       lines.forEach((w, i) => {
@@ -411,7 +411,7 @@
     const locked = (sec().locks || []).includes(i);
     openPopover(cell, `<div class="pop-title">Bar ${i + 1}</div><button type="button" class="link-btn pop-lock">${locked ? '🔓 Let new chords change this bar' : '🔒 Keep this bar when I ask for new chords'}</button>${parts}
       <form class="pop-form"><input type="text" value="${esc(bar.join(','))}" aria-label="Chords for this bar" placeholder="e.g. 6m or 4,5/7"><button class="btn btn-sm" type="submit">Set</button></form>
-      <p class="fine">Numbers are 简谱 degrees: 1 4 5 major, 2m 3m 6m minor. Add 7, maj7, sus4, add9, a ♭ (b) or a bass note: 5/7.</p>`, (ev) => {
+      <p class="fine">Numbers are 簡譜 degrees: 1 4 5 major, 2m 3m 6m minor. Add 7, maj7, sus4, add9, a ♭ (b) or a bass note: 5/7.</p>`, (ev) => {
       if (ev.target.closest('.pop-lock')) {
         const s = sec();
         s.locks = locked ? (s.locks || []).filter((x) => x !== i) : [...(s.locks || []), i];
@@ -468,7 +468,7 @@
     }
     $('lines').innerHTML = sec().lines.map((ln, i) => {
       const other = ln.lyrics[ui.take ? 0 : 1];
-      const ph = ui.take ? (other ? `2nd time, same tune: ${other}` : '2nd-time words for the same tune') : (i === 0 ? '写一句歌词… type a line in Chinese. Spaces and commas are breaths.' : '下一句…');
+      const ph = ui.take ? (other ? `2nd time, same tune: ${other}` : '2nd-time words for the same tune') : (i === 0 ? '寫一句歌詞… type a line in Chinese. Spaces and commas are breaths.' : '下一句…');
       return `<div class="line" data-line="${i}">
         <div class="line-top">
           <span class="line-no">${i + 1}</span>
@@ -922,7 +922,7 @@
     if (!prefs.rhyme) prefs.rhyme = 'huailai';
     $('rhymeGroups').innerHTML = Zh.RHYME_GROUPS.map((g) => `<button type="button" data-g="${g.id}" aria-checked="${g.id === prefs.rhyme}">${g.zh} <small>${g.sound}</small></button>`).join('');
     const g = Zh.groupById(prefs.rhyme);
-    $('rhymeNote').innerHTML = g ? `<b>${g.zh}辙</b> (${g.sound}): finals ${g.finals.map((f) => f.replace('v', 'ü')).join(', ')}. ${g.open ? 'An open, ringing vowel: sings well on long, high chorus notes.' : 'A closed vowel: softer and more intimate, better for verses or short notes.'} Ending lines on a 1st or 2nd tone (平) holds well; 3rd and 4th (仄) sound punchier.` : '';
+    $('rhymeNote').innerHTML = g ? `<b>${g.zh}轍</b> (${g.sound}): finals ${g.finals.map((f) => f.replace('v', 'ü')).join(', ')}. ${g.open ? 'An open, ringing vowel: sings well on long, high chorus notes.' : 'A closed vowel: softer and more intimate, better for verses or short notes.'} Ending lines on a 1st or 2nd tone (平) holds well; 3rd and 4th (仄) sound punchier.` : '';
     $('wordBank').innerHTML = g ? g.words.split(' ').map((w) => `<button type="button" class="word" data-w="${esc(w)}">${esc(w)}</button>`).join('') : '';
   }
   $('rhymeGroups').addEventListener('click', (e) => {
@@ -955,12 +955,12 @@
 
   // ---------- spark ----------
   const SPARK = {
-    场景: ['末班地铁', '凌晨的便利店', '下雨的公交站', '老房子的阳台', '机场出发大厅', '海边的防波堤', '毕业后的空教室', '城市天台', '高速公路休息站', '夏夜的天桥', '旧书店', '回老家的火车', '演唱会散场后', '十字路口的红灯', '搬家那天', '医院走廊'],
-    物件: ['旧耳机', '没寄出的信', '一把吉他', '褪色的照片', '一把伞', '一串钥匙', '船票', '打火机', '围巾', '未读消息', '冷掉的咖啡', '车票根', '手表', '风筝', '录音带', '纸飞机'],
-    情绪: ['释怀', '不甘', '想念', '倔强', '温柔', '后悔', '期待', '孤独', '感激', '愤怒', '自由', '迷茫', '心动', '告别'],
-    写法: ['写给十年前的自己', '全程用“你”说话', '让物件开口说话', '只写一个晚上发生的事', '副歌只有一句，反复唱', '先写最后一句，再往回写', '整首歌不用“爱”这个字', '用天气写心情', '一问一答的对话', '从结局倒着讲', '写给一座城市', '写给已经离开的人'],
+    場景: ['末班地鐵', '凌晨的便利店', '下雨的公交站', '老房子的陽臺', '機場出發大廳', '海邊的防波堤', '畢業後的空教室', '城市天台', '高速公路休息站', '夏夜的天橋', '舊書店', '回老家的火車', '演唱會散場後', '十字路口的紅燈', '搬家那天', '醫院走廊'],
+    物件: ['舊耳機', '沒寄出的信', '一把吉他', '褪色的照片', '一把傘', '一串鑰匙', '船票', '打火機', '圍巾', '未讀消息', '冷掉的咖啡', '車票根', '手錶', '風箏', '錄音帶', '紙飛機'],
+    情緒: ['釋懷', '不甘', '想念', '倔強', '溫柔', '後悔', '期待', '孤獨', '感激', '憤怒', '自由', '迷茫', '心動', '告別'],
+    寫法: ['寫給十年前的自己', '全程用“你”說話', '讓物件開口說話', '只寫一個晚上發生的事', '副歌只有一句，反覆唱', '先寫最後一句，再往回寫', '整首歌不用“愛”這個字', '用天氣寫心情', '一問一答的對話', '從結局倒著講', '寫給一座城市', '寫給已經離開的人'],
   };
-  const SPARK_EN = { 场景: 'Scene', 物件: 'Object', 情绪: 'Feeling', 写法: 'Angle' };
+  const SPARK_EN = { 場景: 'Scene', 物件: 'Object', 情緒: 'Feeling', 寫法: 'Angle' };
   function newSpark() {
     $('spark').innerHTML = Object.entries(SPARK).map(([k, list]) => `<div><dt>${k} <small>${SPARK_EN[k]}</small></dt><dd>${esc(list[Math.floor(Math.random() * list.length)])}</dd></div>`).join('');
   }

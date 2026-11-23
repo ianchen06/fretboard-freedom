@@ -292,7 +292,7 @@ Timing drills for the strumming and picking hand. The page times every attack yo
 
 - **Exercises.** 29 patterns in four groups:
   - **Time & subdivisions:** quarters, 8ths, triplets and 16ths; the subdivision ladder (one bar of each); offbeats only; the "e" and the "a"; 3 + 3 + 2.
-  - **Strumming:** the pop strum D DU UDU (the Mandopop band's pattern on the Song writing page); ballad 16ths (抒情); 6/8 ballad; rock 8ths in downstrokes; chucks on 2 and 4; the shuffle; funk 16ths; fingerpicked 8ths (分解和弦).
+  - **Strumming:** the pop strum D DU UDU (the Mandopop band's pattern on the Song writing page); ballad 16ths (抒情); 6/8 ballad; rock 8ths in downstrokes; chucks on 2 and 4; the shuffle; funk 16ths; fingerpicked 8ths (分解和絃).
   - **Palm mute & metal:** downpicked 8ths; 16th chugs; the gallop and reverse gallop; chugs and stops; syncopated 3 + 3 + 2 chugs; accents in 3s over 16ths; 16ths ↔ sextuplets.
   - **Inner clock:** gap clicks (2 bars on and 2 off, or 1 on and 3 off); the click on 2 and 4 only; on beat 1 only; on the "&" only.
 - **The lane** shows the pattern with strum arrows. Faint arrows are ghost strokes: the hand moves but misses the strings. It also shows chucks ✕, palm-muted picks ⊓ V, accents > and the counts (1 e & a). Each hit appears as a dot beside its step: left is early, right is late, spread 3× wider than real time. Teal is within 25 ms, amber within 45, red further. Extra hits get a ✕, missed steps a dashed ring.
@@ -332,21 +332,21 @@ The tests use synthetic notes, strums and palm-muted chugs, clean and through a 
 - **Hit sensitivity** sets how big a rise counts. Raise it if soft strums are missed; lower it if one strum counts twice. The *attacks heard* light flashes for every attack, so you can tune it by strumming.
 - **Headphones.** A mic that hears the click would count it as your hits. The count-in checks for this. If the input heard every count-in click at the same delay, the page tells you.
 
-## Song writing 写歌 (`write.html`)
+## Song writing 寫歌 (`write.html`)
 
-A sketchpad for Mandarin ballads (抒情), Mandopop (流行) and rock (摇滚). You pick chords, write lyrics line by line, and the page sets each line to a melody that moves with the tones of the words. A band plays it all back.
+A sketchpad for Mandarin ballads (抒情), Mandopop (流行) and rock (搖滾). You pick chords, write lyrics line by line, and the page sets each line to a melody that moves with the tones of the words. A band plays it all back.
 
-- **Song form.** Intro, verse (主歌), pre-chorus (导歌), chorus (副歌), bridge (桥段), outro. *Verse 2*, *Chorus 2* and so on play the same tune with the **2nd-time lyrics**, so you can check that the new words fit the old melody. Add, remove or reset parts in the form strip.
+- **Song form.** Intro, verse (主歌), pre-chorus (導歌), chorus (副歌), bridge (橋段), outro. *Verse 2*, *Chorus 2* and so on play the same tune with the **2nd-time lyrics**, so you can check that the new words fit the old melody. Add, remove or reset parts in the form strip.
 - **🎲 New chords.** Every click (or <kbd>G</kbd>) writes a new progression for the part, learned from 691 Chinese pop songs. See [The chord generator](#the-chord-generator-new-chords) below.
-- **Chords.** Written as 简谱 numbers (1, 6m, 5/7, ♭7) so they work in any key. Each part starts from a classic progression: 卡农 Canon (with a walking bass), 王道 4536, 1564, 6415, the major-3 heart-tug, the 2345 climb, 4 → 4m, ♭6-♭7-1, and more. Click a chord for swaps (add9, maj7, sus4, slash chords, borrowed chords), each with what it does. Or type your own.
+- **Chords.** Written as 簡譜 numbers (1, 6m, 5/7, ♭7) so they work in any key. Each part starts from a classic progression: 卡農 Canon (with a walking bass), 王道 4536, 1564, 6415, the major-3 heart-tug, the 2345 climb, 4 → 4m, ♭6-♭7-1, and more. Click a chord for swaps (add9, maj7, sus4, slash chords, borrowed chords), each with what it does. Or type your own.
 - **The band** has a groove per style: fingerpicked clean guitar and a pad for ballads, D D U U D U strumming and an 8-beat for Mandopop, palm-muted then open power chords for rock. Verses are lighter than choruses, and the drums fill into the next part. A guide voice (or the lead guitar) sings the melody.
 - **✨ Suggest** writes a melody for a line. It picks a rhythm (with breaths at spaces and commas, and a long last note), then searches the pitches. It favors chord tones on strong beats and steps over leaps. Over a chord from outside the key it sings the chord's note, not the key's: ♯5 over a major 3, ♭6 over 4m, ♭7 over ♭7. The pitch moves the way the tones go from one syllable to the next. It may end a line on a short 拖腔 (melisma). Each click gives a new idea. *Follow the tones* sets how strict it is.
 - **● Record** plays the line's chords with a one-bar count-in. Play or hum the line, and your notes are snapped to 16ths. The words are laid on your notes in order. While you record, it's drums only by default, so the mic doesn't hear the band.
 - **Edit by hand.** Click the lane to add a note. Click a note, then use ↑ ↓ to move it in the scale (Shift for a half step), ← → for the next note, `[` `]` to make it shorter or longer, M for 拖腔, Delete to remove it. The notes are colored by the chord: root red, 3rd amber, 5th blue.
 - **Tone fit (倒字 check).** Mandarin listeners hear part of a word's tone in the melody. If the tune moves against the tones, a word can sound like another one. Each pair of syllables is checked: for example, a 3rd tone followed by a 1st wants the melody to go up. Red links mark leaps the wrong way, amber links mark steps. Below the lane, the page explains the worst ones. The pinyin is colored by tone and includes the spoken tone changes: 3 + 3 → 2 + 3, 一 and 不. Tap a syllable to fix a character the page reads wrong (行 háng, 了 liǎo).
-- **押韵 Rhyme.** Each line's last syllable is sorted into one of the 十三辙, the 13 rhyme groups singers use: 发花, 梭波, 江阳, 中东 and the rest. The page labels the rhyme scheme (A, B…) and says whether the line ends on a level (平) or oblique (仄) tone. Each group has a bank of lyric words: click one to put it at the caret.
-- **灵感 Spark** suggests a scene, an object, a feeling and an angle when you're stuck.
-- **Lead sheet.** Shows the whole song as text: chords, 简谱 and lyrics. You can copy it or download it as .txt. **Back up** saves the song as .json, and **Restore** loads it back. Songs are saved in this browser.
+- **押韻 Rhyme.** Each line's last syllable is sorted into one of the 十三轍, the 13 rhyme groups singers use: 發花, 梭波, 江陽, 中東 and the rest. The page labels the rhyme scheme (A, B…) and says whether the line ends on a level (平) or oblique (仄) tone. Each group has a bank of lyric words: click one to put it at the caret.
+- **靈感 Spark** suggests a scene, an object, a feeling and an angle when you're stuck.
+- **Lead sheet.** Shows the whole song as text: chords, 簡譜 and lyrics. You can copy it or download it as .txt. **Back up** saves the song as .json, and **Restore** loads it back. Songs are saved in this browser.
 
 ### The chord generator (🎲 New chords)
 
@@ -355,18 +355,20 @@ Each click writes a new progression for the part you're editing, as long as the 
 - **🎲 New chords** (or <kbd>G</kbd>) writes one. **‹ Back** and **Forward ›** step through the ones you've had for that part.
 - **♾ Jam** loops the part, and each time round it plays new chords. Hum or play over it and stop when one grabs you: the chords you stop on stay in the song. Your melody keeps playing over the new chords, so it's also a way to hear a tune reharmonized.
 - **🔒 Lock a bar**: click a chord, then *Keep this bar when I ask for new chords*. The generator writes the rest around it, including the bars that lead into it.
-- **Bright 大调 / Wistful 小调** leans on songs in major or minor keys. In the minor mood, half the choruses open on 6m; in the major mood about one in eight do.
+- **Bright 大調 / Wistful 小調** leans on songs in major or minor keys. In the minor mood, half the choruses open on 6m; in the major mood about one in eight do.
 - **Familiar / Balanced / Adventurous** sets how far it strays from the most common moves, and how many chords from outside the key it may use (Familiar allows one per 8 bars).
 - **7ths, sus, add9 / Plain chords**: plain chords turn the colors into triads but keep slash basses (5/7, 1/3).
 - Under the buttons, the page says where the progression has been heard before: *Familiar: the verse of 《九百九十九朵玫瑰》 (邰正宵) has these exact chords, and so do 4 other songs*, or *Fresh: no song in the data shares more than two bars in a row with it*.
 
-**The data.** [POP909](https://github.com/music-x-lab/POP909-Dataset) (Wang et al., ISMIR 2020, MIT license) is 909 Chinese pop songs, with Jay Chou (周杰伦) and JJ Lin (林俊杰) the two artists with the most songs. Dai, Zhang & Dannenberg ([hierarchical-structure-analysis](https://github.com/Dsqvival/hierarchical-structure-analysis), MuMe 2020, MIT) re-aligned its chords to bar lines and labelled every song's structure. `tools/gen-chorddata.py` turns that into `js/chorddata.js` (149 KB): each song's chords bar by bar, in 简谱 degrees (minor keys from their relative major, as on this page), and by part. It keeps the 691 songs that stay in one key and in 4/4. The labelling code says uppercase letters are melodic phrases in order of appearance, X a phrase that doesn't repeat, lowercase parts have no melody, and i and o are the intro and outro. It doesn't say which letter is the chorus, and the paper's host wasn't reachable from here, so we tell from the melody: across the corpus A sits 1.9 semitones below a song's average pitch and B/C 1.2–1.5 above. So A is the verse, the highest repeated phrase after it is the chorus, and a phrase that leads into the chorus is the pre-chorus. To rebuild:
+**The data.** [POP909](https://github.com/music-x-lab/POP909-Dataset) (Wang et al., ISMIR 2020, MIT license) is 909 Chinese pop songs, with Jay Chou (周杰倫) and JJ Lin (林俊傑) the two artists with the most songs. Dai, Zhang & Dannenberg ([hierarchical-structure-analysis](https://github.com/Dsqvival/hierarchical-structure-analysis), MuMe 2020, MIT) re-aligned its chords to bar lines and labelled every song's structure. `tools/gen-chorddata.py` turns that into `js/chorddata.js` (149 KB): each song's chords bar by bar, in 簡譜 degrees (minor keys from their relative major, as on this page), and by part. It keeps the 691 songs that stay in one key and in 4/4. The labelling code says uppercase letters are melodic phrases in order of appearance, X a phrase that doesn't repeat, lowercase parts have no melody, and i and o are the intro and outro. It doesn't say which letter is the chorus, and the paper's host wasn't reachable from here, so we tell from the melody: across the corpus A sits 1.9 semitones below a song's average pitch and B/C 1.2–1.5 above. So A is the verse, the highest repeated phrase after it is the chorus, and a phrase that leads into the chorus is the pre-chorus. To rebuild:
 
 ```bash
 git clone --depth 1 https://github.com/music-x-lab/POP909-Dataset
 git clone --depth 1 https://github.com/Dsqvival/hierarchical-structure-analysis
 python3 web/tools/gen-chorddata.py POP909-Dataset hierarchical-structure-analysis > web/js/chorddata.js
 ```
+
+The song titles and artists are in Simplified Chinese in POP909, and the app writes all Chinese in Traditional, so convert the file afterwards (see [Traditional Chinese](#traditional-chinese) below).
 
 **The model** (`js/chordgen.js`) is a Markov chain over bars: the next bar given the part and the two bars before it, backing off to fewer bars and then to the chords of the whole corpus. It uses interpolated absolute discounting (Ney, Essen & Kneser 1994, the smoothing family that Chen & Goodman's 1999 survey found best), and each pattern counts once per song, so a chorus sung four times counts as one habit. We didn't use a neural network. The largest open-source chord generator, [ChordSeqAI](https://github.com/StudentTraineeCenter/chord-seq-ai), trains a transformer on 22,367 songs from Ultimate Guitar, and 691 songs is too few for that. A counted model can also be steered exactly, can say where its chords come from, and runs instantly with no download.
 
@@ -396,6 +398,16 @@ Compared with the progression list it adds to: the list's 17 progressions contai
 
 Run `node web/test/chordgen.test.js` to see these numbers. It takes about 30 seconds.
 
+### Traditional Chinese
+
+All the Chinese on these pages is in Traditional characters (Taiwan standard). `tools/s2t.py` converts a file from Simplified the way [OpenCC](https://github.com/BYVoid/OpenCC)'s `s2tw` setting does, using OpenCC's own dictionary files (Apache-2.0), with nothing to install: longest phrase first, then single characters, then Taiwan's character forms. A character with more than one Traditional form is decided by the phrase around it, or else takes its first form. `--report` lists those for checking by hand. Nine needed fixing: 髮如雪 (hair, not 發), 酒矸倘賣無, the surnames 郁 余 岳, and the mainland names 李曉杰 李袁杰 and 陳慧嫻. The pinyin table (`js/pinyin-data.js`) keeps both scripts, so lyrics typed in either still get the right tones.
+
+```bash
+curl -O https://raw.githubusercontent.com/BYVoid/OpenCC/master/data/dictionary/{STPhrases,STCharacters,TWVariants,TWVariantsPhrases}.txt
+python3 web/tools/s2t.py --dict . --fix 发如雪=髮如雪 --fix 酒干倘卖无=酒矸倘賣無 --fix 郁可唯=郁可唯 --fix 马郁=馬郁 \
+  --fix 余静=余靜 --fix 岳思思=岳思思 --fix 李晓杰=李曉杰 --fix 李袁杰=李袁杰 --fix 陈慧娴=陳慧嫻 web/js/chorddata.js
+```
+
 ### Where the pinyin comes from
 
 `js/pinyin-data.js` lists the pinyin and tone of the 20,924 characters in the CJK Unified Ideographs block (U+4E00–U+9FFF), traditional and simplified. It was generated once by `tools/gen-pinyin.swift`, which uses macOS's own Mandarin transliterator (`CFStringTransform`), so nothing was downloaded. To rebuild it on a Mac:
@@ -404,7 +416,7 @@ Run `node web/test/chordgen.test.js` to see these numbers. It takes about 30 sec
 swift web/tools/gen-pinyin.swift > web/js/pinyin-data.js
 ```
 
-The data gives each character a single reading. `js/zh.js` adds the readings that lyrics need most: 长 cháng by default but zhǎng in 长大, 少年, 音乐, 重来, 了解, 觉得 and about 100 other words. It also applies the tone changes of speech.
+The data gives each character a single reading. `js/zh.js` adds the readings that lyrics need most: 長 cháng by default but zhǎng in 長大, 少年, 音樂, 重來, 瞭解, 覺得 and about 100 other words. It also applies the tone changes of speech.
 
 ## Looper (`looper.html`)
 
@@ -524,11 +536,12 @@ Tips:
 | `test/looper.test.js` | Loop engine (sample-exact playback, latency, seam, overdub, undo/redo, feedback, reverse, ½×, ×2), quantizing, grooves, key finding on synthetic and real guitar, WAV: `node web/test/looper.test.js` |
 | `write.html`, `css/write.css`, `js/write-app.js` | Song writing page, styles and UI wiring |
 | `js/pinyin-data.js`, `tools/gen-pinyin.swift` | Pinyin and tone for every common character, and the script that generates it |
-| `js/zh.js` | Mandarin lyric helpers: syllables, word readings, tone sandhi, 十三辙 rhyme groups and word banks, the tone/melody judge (no DOM) |
-| `js/songtheory.js` | 简谱 chords, progressions, swaps, styles and song forms, the melody generator, quantizing, 简谱 text, lead sheet (no DOM) |
+| `js/zh.js` | Mandarin lyric helpers: syllables, word readings, tone sandhi, 十三轍 rhyme groups and word banks, the tone/melody judge (no DOM) |
+| `js/songtheory.js` | 簡譜 chords, progressions, swaps, styles and song forms, the melody generator, quantizing, 簡譜 text, lead sheet (no DOM) |
 | `js/songband.js` | The song band: ballad, Mandopop and rock grooves, pad, guide voice (extends `band.js`) |
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |
 | `js/chorddata.js`, `tools/gen-chorddata.py` | The chords of 691 Chinese pop songs (POP909, bar-aligned, by part), and the script that generates it |
+| `tools/s2t.py` | Simplified → Traditional Chinese (Taiwan) with OpenCC's dictionaries, and a report of the characters to check by hand |
 | `js/chordgen.js` | The chord progression generator: the Markov model, locks and endings, phrase repeats, the copy check, where a progression comes from (no DOM) |
 | `test/chordgen.test.js` | Data, generator rules, and the model on held-out real songs (perplexity, coverage, mood, artists): `node web/test/chordgen.test.js` |
 | `test/lickgen.test.js` | Library, rules, generator and grader tests: `node web/test/lickgen.test.js` |

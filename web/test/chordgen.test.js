@@ -18,11 +18,11 @@ check(corpus.length > 600, `songs kept (${corpus.length})`);
 const unreadable = Data.tokens.flatMap((t) => t.split(',')).filter((c) => !ST.parseChord(c));
 check(unreadable.length === 0, `every chord in the data reads in the app (${unreadable.slice(0, 5)})`);
 {
-  const s = corpus.find((x) => x.name === '123我爱你');
+  const s = corpus.find((x) => x.name === '123我愛你');
   const c = s && s.runs.find((r) => r.role === 'C');
-  check(c && c.bars.slice(0, 4).join(' | ') === '4,5 | 3m,6m | 4,5 | 1', `123我爱你's chorus is 4536-1 (${c && c.bars.slice(0, 4).join(' | ')})`);
+  check(c && c.bars.slice(0, 4).join(' | ') === '4,5 | 3m,6m | 4,5 | 1', `123我愛你's chorus is 4536-1 (${c && c.bars.slice(0, 4).join(' | ')})`);
 }
-check(corpus.filter((x) => x.artist === '周杰伦').length >= 10, 'Jay Chou songs are in the data');
+check(corpus.filter((x) => x.artist === '周杰倫').length >= 10, 'Jay Chou songs are in the data');
 
 // ---------- generating ----------
 console.log('generate');
@@ -128,7 +128,7 @@ check(covGen[0] > covLib[0] * 2, 'the generator covers more real openings than t
 }
 // Artists: with 8 to 17 songs each, a flavor doesn't predict an artist's unseen songs better (printed
 // for the record; see the README).
-for (const artist of ['周杰伦', '林俊杰']) {
+for (const artist of ['周杰倫', '林俊傑']) {
   let base = 0, flav = 0, n = 0;
   corpus.forEach((s, si) => {
     if (s.artist !== artist) return;

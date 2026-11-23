@@ -1,7 +1,7 @@
 // Mandarin lyric helpers for the song writing page (no DOM, so the tests can run it in Node):
 // - pinyin and tone for every character (js/pinyin-data.js), with fixes for the multi-reading
 //   characters lyrics use most, and the tone changes of speech (一, 不, and 3rd + 3rd);
-// - the 十三辙 rhyme groups, and a bank of lyric words for each;
+// - the 十三轍 rhyme groups, and a bank of lyric words for each;
 // - how well a melody move fits two tones in a row: sung Mandarin is understood partly from the
 //   pitch, so a melody that moves against the tones (倒字) can make a word sound like another.
 (function (root) {
@@ -16,35 +16,35 @@
     for (const ch of entry.slice(i + 1)) PY.set(ch, key);
   }
   // Single-character defaults that read better in lyrics than the dictionary's first reading.
-  const CHAR_FIX = { 长: 'chang2', 長: 'chang2', 地: 'di4', 得: 'de5' };
+  const CHAR_FIX = { 長: 'chang2', 長: 'chang2', 地: 'di4', 得: 'de5' };
   for (const [c, p] of Object.entries(CHAR_FIX)) PY.set(c, p);
 
   // Words whose reading differs from the characters' defaults. Space-separated syllables.
   const WORDS = {
-    长大: 'zhang3 da4', 成长: 'cheng2 zhang3', 生长: 'sheng1 zhang3', 長大: 'zhang3 da4', 成長: 'cheng2 zhang3',
+    長大: 'zhang3 da4', 成長: 'cheng2 zhang3', 生長: 'sheng1 zhang3',
     少年: 'shao4 nian2', 少女: 'shao4 nv3',
-    音乐: 'yin1 yue4', 乐队: 'yue4 dui4', 乐团: 'yue4 tuan2', 乐章: 'yue4 zhang1', 乐曲: 'yue4 qu3', 乐器: 'yue4 qi4', 音樂: 'yin1 yue4', 樂隊: 'yue4 dui4',
-    重来: 'chong2 lai2', 重新: 'chong2 xin1', 重逢: 'chong2 feng2', 重复: 'chong2 fu4', 重温: 'chong2 wen1', 重生: 'chong2 sheng1',
-    重叠: 'chong2 die2', 重演: 'chong2 yan3', 重回: 'chong2 hui2', 重返: 'chong2 fan3', 重重: 'chong2 chong2', 重來: 'chong2 lai2',
-    睡觉: 'shui4 jiao4', 午觉: 'wu3 jiao4', 睡覺: 'shui4 jiao4',
-    了解: 'liao3 jie3', 了然: 'liao3 ran2', 不了: 'bu4 liao3', 受不了: 'shou4 bu4 liao3',
-    得到: 'de2 dao4', 获得: 'huo4 de2', 取得: 'qu3 de2', 难得: 'nan2 de2', 得意: 'de2 yi4', 舍得: 'she3 de5',
-    成为: 'cheng2 wei2', 作为: 'zuo4 wei2', 以为: 'yi3 wei2', 认为: 'ren4 wei2', 为难: 'wei2 nan2', 行为: 'xing2 wei2', 無能為力: 'wu2 neng2 wei2 li4', 无能为力: 'wu2 neng2 wei2 li4',
-    银行: 'yin2 hang2', 行业: 'hang2 ye4', 行列: 'hang2 lie4',
-    回应: 'hui2 ying4', 答应: 'da1 ying5', 反应: 'fan3 ying4', 适应: 'shi4 ying4', 感应: 'gan3 ying4', 呼应: 'hu1 ying4', 响应: 'xiang3 ying4', 对应: 'dui4 ying4',
-    爱好: 'ai4 hao4', 好奇: 'hao4 qi2',
-    朝阳: 'zhao1 yang2', 朝霞: 'zhao1 xia2', 今朝: 'jin1 zhao1', 朝夕: 'zhao1 xi1', 朝气: 'zhao1 qi4', 朝陽: 'zhao1 yang2',
-    几乎: 'ji1 hu1',
-    干净: 'gan1 jing4', 干杯: 'gan1 bei1', 干涸: 'gan1 he2', 干燥: 'gan1 zao4', 饼干: 'bing3 gan1',
-    灾难: 'zai1 nan4', 苦难: 'ku3 nan4', 患难: 'huan4 nan4',
-    种下: 'zhong4 xia4', 种花: 'zhong4 hua1', 播种: 'bo1 zhong4', 种树: 'zhong4 shu4',
-    相处: 'xiang1 chu3', 处理: 'chu3 li3',
-    当作: 'dang4 zuo4', 当真: 'dang4 zhen1', 上当: 'shang4 dang4',
-    缘分: 'yuan2 fen4', 过分: 'guo4 fen4', 部分: 'bu4 fen4', 本分: 'ben3 fen4', 分外: 'fen4 wai4', 情分: 'qing2 fen4',
-    空白: 'kong4 bai2', 空闲: 'kong4 xian2', 空隙: 'kong4 xi4',
-    旋转: 'xuan2 zhuan4', 转动: 'zhuan4 dong4', 打转: 'da3 zhuan4',
-    还给: 'huan2 gei3', 归还: 'gui1 huan2', 偿还: 'chang2 huan2',
-    着急: 'zhao2 ji2', 睡着: 'shui4 zhao2', 着迷: 'zhao2 mi2', 着火: 'zhao2 huo3', 着陆: 'zhuo2 lu4', 执着: 'zhi2 zhuo2', 執著: 'zhi2 zhuo2',
+    音樂: 'yin1 yue4', 樂隊: 'yue4 dui4', 樂團: 'yue4 tuan2', 樂章: 'yue4 zhang1', 樂曲: 'yue4 qu3', 樂器: 'yue4 qi4',
+    重來: 'chong2 lai2', 重新: 'chong2 xin1', 重逢: 'chong2 feng2', 重複: 'chong2 fu4', 重溫: 'chong2 wen1', 重生: 'chong2 sheng1',
+    重疊: 'chong2 die2', 重演: 'chong2 yan3', 重回: 'chong2 hui2', 重返: 'chong2 fan3', 重重: 'chong2 chong2',
+    睡覺: 'shui4 jiao4', 午覺: 'wu3 jiao4',
+    瞭解: 'liao3 jie3', 瞭然: 'liao3 ran2', 不了: 'bu4 liao3', 受不了: 'shou4 bu4 liao3',
+    得到: 'de2 dao4', 獲得: 'huo4 de2', 取得: 'qu3 de2', 難得: 'nan2 de2', 得意: 'de2 yi4', 捨得: 'she3 de5',
+    成為: 'cheng2 wei2', 作為: 'zuo4 wei2', 以為: 'yi3 wei2', 認為: 'ren4 wei2', 為難: 'wei2 nan2', 行為: 'xing2 wei2', 無能為力: 'wu2 neng2 wei2 li4',
+    銀行: 'yin2 hang2', 行業: 'hang2 ye4', 行列: 'hang2 lie4',
+    回應: 'hui2 ying4', 答應: 'da1 ying5', 反應: 'fan3 ying4', 適應: 'shi4 ying4', 感應: 'gan3 ying4', 呼應: 'hu1 ying4', 響應: 'xiang3 ying4', 對應: 'dui4 ying4',
+    愛好: 'ai4 hao4', 好奇: 'hao4 qi2',
+    朝陽: 'zhao1 yang2', 朝霞: 'zhao1 xia2', 今朝: 'jin1 zhao1', 朝夕: 'zhao1 xi1', 朝氣: 'zhao1 qi4',
+    幾乎: 'ji1 hu1',
+    乾淨: 'gan1 jing4', 乾杯: 'gan1 bei1', 乾涸: 'gan1 he2', 乾燥: 'gan1 zao4', 餅乾: 'bing3 gan1',
+    災難: 'zai1 nan4', 苦難: 'ku3 nan4', 患難: 'huan4 nan4',
+    種下: 'zhong4 xia4', 種花: 'zhong4 hua1', 播種: 'bo1 zhong4', 種樹: 'zhong4 shu4',
+    相處: 'xiang1 chu3', 處理: 'chu3 li3',
+    當作: 'dang4 zuo4', 當真: 'dang4 zhen1', 上當: 'shang4 dang4',
+    緣分: 'yuan2 fen4', 過分: 'guo4 fen4', 部分: 'bu4 fen4', 本分: 'ben3 fen4', 分外: 'fen4 wai4', 情分: 'qing2 fen4',
+    空白: 'kong4 bai2', 空閒: 'kong4 xian2', 空隙: 'kong4 xi4',
+    旋轉: 'xuan2 zhuan4', 轉動: 'zhuan4 dong4', 打轉: 'da3 zhuan4',
+    還給: 'huan2 gei3', 歸還: 'gui1 huan2', 償還: 'chang2 huan2',
+    著急: 'zhao2 ji2', 睡著: 'shui4 zhao2', 著迷: 'zhao2 mi2', 著火: 'zhao2 huo3', 著陸: 'zhuo2 lu4', 執著: 'zhi2 zhuo2',
     首都: 'shou3 du1', 相片: 'xiang4 pian4', 便宜: 'pian2 yi5', 薄弱: 'bo2 ruo4',
     天地: 'tian1 di4', 大地: 'da4 di4',
   };
@@ -90,7 +90,7 @@
         i++;
       }
     }
-    // AA地 (慢慢地, 静静地): the adverb particle de.
+    // AA地 (慢慢地, 靜靜地): the adverb particle de.
     out.forEach((s, k) => {
       if ((s.ch === '地') && k >= 2 && out[k - 1].ch === out[k - 2].ch && !fix[k]) s.py = 'de5';
     });
@@ -173,35 +173,35 @@
     return s;
   }
 
-  // 十三辙: the thirteen rhyme groups singers and lyricists use. Lines rhyme when their last
+  // 十三轍: the thirteen rhyme groups singers and lyricists use. Lines rhyme when their last
   // syllables are in the same group, whatever the tone.
   const RHYME_GROUPS = [
-    { id: 'fahua', zh: '发花', sound: 'a', finals: ['a', 'ia', 'ua'], open: true,
-      words: '天涯 年华 晚霞 烟花 回答 牵挂 长发 说话 繁华 落下 放下 童话 雪花 浪花 害怕 挣扎 回家 风沙 喧哗 灯下' },
+    { id: 'fahua', zh: '發花', sound: 'a', finals: ['a', 'ia', 'ua'], open: true,
+      words: '天涯 年華 晚霞 煙花 回答 牽掛 長髮 說話 繁華 落下 放下 童話 雪花 浪花 害怕 掙扎 回家 風沙 喧譁 燈下' },
     { id: 'suobo', zh: '梭波', sound: 'o / e', finals: ['o', 'e', 'uo'], open: true,
-      words: '寂寞 漂泊 烟火 沉默 承诺 错过 角落 坠落 灯火 闪烁 星河 快乐 选择 唱歌 难过 生活 解脱 记得 执着 骆驼' },
+      words: '寂寞 漂泊 煙火 沉默 承諾 錯過 角落 墜落 燈火 閃爍 星河 快樂 選擇 唱歌 難過 生活 解脫 記得 執著 駱駝' },
     { id: 'miexie', zh: '乜斜', sound: 'ie / üe', finals: ['ie', 've'], open: false,
-      words: '告别 季节 离别 黑夜 世界 细节 誓约 凋谢 了解 冰雪 岁月 和解 熄灭 明月 拒绝 感谢 深夜 蝴蝶 喜悦 坚决' },
-    { id: 'huailai', zh: '怀来', sound: 'ai', finals: ['ai', 'uai'], open: true,
-      words: '未来 等待 存在 无奈 离开 依赖 期待 大海 窗台 徘徊 尘埃 明白 舞台 色彩 释怀 澎湃 精彩 现在 心爱 关怀' },
+      words: '告別 季節 離別 黑夜 世界 細節 誓約 凋謝 瞭解 冰雪 歲月 和解 熄滅 明月 拒絕 感謝 深夜 蝴蝶 喜悅 堅決' },
+    { id: 'huailai', zh: '懷來', sound: 'ai', finals: ['ai', 'uai'], open: true,
+      words: '未來 等待 存在 無奈 離開 依賴 期待 大海 窗臺 徘徊 塵埃 明白 舞臺 色彩 釋懷 澎湃 精彩 現在 心愛 關懷' },
     { id: 'huidui', zh: '灰堆', sound: 'ei / ui', finals: ['ei', 'uei'], open: false,
-      words: '眼泪 心碎 后悔 憔悴 疲惫 安慰 无畏 玫瑰 珍贵 宝贝 回味 伤悲 沉睡 相随 追随 滋味 心扉 一回 光辉 枯萎' },
-    { id: 'yaotiao', zh: '遥条', sound: 'ao', finals: ['ao', 'iao'], open: true,
-      words: '拥抱 微笑 骄傲 燃烧 心跳 知道 寻找 奔跑 喧嚣 到老 浪潮 呼啸 味道 不要 煎熬 祈祷 美好 依靠 外套 飘摇' },
+      words: '眼淚 心碎 後悔 憔悴 疲憊 安慰 無畏 玫瑰 珍貴 寶貝 回味 傷悲 沉睡 相隨 追隨 滋味 心扉 一回 光輝 枯萎' },
+    { id: 'yaotiao', zh: '遙條', sound: 'ao', finals: ['ao', 'iao'], open: true,
+      words: '擁抱 微笑 驕傲 燃燒 心跳 知道 尋找 奔跑 喧囂 到老 浪潮 呼嘯 味道 不要 煎熬 祈禱 美好 依靠 外套 飄搖' },
     { id: 'youqiu', zh: '油求', sound: 'ou / iu', finals: ['ou', 'iou'], open: true,
-      words: '温柔 自由 守候 等候 尽头 回头 背后 挥手 理由 停留 漂流 永久 怀旧 街头 心头 烈酒 朋友 牵手 宇宙 一起走' },
+      words: '溫柔 自由 守候 等候 盡頭 回頭 背後 揮手 理由 停留 漂流 永久 懷舊 街頭 心頭 烈酒 朋友 牽手 宇宙 一起走' },
     { id: 'yanqian', zh: '言前', sound: 'an', finals: ['an', 'ian', 'uan', 'van'], open: true,
-      words: '从前 思念 永远 春天 身边 遇见 再见 誓言 夏天 想念 瞬间 呐喊 呼唤 遗憾 孤单 平凡 灿烂 天边 温暖 期盼' },
+      words: '從前 思念 永遠 春天 身邊 遇見 再見 誓言 夏天 想念 瞬間 吶喊 呼喚 遺憾 孤單 平凡 燦爛 天邊 溫暖 期盼' },
     { id: 'renchen', zh: '人辰', sound: 'en / in', finals: ['en', 'in', 'uen', 'vn'], open: false,
-      words: '青春 灵魂 黄昏 天真 认真 爱人 伤痕 温存 缘分 眼神 森林 光阴 灰烬 回音 星辰 清晨 失神 靠近 相信 一个人' },
-    { id: 'jiangyang', zh: '江阳', sound: 'ang', finals: ['ang', 'iang', 'uang'], open: true,
-      words: '远方 光芒 飞翔 力量 梦想 天堂 月光 迷茫 慌张 坚强 流浪 地方 阳光 海洋 倔强 逞强 模样 时光 信仰 故乡' },
-    { id: 'zhongdong', zh: '中东', sound: 'ong / eng / ing', finals: ['ong', 'eng', 'ing', 'iong', 'ueng'], open: true,
-      words: '天空 梦中 心痛 感动 冲动 霓虹 彩虹 相逢 眼睛 心情 风景 宿命 生命 曾经 永恒 天明 春风 英雄 倒影 背影' },
+      words: '青春 靈魂 黃昏 天真 認真 愛人 傷痕 溫存 緣分 眼神 森林 光陰 灰燼 迴音 星辰 清晨 失神 靠近 相信 一個人' },
+    { id: 'jiangyang', zh: '江陽', sound: 'ang', finals: ['ang', 'iang', 'uang'], open: true,
+      words: '遠方 光芒 飛翔 力量 夢想 天堂 月光 迷茫 慌張 堅強 流浪 地方 陽光 海洋 倔強 逞強 模樣 時光 信仰 故鄉' },
+    { id: 'zhongdong', zh: '中東', sound: 'ong / eng / ing', finals: ['ong', 'eng', 'ing', 'iong', 'ueng'], open: true,
+      words: '天空 夢中 心痛 感動 衝動 霓虹 彩虹 相逢 眼睛 心情 風景 宿命 生命 曾經 永恆 天明 春風 英雄 倒影 背影' },
     { id: 'yiqi', zh: '一七', sound: 'i / ü', finals: ['i', 'v', '-i', 'er'], open: false,
-      words: '回忆 秘密 呼吸 雨季 勇气 距离 美丽 叹息 奇迹 唯一 世纪 日记 一起 心事 故事 名字 坚持 原地 孤寂 期许' },
-    { id: 'gusu', zh: '姑苏', sound: 'u', finals: ['u'], open: false,
-      words: '孤独 幸福 痛苦 道路 脚步 礼物 清楚 归宿 祝福 无数 守护 迷路 温度 认输 倾诉 速度 结束 舞步 糊涂 沉浮' },
+      words: '回憶 祕密 呼吸 雨季 勇氣 距離 美麗 嘆息 奇蹟 唯一 世紀 日記 一起 心事 故事 名字 堅持 原地 孤寂 期許' },
+    { id: 'gusu', zh: '姑蘇', sound: 'u', finals: ['u'], open: false,
+      words: '孤獨 幸福 痛苦 道路 腳步 禮物 清楚 歸宿 祝福 無數 守護 迷路 溫度 認輸 傾訴 速度 結束 舞步 糊塗 沉浮' },
   ];
   const GROUP_OF_FINAL = new Map();
   for (const g of RHYME_GROUPS) for (const f of g.finals) if (!GROUP_OF_FINAL.has(f)) GROUP_OF_FINAL.set(f, g);
@@ -210,7 +210,7 @@
   const groupById = (id) => RHYME_GROUPS.find((g) => g.id === id) || null;
 
   // The last sung syllable of a line, for rhyming (skips a trailing particle like 啊, 吧, 了).
-  const PARTICLES = new Set(['啊', '吧', '呢', '吗', '了', '的', '呀', '哦', '喔', '啦', '耶', '嘛']);
+  const PARTICLES = new Set(['啊', '吧', '呢', '嗎', '了', '的', '呀', '哦', '喔', '啦', '耶', '嘛']);
   function rhymeSyllable(syl) {
     for (let k = syl.length - 1; k >= 0; k--) {
       const s = syl[k];

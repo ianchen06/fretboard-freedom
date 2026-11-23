@@ -25,7 +25,7 @@ final class WrapperUITests: XCTestCase {
         navigate(to: "Rhythm")
         assertPage("Rhythm")
 
-        navigate(to: "Song writing 写歌")
+        navigate(to: "Song writing 寫歌")
         assertPage("Song Writing")
         XCTAssertTrue(web.textFields["Song title"].waitForExistence(timeout: 8))
 
