@@ -121,6 +121,7 @@
           <p class="fine" id="micNote">Only needed to record a melody. Wear headphones, or record over drums only.</p>
         </div>
       </div>
+
     </section>
 
     <section class="card panel editor" id="editor">
@@ -192,6 +193,18 @@
           </div>
         </label>
       </div>
+
+      <div class="card panel ai-panel" id="aiPanel" hidden>
+        <div class="card-kicker">AI 寫詞 · Lyric partner</div>
+        <h3 class="tool-title">Lines from the on-device model</h3>
+        <p class="fine" id="aiStatus">Runs on your device with Qwen2.5-1.5B (Transformers.js). First use downloads about 1.1 GB and caches it; nothing you write leaves the browser.</p>
+        <div class="ai-prog" id="aiProg" hidden><div class="ai-prog-bar" id="aiProgBar"></div></div>
+        <ol class="ai-cands" id="aiCands"></ol>
+        <div class="ai-foot">
+          <button class="btn btn-sm btn-ghost" id="aiMore" type="button" hidden>↻ More lines</button>
+          <button class="link-btn" id="aiClose" type="button">Close</button>
+        </div>
+      </div>
     </section>
 
     <section class="tools-row">
@@ -255,6 +268,7 @@
   <script src="js/songband.js?v=2"></script>
   <script src="js/chorddata.js?v=1"></script>
   <script src="js/chordgen.js?v=1"></script>
+  <script src="js/llm.js?v=1"></script>
   <script src="js/write-app.js?v=4"></script>
 </body>
 </html>

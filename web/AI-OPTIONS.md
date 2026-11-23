@@ -1,6 +1,6 @@
 # AI models and open-source projects for the practice app
 
-A survey of what could be added to the app from Hugging Face, GitHub and LLM APIs, with a recommendation. Written 2026-11-20. Nothing here is built yet: the only third-party code in the app is still the amp engine in `vendor/nam/`.
+A survey of what could be added to the app from Hugging Face, GitHub and LLM APIs, with a recommendation. Written 2026-11-20. **Update 2026-11-23: option 1 is built, in-browser** — the lyric partner runs Qwen2.5-1.5B-Instruct in the song writing page (`js/llm.js`, `js/llm-worker.js`, `web/test/llm.test.js`). The API-key route and the weekly coach are still unbuilt. The only other third-party code in the app is still the amp engine in `vendor/nam/`.
 
 The README explains [why the exercises come from rules](README.md#why-rules-not-ai-or-machine-learning-for-the-content), and that still holds. The options below are for jobs rules can't do: writing words, producing audio, and hearing more than one note at a time.
 
@@ -29,6 +29,8 @@ Each option below is a new dependency or download, so each needs a deliberate ye
 ## 1. Lyric partner and weekly coach
 
 **What you'd get.** In Song writing: ask for a next line, a rewrite, or a line that ends in a given 轍. In Daily session: a weekly review of what improved, what's stuck and what to change.
+
+**Built 2026-11-23, in-browser route.** The song writing page has an ✨ AI words button on every line: the model drafts three lines and the checker ranks them best first. Model: Qwen2.5-1.5B-Instruct (`onnx-community/Qwen2.5-1.5B-Instruct`, q4f16, ~1.1 GB on first use, cached after) via Transformers.js 4.3.2 in a module worker (`js/llm-worker.js`); the prompt and the scoring live in `js/llm.js`, covered by `web/test/llm.test.js`. Scoring is tone fit against the line's melody (50%), rhyme group (30%) and syllable count against the notes (20%); a line with fewer syllables than notes is fine (melisma), more is penalised. The weekly coach is still unbuilt, and so is the API-key route — the key-in-a-public-page problem in the limits below still stands for that route.
 
 **How it fits.** The LLM drafts and the rules check, the same pattern as the lick library (`licks-blues.js` was drafted by AI and is checked by `lickgen.js`).
 

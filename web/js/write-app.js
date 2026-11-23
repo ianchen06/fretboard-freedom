@@ -507,6 +507,7 @@
         <div class="line-foot">
           <div class="line-actions">
             <button class="btn btn-sm" type="button" data-act="suggest" data-line="${i}" title="Set these words to a melody that follows their tones">✨ Suggest</button>
+            <button class="btn btn-sm" type="button" data-act="aiwords" data-line="${i}" title="Ask the on-device model for a line that fits this melody and rhyme">✨ AI words</button>
             <button class="btn btn-sm btn-rec" type="button" data-act="record" data-line="${i}" title="Play or hum the line over the band; the app writes it down">● Record</button>
             <button class="btn btn-sm btn-ghost" type="button" data-act="play" data-line="${i}">▶ Play</button>
             <button class="link-btn" type="button" data-act="clear" data-line="${i}">Clear tune</button>
@@ -652,6 +653,7 @@
     if (act) {
       const i = Number(act.dataset.line);
       if (act.dataset.act === 'suggest') suggestLine(i, true);
+      else if (act.dataset.act === 'aiwords') aiWords(i);
       else if (act.dataset.act === 'record') recordLine(i);
       else if (act.dataset.act === 'play') playLine(i);
       else if (act.dataset.act === 'clear') { sec().lines[i].notes = []; ui.sel = null; save(); renderLine(i); }
@@ -764,6 +766,83 @@
     if (!n) toast('Write some words first: each line gets its own melody.');
     else { toast(`New melodies for ${n} line${n === 1 ? '' : 's'}. Playing the section.`); playSection(); }
   });
+
+  // ---------- AI lyric partner ----------
+  // The model drafts lines in the browser; zh.js and songtheory.js score them, so only lines
+  // that fit the melody, the rhyme and the syllable count are offered.
+  let aiState = { line: null, cands: [], busy: false };
+  function aiTargetSyllables(ln) {
+    if (ln.notes.length) return ln.notes.length;
+    const counts = sec().lines.map((l) => analyze(l).length).filter((n) => n > 0);
+    if (counts.length) return Math.round(counts.reduce((a, b) => a + b, 0) / counts.length);
+    return 7;
+  }
+  async function aiWords(i) {
+    const ln = sec().lines[i];
+    if (aiState.busy) { toast('The model is already writing — give it a moment.'); return; }
+    if (!window.LyricAI || !LyricAI.isSupported()) { toast('This browser cannot run the in-browser model.'); return; }
+    aiState = { line: i, cands: [], busy: true };
+    const panel = $('aiPanel'), status = $('aiStatus'), prog = $('aiProg'), bar = $('aiProgBar'), list = $('aiCands');
+    panel.hidden = false;
+    $('aiMore').hidden = true;
+    list.innerHTML = '';
+    status.textContent = 'Starting the model…';
+    prog.hidden = true; bar.style.width = '0%';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const prevLines = sec().lines.slice(0, i).map((l) => l.lyrics[ui.take]).filter(Boolean);
+    const rhymeGroup = Zh.groupById(prefs.rhyme) || null;
+    const opts = {
+      section: type(), style: song.style, title: song.title, prevLines,
+      syllables: aiTargetSyllables(ln), rhymeGroup, notes: ln.notes,
+    };
+    const onProgress = (p) => {
+      if (p.status === 'progress') {
+        prog.hidden = false;
+        bar.style.width = `${Math.round(p.progress || 0)}%`;
+        status.textContent = `Downloading the model (${Math.round(p.progress || 0)}%): ${p.file || ''} — about 1.1 GB on first use, cached after.`;
+      } else if (p.status === 'done') {
+        status.textContent = 'Model ready — writing lines…';
+      }
+    };
+    try {
+      const cands = await LyricAI.suggestCandidates(opts, { onProgress });
+      aiState.cands = cands;
+      prog.hidden = true;
+      if (!cands.length) {
+        status.textContent = 'No usable lines this time — the model wandered off. Try again.';
+        $('aiMore').hidden = false;
+        return;
+      }
+      status.textContent = `Best first — scored for tone fit, rhyme and syllable count. Line ${i + 1}, ${opts.syllables} syllables, ${rhymeGroup ? `${rhymeGroup.zh}轍` : 'no rhyme set'}.`;
+      list.innerHTML = cands.map((c, k) => {
+        const tone = c.tone == null ? 'tones —' : `tones ${c.tone}`;
+        const g = c.rhyme ? Zh.groupById(c.rhyme) : null;
+        const rhyme = c.rhymeOk == null ? '' : (c.rhymeOk ? `✓ ${g.zh}轍` : `✗ ${g ? `${g.zh}轍` : 'no rhyme'}`);
+        return `<li><button type="button" class="ai-cand" data-cand="${k}"><span class="ai-text">${esc(c.text)}</span><span class="ai-meta">${c.score} · ${tone} · ${c.syllables} 字${rhyme ? ` · ${rhyme}` : ''}</span></button></li>`;
+      }).join('');
+      $('aiMore').hidden = false;
+    } catch (err) {
+      prog.hidden = true;
+      status.textContent = `The model could not run: ${err && err.message ? err.message : err}`;
+    } finally {
+      aiState.busy = false;
+    }
+  }
+  $('aiCands').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cand]');
+    if (!b || aiState.line == null) return;
+    const c = aiState.cands[Number(b.dataset.cand)];
+    if (!c) return;
+    sec().lines[aiState.line].lyrics[ui.take] = c.text;
+    save();
+    renderLine(aiState.line);
+    renderRhyme(false);
+    document.querySelectorAll('.ai-cand').forEach((el) => el.classList.remove('picked'));
+    b.classList.add('picked');
+    toast('Line set. Press ✨ Suggest if you want a melody to match it.');
+  });
+  $('aiMore').addEventListener('click', () => { if (aiState.line != null) aiWords(aiState.line); });
+  $('aiClose').addEventListener('click', () => { $('aiPanel').hidden = true; });
 
   // ---------- playback ----------
   // Bars to play, each with what the band needs: chords, the part's role, and where it sits.
