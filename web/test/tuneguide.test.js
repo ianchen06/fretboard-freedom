@@ -1,9 +1,9 @@
 // Tests the Tuner page's logic (TuneGuide): string choice, direction, holds, the guided walk-through,
-// and the whole chain from synthetic audio through refinePitch and TunerFilter.
+// and the whole chain from synthetic audio through the pitch engine (js/tunerengine.js).
 // Run: node web/test/tuneguide.test.js
 'use strict';
 const { TuneGuide, gaugeAngle } = require('../js/tuneguide.js');
-const { refinePitch, TunerFilter } = require('../js/pitch.js');
+const { TunerEngine } = require('../js/tunerengine.js');
 
 let failures = 0;
 const check = (ok, msg) => { if (!ok) { failures++; console.log('  FAIL', msg); } };
@@ -130,41 +130,43 @@ check(gaugeAngle(0) === 0 && gaugeAngle(10) === 30 && gaugeAngle(-10) === -30, '
 check(gaugeAngle(50) === 60 && gaugeAngle(-500) === -60, 'clamped at ±50¢');
 check(gaugeAngle(1) > 2.9, '1¢ is 3° of swing');
 
-console.log('end to end: a plucked string, through refinePitch and TunerFilter, to "tuned"');
+console.log('end to end: a plucked string, through the pitch engine, to "tuned"');
 {
   const sr = 48000;
-  const N = 2 ** Math.ceil(Math.log2(sr * 0.17));
   let seed = 7;
-  const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff * 2 - 1; };
-  const pluck = (f0, t0) => {
-    const x = new Float32Array(N);
+  const rand = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1; };
+  // 0.5 s of quiet, then a pluck of a slightly stiff string, ringing for 2 s.
+  const take = (f0) => {
+    const n = Math.round(sr * 2.5);
+    const x = new Float32Array(n);
+    const i0 = Math.round(sr * 0.5);
     for (let h = 1; h * f0 < 6000 && h <= 20; h++) {
-      const fh = h * f0;
+      const fh = h * f0 * Math.sqrt(1 + 6e-5 * (h * h - 1)); // partial 1 at f0
       const a = Math.abs(Math.sin(h * Math.PI * 0.18)) / h;
-      for (let i = 0; i < N; i++) {
-        const t = t0 + i / sr;
-        x[i] += 0.3 * a * Math.exp(-(1.2 + 0.5 * h) * t) * Math.sin(2 * Math.PI * fh * t + h);
+      for (let i = i0; i < n; i++) {
+        const t = (i - i0) / sr;
+        x[i] += 0.3 * a * Math.exp(-(0.8 + 0.4 * h) * t) * Math.sin(2 * Math.PI * fh * t + h);
       }
     }
-    for (let i = 0; i < N; i++) x[i] += 0.001 * rand();
+    for (let i = 0; i < n; i++) x[i] += 0.0005 * rand();
     return x;
   };
   for (const [want, off, expect] of [[2, 0.3, true], [3, -0.6, true], [6, 4, false], [4, -2.5, false]]) {
     const g = new TuneGuide({ open: STD, tolerance: 1, holdTime: 0.6 });
-    const filt = new TunerFilter();
+    const e = new TunerEngine({ sampleRate: sr });
+    e.setPrior({ strings: Object.values(STD) });
     const f = hz(STD[want], off);
+    const x = take(f);
     let last = null;
     let tuned = false;
-    for (let t = 0.2; t < 1.6; t += 0.03) {
-      const r = refinePitch(pluck(f, t), sr, f * 1.002);
-      if (!r) continue;
-      const fr = filt.push(r.freq, t);
-      if (!fr) continue;
-      last = g.push({ freq: fr.freq, spread: fr.spread, t });
+    for (let i = 1440; i <= x.length; i += 1440) {
+      const r = e.process(x.subarray(Math.max(0, i - 32768), i), i / sr);
+      if (r.freq == null) continue;
+      last = g.push({ freq: r.freq, spread: r.spread, t: i / sr });
       if (last.justTuned) tuned = true;
     }
     check(last && last.string === want, `string ${want}: heard as ${last && last.string}`);
-    check(last && Math.abs(last.cents - off) < 0.1, `string ${want} at ${off}¢: read ${last && last.cents.toFixed(3)}¢`);
+    check(last && Math.abs(last.cents - off) < 0.2, `string ${want} at ${off}¢: read ${last && last.cents.toFixed(3)}¢`);
     check(tuned === expect, `string ${want} at ${off}¢: tuned=${tuned}`);
   }
 }

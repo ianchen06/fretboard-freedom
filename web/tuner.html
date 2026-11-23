@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tuner · Fretboard Freedom</title>
-  <meta name="description" content="A precise guitar tuner for beginners: it finds the string, says which way to turn the peg, and ticks off each string once it's in tune.">
+  <meta name="description" content="A precise guitar tuner for beginners: it finds the string, says which way to turn the peg, and ticks off each string once it's in tune. It hears the low E through a phone's mic, and an unplugged electric.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E5484D'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css?v=9">
   <link rel="stylesheet" href="css/tuner.css?v=2">
@@ -99,13 +99,6 @@
             </div>
           </div>
           <div class="tn-opt">
-            <span class="field-label">Guitar</span>
-            <div class="seg seg-sm" id="tnSoundSeg" role="radiogroup" aria-label="How loud the guitar is to the mic">
-              <button type="button" data-value="normal" title="An acoustic, or an electric through a cable or an amp">Acoustic or plugged in</button>
-              <button type="button" data-value="quiet" title="Filters out room hiss so the mic hears a quiet string">Unplugged electric</button>
-            </div>
-          </div>
-          <div class="tn-opt">
             <span class="field-label">Noise filter</span>
             <div class="seg seg-sm" id="tnNoiseSeg" role="radiogroup" aria-label="Ignore sounds that aren't a plucked string">
               <button type="button" data-value="on" title="Only a plucked string moves the needle: hum, fans and people talking are ignored">On</button>
@@ -151,16 +144,17 @@
         <li><b>Always finish going up.</b> If you’re sharp, go a little below the note and come back up. The string then holds its tuning instead of slipping flat.</li>
         <li><b>Go round twice.</b> Tuning one string pulls on the neck and moves the others a little. The second time round is quick.</li>
       </ol>
-      <p class="fine">Electric, not plugged in? Choose <b>Unplugged electric</b> and hold the iPad or phone close, its mic towards the pickups, and pluck firmly: the tuner then filters out the room’s hiss to hear the quiet string. In a hurry? <b>Strum all six</b> (key <kbd>S</kbd>) shows every string from one strum of the open strings, like a polyphonic tuner pedal: fix the ones that are out, strum again, then fine-tune string by string. Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
+      <p class="fine">Electric, not plugged in? Just hold the iPad or phone close, its mic towards the strings, and pluck firmly: the tuner listens for the string’s harmonics in the room’s hiss, so it hears a string barely louder than the hiss, with no setting to change. In a hurry? <b>Strum all six</b> (key <kbd>S</kbd>) shows every string from one strum of the open strings, like a polyphonic tuner pedal: fix the ones that are out, strum again, then fine-tune string by string. Far out of tune? Pick the string with <b>Pick a string</b> (or keys <kbd>1</kbd>–<kbd>6</kbd>, 1 = high e) so the tuner doesn’t mistake it for its neighbour, and it tells you how many semitones to go. In <b>Auto</b> the tuner follows whichever string you play. <b>Exact</b> is for setting intonation (the 12th-fret note against the open string): the strobe stands still when the note is spot on.</p>
     </section>
   </main>
 
   <script src="js/theory.js?v=4"></script>
-  <script src="js/pitch.js?v=6"></script>
-  <script src="js/audio.js?v=9"></script>
-  <script src="js/micpanel.js?v=7"></script>
-  <script src="js/tuneguide.js?v=1"></script>
+  <script src="js/pitch.js?v=7"></script>
+  <script src="js/tunerengine.js?v=1"></script>
+  <script src="js/audio.js?v=10"></script>
+  <script src="js/micpanel.js?v=8"></script>
+  <script src="js/tuneguide.js?v=2"></script>
   <script src="js/polytune.js?v=1"></script>
-  <script src="js/tuner-app.js?v=4"></script>
+  <script src="js/tuner-app.js?v=5"></script>
 </body>
 </html>
