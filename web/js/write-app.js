@@ -18,7 +18,7 @@
       try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode, full storage */ }
     },
   };
-  const PREFS_DEFAULT = { voice: 'voice', toneWeight: '1', recBand: 'drums', take: '0', sec: 'V', rhyme: null };
+  const PREFS_DEFAULT = { voice: 'voice', toneWeight: '1', recBand: 'drums', take: '0', sec: 'V', rhyme: null, genMood: 'any', genAdv: '0.4', genColors: '1' };
   const prefs = { ...PREFS_DEFAULT, ...store.get('ff.write', {}) };
   const savePrefs = () => store.set('ff.write', prefs);
 
@@ -176,6 +176,9 @@
   bindSeg('voice', () => prefs.voice, (v) => { prefs.voice = v; savePrefs(); if (band) band.setVoice(v); });
   bindSeg('toneWeight', () => prefs.toneWeight, (v) => { prefs.toneWeight = v; savePrefs(); });
   bindSeg('recBand', () => prefs.recBand, (v) => { prefs.recBand = v; savePrefs(); });
+  bindSeg('genMood', () => prefs.genMood, (v) => { prefs.genMood = v; savePrefs(); });
+  bindSeg('genAdv', () => prefs.genAdv, (v) => { prefs.genAdv = v; savePrefs(); });
+  bindSeg('genColors', () => prefs.genColors, (v) => { prefs.genColors = v; savePrefs(); });
   const syncTake = bindSeg('take', () => ui.take, (v) => { ui.take = Number(v); prefs.take = v; savePrefs(); renderForm(); renderLines(); renderRhyme(); });
 
   const KEY_ORDER = [0, 7, 2, 9, 4, 11, 5, 10, 3, 8, 1, 6];
@@ -260,7 +263,12 @@
       const pb = ST.parseBars(p.bars);
       return sec().bars.length % pb.length === 0 && ST.barsToString(Array.from({ length: sec().bars.length }, (_, i) => pb[i % pb.length])) === now;
     });
-    $('progDesc').innerHTML = match ? `<b>${match.zh} · ${esc(match.name)}.</b> ${esc(match.desc)}` : 'Your own progression. Pick one from the list to start from a classic.';
+    const genKey = `${ui.sec}|${now}`;
+    if (genKey in genInfo) $('progDesc').innerHTML = `<b>🎲 New chords</b> from the habits of ${ChordGen.songCount()} Chinese pop songs. ${famText(genInfo[genKey])}`;
+    else $('progDesc').innerHTML = match ? `<b>${match.zh} · ${esc(match.name)}.</b> ${esc(match.desc)}` : 'Your own progression. Pick one from the list to start from a classic, or ask for 🎲 new chords.';
+    const h = genHist[ui.sec];
+    $('genBack').disabled = !h || h.i <= 0;
+    $('genFwd').disabled = !h || h.i >= h.list.length - 1;
   }
   $('progSelect').addEventListener('change', (e) => {
     const p = ST.progById(e.target.value);
@@ -268,10 +276,74 @@
     const pb = ST.parseBars(p.bars);
     const n = Math.max(sec().bars.length, pb.length);
     sec().bars = Array.from({ length: n }, (_, i) => pb[i % pb.length].slice());
+    pruneLocks();
     syncLinesToBars();
     save();
     renderEditor();
     if (ui.playing && ui.playing.kind === 'section') playSection();
+  });
+
+  // ---------- chord generator (js/chordgen.js) ----------
+  const genHist = {}; // per part: { list: progressions as text, i: the one showing }
+  const genInfo = {}; // 'part|progression' → where it comes from (ChordGen's familiar)
+  function pruneLocks(s = sec()) { if (s.locks) s.locks = s.locks.filter((i) => i < s.bars.length); }
+  function famText(f) {
+    const where = `the ${f ? esc(f.role) : ''} of 《${f ? esc(f.song) : ''}》 (${f ? esc(f.artist) : ''})`;
+    if (!f || f.run <= 2) return 'Fresh: no song in the data shares more than two bars in a row with it.';
+    if (f.whole) return `Familiar: ${where} has these exact chords${f.songs > 1 ? `, and so do ${f.songs - 1} other song${f.songs > 2 ? 's' : ''}` : ''}.`;
+    return `Its longest run from one song is ${f.run} bars (bars ${f.at + 1}–${f.at + f.run}), from ${where}.`;
+  }
+  function remember(id) {
+    const h = genHist[id] || (genHist[id] = { list: [], i: -1 });
+    const cur = ST.barsToString(song.sections[id].bars);
+    if (h.list[h.i] !== cur) { h.list.splice(h.i + 1); h.list.push(cur); h.i = h.list.length - 1; }
+    return h;
+  }
+  // While this part loops, the band picks up the new chords on its next bar.
+  function refreshPlaying(id) {
+    const p = ui.playing;
+    if (!p || (p.kind !== 'section' && p.kind !== 'jam') || !p.meta.length || p.meta[0].sec !== id) return;
+    const bars = song.sections[id].bars;
+    p.meta.forEach((b, j) => { if (bars[j]) b.chords = bars[j]; });
+  }
+  function newChords(id = ui.sec) {
+    const s = song.sections[id];
+    const locks = {};
+    (s.locks || []).forEach((i) => { if (s.bars[i]) locks[i] = s.bars[i].join(','); });
+    const h = remember(id);
+    const r = ChordGen.generate({ role: ST.SECTION_TYPES[id].role, bars: s.bars.length, locks, mood: prefs.genMood, adventure: Number(prefs.genAdv), colors: prefs.genColors !== '0' });
+    s.bars = r.bars.map((b) => b.map((c) => ST.chordSym(ST.parseChord(c))));
+    const str = ST.barsToString(s.bars);
+    genInfo[`${id}|${str}`] = r.familiar;
+    h.list.splice(h.i + 1); h.list.push(str); h.i = h.list.length - 1;
+    save();
+    refreshPlaying(id);
+    if (id === ui.sec) renderEditor();
+  }
+  function stepHistory(d) {
+    const h = genHist[ui.sec];
+    if (!h || !h.list[h.i + d]) return;
+    remember(ui.sec);
+    h.i += d;
+    sec().bars = ST.parseBars(h.list[h.i]);
+    save();
+    refreshPlaying(ui.sec);
+    renderEditor();
+  }
+  $('genChords').addEventListener('click', (e) => { e.currentTarget.blur(); newChords(); });
+  $('genBack').addEventListener('click', () => stepHistory(-1));
+  $('genFwd').addEventListener('click', () => stepHistory(1));
+  // Jam: loop the part, and each time round it comes back with new chords.
+  $('genJam').addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    if (ui.playing && ui.playing.kind === 'jam') { stop(); return; }
+    const id = ui.sec;
+    newChords(id);
+    const meta = barsFor([{ sec: id, take: ui.take, formIdx: -1 }]);
+    start(meta, {
+      kind: 'jam', loop: true,
+      onBar: (i) => { if (i > 0 && i % meta.length === 0) newChords(id); },
+    });
   });
 
   function syncLinesToBars() {
@@ -285,7 +357,8 @@
   function renderChords() {
     const k = keyPc();
     $('chords').style.setProperty('--n', Math.min(8, sec().bars.length));
-    $('chords').innerHTML = sec().bars.map((b, i) => `<button type="button" class="chord-cell${b.length > 1 ? ' split' : ''}" data-bar="${i}">${b.map((c) => `<span class="cc"><span class="cc-name">${esc(ST.chordName(c, k))}</span><span class="cc-num">${esc(ST.chordNum(c))}</span></span>`).join('')}<span class="cc-bar">${i + 1}</span></button>`).join('');
+    const locks = sec().locks || [];
+    $('chords').innerHTML = sec().bars.map((b, i) => `<button type="button" class="chord-cell${b.length > 1 ? ' split' : ''}${locks.includes(i) ? ' locked' : ''}" data-bar="${i}">${b.map((c) => `<span class="cc"><span class="cc-name">${esc(ST.chordName(c, k))}</span><span class="cc-num">${esc(ST.chordNum(c))}</span></span>`).join('')}<span class="cc-bar">${i + 1}</span>${locks.includes(i) ? '<span class="cc-lock" title="Kept when you ask for new chords">🔒</span>' : ''}</button>`).join('');
   }
   $('addBars').addEventListener('click', () => {
     const s = sec();
@@ -301,6 +374,7 @@
     const last = s.lines[s.lines.length - 1];
     if (last && (last.lyrics[0] || last.lyrics[1] || last.notes.length) && !confirm('Remove the last line too (its words and melody)?')) return;
     s.bars.length -= 2;
+    pruneLocks(s);
     syncLinesToBars();
     save();
     renderEditor();
@@ -334,9 +408,18 @@
       return `<div class="pop-sub">${bar.length > 1 ? `${j ? 'Second' : 'First'} half: ` : ''}<b>${esc(ST.chordName(c, k))}</b> <span class="muted">(${esc(c)})</span></div>`
         + `<div class="pop-swaps">${swaps.map(([s, why]) => `<button type="button" class="pop-swap" data-j="${j}" data-sym="${esc(s)}"><span class="ps-name">${esc(ST.chordName(s, k))}</span><span class="ps-num">${esc(s)}</span><span class="ps-why">${esc(why)}</span></button>`).join('')}</div>`;
     }).join('');
-    openPopover(cell, `<div class="pop-title">Bar ${i + 1}</div>${parts}
+    const locked = (sec().locks || []).includes(i);
+    openPopover(cell, `<div class="pop-title">Bar ${i + 1}</div><button type="button" class="link-btn pop-lock">${locked ? '🔓 Let new chords change this bar' : '🔒 Keep this bar when I ask for new chords'}</button>${parts}
       <form class="pop-form"><input type="text" value="${esc(bar.join(','))}" aria-label="Chords for this bar" placeholder="e.g. 6m or 4,5/7"><button class="btn btn-sm" type="submit">Set</button></form>
       <p class="fine">Numbers are 简谱 degrees: 1 4 5 major, 2m 3m 6m minor. Add 7, maj7, sus4, add9, a ♭ (b) or a bass note: 5/7.</p>`, (ev) => {
+      if (ev.target.closest('.pop-lock')) {
+        const s = sec();
+        s.locks = locked ? (s.locks || []).filter((x) => x !== i) : [...(s.locks || []), i];
+        save();
+        closePopover();
+        renderChords();
+        return;
+      }
       const b = ev.target.closest('.pop-swap');
       if (b) {
         bar[Number(b.dataset.j)] = b.dataset.sym;
@@ -609,6 +692,7 @@
     if (e.key === 'Escape') { closePopover(); if (ui.sel) { const l = ui.sel.line; ui.sel = null; renderLine(l); } return; }
     if (typing) return;
     if (e.code === 'Space') { e.preventDefault(); if (ui.playing) stop(); else playSong(); return; }
+    if ((e.key === 'g' || e.key === 'G') && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); newChords(); return; }
     if (!ui.sel) return;
     const ln = sec().lines[ui.sel.line];
     const n = ln && ln.notes[ui.sel.note];
@@ -676,7 +760,7 @@
     const off = (b.barInSec % LINE_BARS) * BAR;
     return ln.notes.filter((n) => n.t >= off && n.t < off + BAR).map((n) => ({ ...n, t: n.t - off }));
   }
-  async function start(meta, { kind, loop = false, countIn = 1, melody = true, drop = false, onEnd = null, line = null }) {
+  async function start(meta, { kind, loop = false, countIn = 1, melody = true, drop = false, onEnd = null, line = null, onBar = null }) {
     await ensureAudio();
     stop();
     if (!meta.length) return;
@@ -684,12 +768,14 @@
     ui.playing = { kind, meta, line };
     band.start({
       bpm: song.bpm, keyPc: song.key, bars: meta, countIn, loop, style: song.style,
-      getBar: (i) => ({ melody: melody ? melodyForBar(meta[i % meta.length]) : null, drop }),
+      getBar: (i) => { if (onBar) onBar(i); return { melody: melody ? melodyForBar(meta[i % meta.length]) : null, drop }; },
       onEnd: () => { const cb = onEnd; stop(); if (cb) cb(); },
     });
     $('songCard').dataset.playing = 'true';
     $('playSong').innerHTML = 'Stop <kbd>Space</kbd>';
     $('loopSection').textContent = kind === 'section' ? 'Stop the loop' : 'Loop this section';
+    $('genJam').setAttribute('aria-pressed', String(kind === 'jam'));
+    $('genJam').textContent = kind === 'jam' ? '■ Stop the jam' : '♾ Jam: new chords every loop';
     if (!frameTimer) frameTimer = setInterval(frame, 33);
   }
   function stop() {
@@ -699,6 +785,8 @@
     $('songCard').dataset.playing = 'false';
     $('playSong').innerHTML = 'Play the song <kbd>Space</kbd>';
     $('loopSection').textContent = 'Loop this section';
+    $('genJam').setAttribute('aria-pressed', 'false');
+    $('genJam').textContent = '♾ Jam: new chords every loop';
     $('npSec').textContent = '';
     $('npChord').textContent = '';
     document.querySelectorAll('#beats i').forEach((b) => b.classList.remove('on'));
@@ -732,7 +820,7 @@
         $('npSec').textContent = ui.playing.kind === 'record' ? 'Get ready…' : 'Count-in';
         $('npChord').textContent = '';
       } else {
-        const idx = ui.playing.kind === 'section' ? pos.bar % meta.length : pos.bar;
+        const idx = ui.playing.kind === 'section' || ui.playing.kind === 'jam' ? pos.bar % meta.length : pos.bar;
         const b = meta[idx];
         if (b) {
           const t = ST.SECTION_TYPES[b.sec];

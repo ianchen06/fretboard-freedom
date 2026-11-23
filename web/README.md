@@ -337,6 +337,7 @@ The tests use synthetic notes, strums and palm-muted chugs, clean and through a 
 A sketchpad for Mandarin ballads (抒情), Mandopop (流行) and rock (摇滚). You pick chords, write lyrics line by line, and the page sets each line to a melody that moves with the tones of the words. A band plays it all back.
 
 - **Song form.** Intro, verse (主歌), pre-chorus (导歌), chorus (副歌), bridge (桥段), outro. *Verse 2*, *Chorus 2* and so on play the same tune with the **2nd-time lyrics**, so you can check that the new words fit the old melody. Add, remove or reset parts in the form strip.
+- **🎲 New chords.** Every click (or <kbd>G</kbd>) writes a new progression for the part, learned from 691 Chinese pop songs. See [The chord generator](#the-chord-generator-new-chords) below.
 - **Chords.** Written as 简谱 numbers (1, 6m, 5/7, ♭7) so they work in any key. Each part starts from a classic progression: 卡农 Canon (with a walking bass), 王道 4536, 1564, 6415, the major-3 heart-tug, the 2345 climb, 4 → 4m, ♭6-♭7-1, and more. Click a chord for swaps (add9, maj7, sus4, slash chords, borrowed chords), each with what it does. Or type your own.
 - **The band** has a groove per style: fingerpicked clean guitar and a pad for ballads, D D U U D U strumming and an 8-beat for Mandopop, palm-muted then open power chords for rock. Verses are lighter than choruses, and the drums fill into the next part. A guide voice (or the lead guitar) sings the melody.
 - **✨ Suggest** writes a melody for a line. It picks a rhythm (with breaths at spaces and commas, and a long last note), then searches the pitches. It favors chord tones on strong beats and steps over leaps. Over a chord from outside the key it sings the chord's note, not the key's: ♯5 over a major 3, ♭6 over 4m, ♭7 over ♭7. The pitch moves the way the tones go from one syllable to the next. It may end a line on a short 拖腔 (melisma). Each click gives a new idea. *Follow the tones* sets how strict it is.
@@ -346,6 +347,54 @@ A sketchpad for Mandarin ballads (抒情), Mandopop (流行) and rock (摇滚). 
 - **押韵 Rhyme.** Each line's last syllable is sorted into one of the 十三辙, the 13 rhyme groups singers use: 发花, 梭波, 江阳, 中东 and the rest. The page labels the rhyme scheme (A, B…) and says whether the line ends on a level (平) or oblique (仄) tone. Each group has a bank of lyric words: click one to put it at the caret.
 - **灵感 Spark** suggests a scene, an object, a feeling and an angle when you're stuck.
 - **Lead sheet.** Shows the whole song as text: chords, 简谱 and lyrics. You can copy it or download it as .txt. **Back up** saves the song as .json, and **Restore** loads it back. Songs are saved in this browser.
+
+### The chord generator (🎲 New chords)
+
+Each click writes a new progression for the part you're editing, as long as the part is. It comes from a model of what real Chinese pop songs do, held to a few rules.
+
+- **🎲 New chords** (or <kbd>G</kbd>) writes one. **‹ Back** and **Forward ›** step through the ones you've had for that part.
+- **♾ Jam** loops the part, and each time round it plays new chords. Hum or play over it and stop when one grabs you: the chords you stop on stay in the song. Your melody keeps playing over the new chords, so it's also a way to hear a tune reharmonized.
+- **🔒 Lock a bar**: click a chord, then *Keep this bar when I ask for new chords*. The generator writes the rest around it, including the bars that lead into it.
+- **Bright 大调 / Wistful 小调** leans on songs in major or minor keys. In the minor mood, half the choruses open on 6m; in the major mood about one in eight do.
+- **Familiar / Balanced / Adventurous** sets how far it strays from the most common moves, and how many chords from outside the key it may use (Familiar allows one per 8 bars).
+- **7ths, sus, add9 / Plain chords**: plain chords turn the colors into triads but keep slash basses (5/7, 1/3).
+- Under the buttons, the page says where the progression has been heard before: *Familiar: the verse of 《九百九十九朵玫瑰》 (邰正宵) has these exact chords, and so do 4 other songs*, or *Fresh: no song in the data shares more than two bars in a row with it*.
+
+**The data.** [POP909](https://github.com/music-x-lab/POP909-Dataset) (Wang et al., ISMIR 2020, MIT license) is 909 Chinese pop songs, with Jay Chou (周杰伦) and JJ Lin (林俊杰) the two artists with the most songs. Dai, Zhang & Dannenberg ([hierarchical-structure-analysis](https://github.com/Dsqvival/hierarchical-structure-analysis), MuMe 2020, MIT) re-aligned its chords to bar lines and labelled every song's structure. `tools/gen-chorddata.py` turns that into `js/chorddata.js` (149 KB): each song's chords bar by bar, in 简谱 degrees (minor keys from their relative major, as on this page), and by part. It keeps the 691 songs that stay in one key and in 4/4. The labelling code says uppercase letters are melodic phrases in order of appearance, X a phrase that doesn't repeat, lowercase parts have no melody, and i and o are the intro and outro. It doesn't say which letter is the chorus, and the paper's host wasn't reachable from here, so we tell from the melody: across the corpus A sits 1.9 semitones below a song's average pitch and B/C 1.2–1.5 above. So A is the verse, the highest repeated phrase after it is the chorus, and a phrase that leads into the chorus is the pre-chorus. To rebuild:
+
+```bash
+git clone --depth 1 https://github.com/music-x-lab/POP909-Dataset
+git clone --depth 1 https://github.com/Dsqvival/hierarchical-structure-analysis
+python3 web/tools/gen-chorddata.py POP909-Dataset hierarchical-structure-analysis > web/js/chorddata.js
+```
+
+**The model** (`js/chordgen.js`) is a Markov chain over bars: the next bar given the part and the two bars before it, backing off to fewer bars and then to the chords of the whole corpus. It uses interpolated absolute discounting (Ney, Essen & Kneser 1994, the smoothing family that Chen & Goodman's 1999 survey found best), and each pattern counts once per song, so a chorus sung four times counts as one habit. We didn't use a neural network. The largest open-source chord generator, [ChordSeqAI](https://github.com/StudentTraineeCenter/chord-seq-ai), trains a transformer on 22,367 songs from Ultimate Guitar, and 691 songs is too few for that. A counted model can also be steered exactly, can say where its chords come from, and runs instantly with no download.
+
+**The rules.**
+- **Locks and endings.** Following Pachet, Roy & Barbieri, *Finite-length Markov processes with constraints* (IJCAI 2011), each step is weighted by how likely the rest of the part can still meet the locks and the endings. Endings mean how phrases and parts end in the data: pre-choruses end on 5 more than other parts do. This is worked out backwards over a one-bar version of the model.
+- **Phrases.** Parts are built from 4-bar phrases, and a second phrase repeats the first one's opening as often as POP909's do. Back-to-back chorus phrases repeat exactly 24% of the time and keep 3, 2 or 1 opening bars 24%, 15% and 13% of the time. Verses are freer.
+- **No copying.** A progression that repeats 6 or more bars of one song in a row is thrown out and written again. This is in the spirit of Papadopoulos, Roy & Pachet, *Avoiding plagiarism in Markov sequence generation* (AAAI 2014).
+- **No standing still.** Three identical bars in a row are avoided outside intros and outros. That happens in only 1% of POP909's choruses.
+
+We read the two Pachet papers as abstracts only; their full text wasn't reachable from here.
+
+**Checked on real songs.** `test/chordgen.test.js` holds songs out of training (5-fold, by song) and measures how well the model predicts their next bar, as perplexity (lower is better):
+
+| Model | Perplexity on unseen songs |
+|---|---|
+| How common each bar is, overall | 58.2 |
+| … in that part of the song | 61.8 |
+| + the bar before | 48.5 |
+| + the two bars before (the generator) | 49.6 |
+| My first version: Witten–Bell, every repeat counted, three bars before | 139 |
+
+The first version got worse the more context it had, and the held-out test caught it. Counting patterns once per song and discounting fixed it. Three bars of context still did slightly worse than two (51.8), so the model uses two, and the phrase rule supplies the longer structure.
+
+Compared with the progression list it adds to: the list's 17 progressions contain the opening 4 bars of **4.1%** of the unseen songs' verses and choruses. 400 generated per part contain **9.3%**, so it reaches more of what real songs do, and it never runs out.
+
+**What didn't work: artist flavors.** We tried leaning the model toward Jay Chou's or JJ Lin's songs. Their chord palettes do differ: Jay Chou uses 4m and a major 6 more than the corpus, JJ Lin uses more 3m and 3m/7. But with 17 and 8 songs in the data, leaning on an artist's other songs never predicted their held-out song better than the whole corpus did. Every strength we tried was worse (perplexity 42.5 → 42.8 for Jay Chou, 87.6 → 88.1 for JJ Lin at the lightest). So the page doesn't offer an artist style, because it wouldn't sound like them. The major/minor mood, with hundreds of songs on each side, does make a difference you can hear.
+
+Run `node web/test/chordgen.test.js` to see these numbers. It takes about 30 seconds.
 
 ### Where the pinyin comes from
 
@@ -479,6 +528,9 @@ Tips:
 | `js/songtheory.js` | 简谱 chords, progressions, swaps, styles and song forms, the melody generator, quantizing, 简谱 text, lead sheet (no DOM) |
 | `js/songband.js` | The song band: ballad, Mandopop and rock grooves, pad, guide voice (extends `band.js`) |
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |
+| `js/chorddata.js`, `tools/gen-chorddata.py` | The chords of 691 Chinese pop songs (POP909, bar-aligned, by part), and the script that generates it |
+| `js/chordgen.js` | The chord progression generator: the Markov model, locks and endings, phrase repeats, the copy check, where a progression comes from (no DOM) |
+| `test/chordgen.test.js` | Data, generator rules, and the model on held-out real songs (perplexity, coverage, mood, artists): `node web/test/chordgen.test.js` |
 | `test/lickgen.test.js` | Library, rules, generator and grader tests: `node web/test/lickgen.test.js` |
 | `test/pitch.test.js` | Detector tests on synthetic plucked strings: `node web/test/pitch.test.js` |
 | `test/polytune.test.js` | Strum all six: every string within 2¢ from one synthetic strum, shared harmonics, far-off strings, drop D, A4 = 442, noise: `node web/test/polytune.test.js` |
