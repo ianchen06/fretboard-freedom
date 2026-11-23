@@ -75,6 +75,17 @@
 .editor > * { min-width: 0; }
 .editor-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1 1 260px; min-width: 0; }
 .editor-tools select { width: 100%; max-width: 340px; min-width: 0; padding: 7px 10px; font-size: 13px; }
+/* the chord generator */
+.gen { display: grid; gap: 8px; padding: 10px 12px; background: #1c1c22; border: 1px solid var(--line); border-radius: 12px; }
+.gen-main, .gen-opts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.gen-opts .seg.seg-sm { flex-wrap: wrap; }
+.gen-nav { display: inline-flex; gap: 10px; margin-left: auto; }
+.gen-nav .link-btn:disabled { opacity: 0.35; cursor: default; }
+.gen-jam[aria-pressed="true"] { border-color: var(--pearl); color: var(--pearl); background: rgba(233, 223, 200, 0.1); }
+.btn kbd { font: 600 10.5px var(--mono); opacity: 0.6; margin-left: 4px; }
+.chord-cell.locked { border-color: var(--line-2); }
+.cc-lock { position: absolute; top: 2px; right: 5px; font-size: 10px; }
+.pop-lock { justify-self: start; }
 .prog-desc { margin: -4px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.5; }
 
 .chords { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 6px; }

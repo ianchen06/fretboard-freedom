@@ -137,13 +137,39 @@
           <select id="progSelect" aria-label="Use a progression"></select>
         </div>
       </div>
+      <div class="gen" id="gen">
+        <div class="gen-main">
+          <button class="btn btn-start btn-sm" id="genChords" type="button" title="Write new chords for this part (G)">🎲 New chords <kbd>G</kbd></button>
+          <button class="btn btn-ghost btn-sm gen-jam" id="genJam" type="button" aria-pressed="false" title="Loop this part with new chords every time round">♾ Jam: new chords every loop</button>
+          <span class="gen-nav">
+            <button class="link-btn" id="genBack" type="button" aria-label="The chords before">‹ Back</button>
+            <button class="link-btn" id="genFwd" type="button" aria-label="The chords after">Forward ›</button>
+          </span>
+        </div>
+        <div class="gen-opts">
+          <div class="seg seg-sm" data-name="genMood" role="radiogroup" aria-label="Mood">
+            <button type="button" data-value="any">Any key</button>
+            <button type="button" data-value="major">Bright 大调</button>
+            <button type="button" data-value="minor">Wistful 小调</button>
+          </div>
+          <div class="seg seg-sm" data-name="genAdv" role="radiogroup" aria-label="How adventurous">
+            <button type="button" data-value="0">Familiar</button>
+            <button type="button" data-value="0.4">Balanced</button>
+            <button type="button" data-value="0.85">Adventurous</button>
+          </div>
+          <div class="seg seg-sm" data-name="genColors" role="radiogroup" aria-label="Chord colors">
+            <button type="button" data-value="1">7ths, sus, add9</button>
+            <button type="button" data-value="0">Plain chords</button>
+          </div>
+        </div>
+      </div>
       <p class="prog-desc" id="progDesc"></p>
 
       <div class="chords" id="chords" aria-label="Chords, one cell per bar"></div>
       <div class="bar-tools">
         <button class="link-btn" id="addBars" type="button">+ 2 bars</button>
         <button class="link-btn" id="removeBars" type="button">− 2 bars</button>
-        <span class="fine-inline">Click a chord to swap it. Two chords in a bar: type them with a comma.</span>
+        <span class="fine-inline">Click a chord to swap it or 🔒 keep it when you ask for new chords. Two chords in a bar: type them with a comma.</span>
       </div>
 
       <div class="lines" id="lines"></div>
@@ -227,6 +253,8 @@
   <script src="js/zh.js?v=1"></script>
   <script src="js/songtheory.js?v=2"></script>
   <script src="js/songband.js?v=2"></script>
-  <script src="js/write-app.js?v=3"></script>
+  <script src="js/chorddata.js?v=1"></script>
+  <script src="js/chordgen.js?v=1"></script>
+  <script src="js/write-app.js?v=4"></script>
 </body>
 </html>
