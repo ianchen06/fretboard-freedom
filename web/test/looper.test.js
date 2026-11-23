@@ -215,6 +215,20 @@ console.log('quantizing');
   check(L.endAt(14.1, 12, bar) === 14, 'an end press just after it ends there too');
   check(L.endAt(14.5, 12, bar) === 16, 'later than the grace: the next bar');
   check(L.endAt(12.3, 12, bar) === 14, 'at least one bar');
+  // start when I play
+  const fs48 = 48000;
+  const first = L.autoStart(100000, { sr: fs48, grid: null });
+  check(first.from === 100000 - 240 && first.t0 === first.from, 'the first loop starts 5 ms before the first note, and the grid with it');
+  const g = { t0: 0, cyc: 96000 };
+  check(L.autoStart(96000 * 3 + 2400, { sr: fs48, grid: g }).from === 96000 * 3, 'a note 50 ms after the bar line starts on that bar');
+  check(L.autoStart(96000 * 3 - 2400, { sr: fs48, grid: g }).from === 96000 * 3, 'a note 50 ms before it starts on the bar line');
+  check(L.autoStart(96000 * 3 + 30000, { sr: fs48, grid: g }).from === 96000 * 4, 'a note mid-bar waits for the next bar');
+  check(L.autoStart(96000 * 3 + 2400, { sr: fs48, grid: g }).t0 === null, 'a running grid is kept');
+  // chain
+  check(L.nextInChain([5, 0, 0, 0], 0) === 1, 'chain: track 1 hands over to 2');
+  check(L.nextInChain([5, 5, 0, 7], 1) === 2, 'chain: skips nothing when the next is empty');
+  check(L.nextInChain([5, 0, 5, 0], 1) === 3, 'chain: skips a track that has a loop');
+  check(L.nextInChain([5, 5, 5, 5], 3) === -1, 'chain: ends after the last track');
   check(L.mixLength([{ len: 3 }, { len: 4 }], 1000) === 12, 'polymeter 3 against 4 comes round after 12');
   check(L.mixLength([{ len: 4, rate: 0.5 }, { len: 4 }], 1000) === 8, '½× doubles a loop’s length');
   check(L.mixLength([{ len: 997 }, { len: 991 }], 5000) === 997, 'capped: the longest loop');

@@ -49,6 +49,35 @@
     return b;
   }
 
+  // ---------- hands-free ----------
+  // "Start when I play": a track waits, armed, and the first pick attack starts it. SooperLooper has
+  // the same idea as its Record Threshold (doc/html/parameters.html: "the audio sample threshold to
+  // begin recording after RECORD is triggered"; doc_commands.html: "the loop recording doesn't
+  // start until the audio data is greater than the threshold"). It compares the raw input level;
+  // we use the attack detector (js/onset.js) instead, so hum, hiss or a string still ringing can't
+  // start it, only a new note. And SooperLooper starts on the crossing sample, with no pre-roll;
+  // we keep the last seconds of input, so we start a hair before the attack. Where it starts,
+  // for an attack heard at loop time tl (frames, latency already off):
+  // - nothing running and no grid yet (the first loop): right at the attack, PREROLL before it, so
+  //   the pick's own noise isn't cut. In Tempo mode the bar grid starts there too: the click and
+  //   the drums come in with you, on your first note.
+  // - a grid already (loops playing, or the click): on a bar line, by the same rule as a press
+  //   (startAt): just after a bar line counts as on it, otherwise the next one.
+  // Returns { from, t0 } where t0 is a new grid origin, or null to keep the grid.
+  const PREROLL = 0.005;
+  function autoStart(tl, { sr, grid, grace = GRACE }) {
+    const pre = Math.round(PREROLL * sr);
+    if (!grid) return { from: tl - pre, t0: tl - pre };
+    return { from: startAt(tl, grid.t0, grid.cyc, grace * sr), t0: null };
+  }
+
+  // Chain mode: when a loop closes, the next empty track after it records. lens: each track's
+  // length (0 = empty). Returns its index, or -1 when there's none left.
+  function nextInChain(lens, i) {
+    for (let j = i + 1; j < lens.length; j++) if (!lens[j]) return j;
+    return -1;
+  }
+
   // ---------- drums ----------
   // A groove is a function (beats per bar) → { spb (steps per beat), hits: [[step, kind, vol]] }.
   // kinds: kick, snare, hat, openHat, stick (the sounds of BandLib.renderDrums).
@@ -388,7 +417,7 @@
     return buf;
   }
 
-  const api = { GRACE, boundaryAtOrBefore, startAt, endAt, GROOVES, fft, chroma, KK_MAJOR, KK_MINOR, findKey, bassNote, confidence, suggest, mixLength, encodeWav };
+  const api = { GRACE, PREROLL, boundaryAtOrBefore, startAt, endAt, autoStart, nextInChain, GROOVES, fft, chroma, KK_MAJOR, KK_MINOR, findKey, bassNote, confidence, suggest, mixLength, encodeWav };
   root.Looper = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -32,6 +32,9 @@
 .lp-track[data-state="rec"] { --st: var(--root); }
 .lp-track[data-state="armed"] { --st: var(--root); }
 .lp-track[data-state="dub"] { --st: var(--third); }
+.lp-track[data-state="listen"] { --st: var(--root); }
+.lp-track[data-state="listen"] .lp-big { animation: lpbreathe 1.4s ease-in-out infinite; }
+.lp-track[data-state="listen"] .lp-st { color: #fca5a5; }
 .lp-track[data-state="play"] { --st: var(--teal); }
 .lp-track.muted .lp-wave { opacity: 0.3; }
 
@@ -55,6 +58,7 @@
 .lp-track[data-state="dub"] .lp-st { color: #fcd34d; }
 .lp-track[data-state="play"] .lp-st { color: #5eead4; }
 @keyframes lpblink { to { border-color: var(--line-2); } }
+@keyframes lpbreathe { 50% { box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.25); } }
 
 .lp-body { display: grid; gap: 8px; min-width: 0; }
 .lp-wave-wrap { position: relative; height: 54px; border-radius: 8px; background: var(--bg); overflow: hidden; }

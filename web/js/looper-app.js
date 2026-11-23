@@ -29,14 +29,15 @@
       try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode: nothing is remembered */ }
     },
   };
-  const trackDefaults = () => ({ vol: 80, pan: 0, echo: 0, room: 20, fb: 1 });
+  const trackDefaults = () => ({ vol: 80, pan: 0, echo: 0, room: 20, fb: 1, bars: 0 }); // bars 0 = as New loops
   const saved = store.get('ff.looper', {});
   const settings = {
-    bpm: 90, beats: 4, mode: 'tempo', length: 0, after: 'play', countIn: true, click: false, drums: 'off', beatVol: 60,
+    bpm: 90, beats: 4, mode: 'tempo', length: 0, start: 'press', after: 'play', countIn: 1, click: false, drums: 'off', beatVol: 60,
     monitor: false, tone: 'clean', recDb: 0, latMs: null, box: 1,
     ...saved,
   };
   settings.tracks = Array.from({ length: TRACKS }, (_, i) => ({ ...trackDefaults(), ...((saved.tracks || [])[i] || {}) }));
+  if (typeof settings.countIn === 'boolean') settings.countIn = settings.countIn ? 1 : 0; // was on/off
   const save = () => store.set('ff.looper', settings);
 
   // ---------- audio ----------
@@ -57,7 +58,10 @@
     return { ms: Math.round(est * 1000), how: 'estimate' };
   }
   const post = (m) => { if (G) G.node.port.postMessage(m); };
-  const sendLat = () => post({ op: 'lat', frames: fr(latency().ms / 1000) });
+  // The worklet records with the last value sent; the page must convert attack times with the same
+  // one (the browser's estimate can drift by a few ms after the audio starts).
+  let latFrames = 0;
+  const sendLat = () => { latFrames = fr(latency().ms / 1000); post({ op: 'lat', frames: latFrames }); };
 
   // The mix: track inputs → volume → pan → master, with sends to a tempo-synced echo and a room.
   // Built the same way live and for the download (an OfflineAudioContext).
@@ -228,18 +232,22 @@
     rec: null, // { from, to } frames, while recording a new loop
     dubFrom: null,
     pendDub: null, // overdub as soon as the recording closes (frame)
+    wait: null, // { from } waiting for the first note ("When I play"), from that frame on
+    chainNext: false, // Free mode's first loop in a chain: start the next track once its length is known
     mute: false, solo: false,
     data: null, pcp: null, rms: 0, // the last dump (the loop's mix of layers) and its analysis
     clearArm: 0,
   }));
   const barFrames = () => fr((settings.beats * 60) / settings.bpm);
+  const barsFor = (i) => settings.tracks[i].bars || settings.length;
   const anyLoop = () => tracks.some((t) => t.info.len > 0 || t.rec);
 
-  // What a track is doing, as the player sees it: empty | armed | rec | play | dub | stopped
+  // What a track is doing, as the player sees it: empty | armed | listen | rec | play | dub | stopped
   function stateOf(i) {
     const t = tracks[i];
     if (!G) return 'empty';
     const now = heardFrame();
+    if (t.wait) return now < t.wait.from ? 'armed' : 'listen';
     if (t.rec && (!t.rec.to || now < t.rec.to)) return now < t.rec.from ? 'armed' : 'rec';
     if (t.info.busy === 'dub') return 'dub';
     if (t.info.len > 0) return running ? 'play' : 'stopped';
@@ -272,6 +280,7 @@
         G.mix.delay.delayTime.value = echoTime();
       }
       if (t.rec) t.rec.to = m.from + m.len;
+      if (t.chainNext) { t.chainNext = false; chain(m.track, LP.startAt(heardFrame(), grid.t0, grid.cyc, LP.GRACE * sr)); }
       renderTracks();
     } else if (m.op === 'dump') {
       t.data = m.data;
@@ -290,21 +299,22 @@
   function requestDump(i) { post({ op: 'dump', track: i }); }
 
   // ---------- the transport ----------
-  // Starts the loops (and the beat) at the next moment, after a count-in bar if asked.
+  // Starts the loops (and the beat) at the next moment, after `countIn` bars if asked, or at frame
+  // `at` (a recording that started on your first note: the grid starts there).
   // Returns the frame the music starts on.
-  function startTransport({ countIn = false } = {}) {
+  function startTransport({ countIn = 0, at = null } = {}) {
     const ctx = engine.ctx;
     const tempo = settings.mode === 'tempo';
     if (tempo && (!grid || !anyLoop())) grid = { t0: 0, cyc: barFrames() };
-    let t0 = fr(ctx.currentTime + 0.12);
-    if (tempo && countIn) t0 += grid.cyc;
-    countInUntil = tempo && countIn ? t0 : 0;
+    let t0 = at != null ? at : fr(ctx.currentTime + 0.12);
+    if (tempo && countIn && at == null) t0 += countIn * grid.cyc;
+    countInUntil = tempo && countIn && at == null ? t0 : 0;
     if (grid && anyLoop()) post({ op: 'shift', frames: t0 - grid.t0 });
     for (const t of tracks) if (t.info.len) t.info.org += t0 - (grid ? grid.t0 : t0);
     if (grid) grid.t0 = t0;
     post({ op: 'play', at: t0 });
     running = true;
-    startBeat(t0, tempo && countIn);
+    startBeat(t0, tempo && at == null ? countIn : 0);
     G.mix.delay.delayTime.value = echoTime();
     render();
     return t0;
@@ -315,9 +325,10 @@
     const at = fr(engine.ctx.currentTime + 0.02);
     for (let i = 0; i < TRACKS; i++) {
       const st = stateOf(i);
-      if (st === 'rec' || st === 'armed') { // a loop that hasn't closed yet: cancel it
-        post({ op: 'undo', track: i });
+      if (st === 'rec' || st === 'armed' || st === 'listen') { // a loop that hasn't closed yet: cancel it
+        if (!tracks[i].wait) post({ op: 'undo', track: i });
         tracks[i].rec = null;
+        tracks[i].wait = null;
       } else if (st === 'dub') post({ op: 'end', track: i, at: heardFrame() });
       tracks[i].pendDub = null;
     }
@@ -332,10 +343,10 @@
   let nextBeat = 0;
   let beatT0 = 0;
   let beatFrom = 0;
-  function startBeat(t0, countIn) {
+  function startBeat(t0, countInBars) {
     stopBeat();
     beatT0 = t0;
-    beatFrom = countIn ? -settings.beats : 0;
+    beatFrom = -countInBars * settings.beats;
     nextBeat = beatFrom;
     const tick = () => {
       const ctx = engine.ctx;
@@ -346,9 +357,10 @@
         const k = nextBeat;
         const t = (beatT0 + k * per) / sr;
         const first = mod(k, settings.beats) === 0;
-        if (tempo && t >= ctx.currentTime - 0.01) {
-          if (k < 0 || settings.click) engine.click(t, first, G.mix.clickBus);
-          if (k >= 0 && first && settings.drums !== 'off') playGroove(G, t, grid.cyc / sr);
+        if (tempo) {
+          if ((k < 0 || settings.click) && t >= ctx.currentTime - 0.01) engine.click(t, first, G.mix.clickBus);
+          // a bar that began a moment ago (the grid started on your first note): its later hits still play
+          if (k >= 0 && first && settings.drums !== 'off') playGroove(G, t, grid.cyc / sr, ctx, G.mix.drumBus, G.drums, ctx.currentTime - 0.005);
         }
         nextBeat++;
       }
@@ -358,12 +370,13 @@
   }
   function stopBeat() { if (beatTimer) clearInterval(beatTimer); beatTimer = null; }
 
-  function playGroove(g, barStart, barSec, ctx = engine.ctx, dest = g.mix.drumBus, drums = g.drums) {
+  function playGroove(g, barStart, barSec, ctx = engine.ctx, dest = g.mix.drumBus, drums = g.drums, notBefore = -Infinity) {
     const groove = LP.GROOVES[settings.drums];
     if (!groove) return;
     const { spb, hits } = groove.make(settings.beats);
     const step = barSec / (settings.beats * spb);
     for (const [s, kind, vol] of hits) {
+      if (barStart + s * step < notBefore) continue;
       const src = ctx.createBufferSource();
       src.buffer = drums[kind];
       const gn = ctx.createGain();
@@ -387,32 +400,39 @@
       return;
     }
     const st = stateOf(i);
-    if (st === 'armed') { post({ op: 'undo', track: i }); tracks[i].rec = null; renderTracks(); return; }
-    if (st === 'empty') { startRecord(i); return; }
+    if (st === 'armed' || st === 'listen') { cancelArm(i); return; }
+    if (st === 'empty') {
+      if (settings.start === 'play') listen(i, heardFrame());
+      else startRecord(i);
+      return;
+    }
     if (st === 'rec') { endRecord(i); return; }
     if (st === 'stopped') { startTransport(); return; }
     if (st === 'play') { startDub(i); return; }
     if (st === 'dub') { post({ op: 'end', track: i, at: heardFrame() }); return; }
   }
 
-  function startRecord(i) {
+  // A recording on track i: from the next bar (a press), or from `at` (the first note, or a chain).
+  function startRecord(i, at = null) {
     const tempo = settings.mode === 'tempo';
     let from;
-    if (!running) {
+    if (at != null) from = at;
+    else if (!running) {
       if (!tempo && !grid) { // the very first loop in Free mode: from right now
         post({ op: 'play', at: 0 });
         running = true;
         from = heardFrame();
       } else {
-        from = startTransport({ countIn: tempo && settings.countIn && !anyLoop() });
+        from = startTransport({ countIn: tempo && !anyLoop() ? settings.countIn : 0 });
       }
     } else if (!grid) from = heardFrame();
     else from = LP.startAt(heardFrame(), grid.t0, grid.cyc, LP.GRACE * sr);
-    const len = settings.length && grid ? settings.length * grid.cyc : 0;
+    const len = barsFor(i) && grid ? barsFor(i) * grid.cyc : 0;
+    tracks[i].wait = null;
     tracks[i].rec = { from, to: len ? from + len : null };
     post({ op: 'rec', track: i, from, len });
-    if (len) afterRecord(i, from + len);
     say('', '', '');
+    if (len) afterRecord(i, from + len);
     renderTracks();
   }
 
@@ -435,7 +455,68 @@
   function afterRecord(i, to) {
     if (settings.after === 'dub') tracks[i].pendDub = to != null ? to : heardFrame();
     else if (settings.after === 'next') select((i + 1) % TRACKS);
+    else if (settings.after === 'chain') {
+      if (to != null) chain(i, to);
+      else tracks[i].chainNext = true; // Free mode's first loop: once its length is known
+    }
   }
+
+  // Chain: the next empty track records from the frame this loop closes (or, "When I play", waits
+  // for your next note from then on).
+  function chain(i, at) {
+    const j = LP.nextInChain(tracks.map((t) => t.info.len || (t.rec || t.wait ? 1 : 0)), i);
+    if (j < 0) { say('ok', 'Chain', 'That was the last empty track. Overdub, or clear a track to keep building.'); return; }
+    select(j);
+    if (settings.start === 'play') listen(j, at);
+    else startRecord(j, at);
+  }
+
+  // ---------- "When I play": the first pick attack starts the recording ----------
+  let onsetsOn = false;
+  async function ensureOnsets() {
+    if (onsetsOn) return;
+    await engine.enableOnsets('js/onset.js?v=1');
+    onsetsOn = true;
+    applyTrigger();
+  }
+  // The attack detector listens above the Input card's noise gate (Auto-set puts it just over the room).
+  function applyTrigger() {
+    if (onsetsOn && engine.tracker) engine.setOnsetParams({ gateDb: engine.tracker.gateDb, refractory: 0.05 });
+  }
+  setInterval(applyTrigger, 500);
+
+  function listen(i, from) {
+    tracks[i].wait = { from };
+    ensureOnsets().catch((err) => say('bad', 'Start when I play', esc(err.message)));
+    if (engine.micOn && mic.inputKind() === 'mic' && (running || settings.drums !== 'off' || settings.click)) {
+      say('warn', 'Headphones', 'With a mic and speakers, the loops or the beat can start the recording by themselves.');
+    } else say('', '', '');
+    renderTracks();
+  }
+
+  function cancelArm(i) {
+    const t = tracks[i];
+    if (!t.wait) post({ op: 'undo', track: i });
+    t.wait = null;
+    t.rec = null;
+    renderTracks();
+  }
+
+  engine.on('onset', (o) => {
+    if (!G) return;
+    const i = tracks.findIndex((t) => t.wait);
+    if (i < 0) return;
+    const tl = fr(o.t) - latFrames; // when you played it, on the loops' clock
+    if (tl < tracks[i].wait.from) return;
+    const tempo = settings.mode === 'tempo';
+    const { from, t0 } = LP.autoStart(tl, { sr, grid: running ? grid : null }); // stopped: the music starts on this note
+    tracks[i].wait = null;
+    if (!running) {
+      if (!tempo && !grid) { post({ op: 'play', at: 0 }); running = true; render(); } // Free: the first loop starts here
+      else startTransport({ at: t0 != null ? t0 : from });
+    }
+    startRecord(i, t0 != null ? t0 : from);
+  });
 
   function startDub(i) {
     if (tracks[i].info.rate !== 1) {
@@ -517,6 +598,7 @@
   const STATE_TEXT = {
     empty: ['Record', 'empty'],
     armed: ['Waiting', 'starts on the bar'],
+    listen: ['Listening', 'starts when you play'],
     rec: ['Recording', 'press to close the loop'],
     play: ['Playing', 'press to overdub'],
     dub: ['Overdub', 'press to stop overdubbing'],
@@ -548,6 +630,8 @@
             <label><span>Pan</span><input type="range" min="-100" max="100" step="5" data-k="pan"></label>
             <label title="A dotted-8th echo, in time with the tempo"><span>Echo</span><input type="range" min="0" max="100" step="1" data-k="echo"></label>
             <label><span>Room</span><input type="range" min="0" max="100" step="1" data-k="room"></label>
+            <label title="This track's length for a new loop (— = as New loops)"><span>Bars</span>
+              <select data-k="bars"><option value="0">—</option><option value="1">1</option><option value="2">2</option><option value="4">4</option><option value="8">8</option></select></label>
             <label title="While you overdub, how much of the old loop stays each pass"><span>Fade</span>
               <select data-k="fb"><option value="1">100%</option><option value="0.9">90%</option><option value="0.75">75%</option><option value="0.5">50%</option></select></label>
           </div>
@@ -578,7 +662,7 @@
           settings.tracks[i][k] = Number(inp.value);
           save();
           if (k === 'fb') post({ op: 'fb', track: i, value: settings.tracks[i].fb });
-          else mixChanged(i);
+          else if (k !== 'bars') mixChanged(i);
         });
       });
     });
@@ -893,7 +977,8 @@
     setSeg('lpModeSeg', settings.mode);
     setSeg('lpLenSeg', String(settings.length));
     setSeg('lpAfterSeg', settings.after);
-    $('lpCountIn').setAttribute('aria-pressed', String(settings.countIn));
+    setSeg('lpStartSeg', settings.start);
+    $('lpCountIn').value = String(settings.countIn);
     $('lpClick').setAttribute('aria-pressed', String(settings.click));
     $('lpDrums').value = settings.drums;
     const tempo = settings.mode === 'tempo';
@@ -940,7 +1025,13 @@
   seg('lpAfterSeg', (v) => { settings.after = v; save(); render(); });
   seg('lpToneSeg', (v) => { settings.tone = v; save(); applyMonitor(); });
   seg('lpBoxSeg', (v) => { settings.box = Number(v); save(); renderBoard(); });
-  $('lpCountIn').addEventListener('click', () => { settings.countIn = !settings.countIn; save(); render(); });
+  $('lpCountIn').addEventListener('change', (e) => { settings.countIn = Number(e.target.value); save(); render(); });
+  seg('lpStartSeg', (v) => {
+    settings.start = v;
+    save();
+    if (v === 'play' && G) ensureOnsets().catch((err) => say('bad', 'Start when I play', esc(err.message)));
+    render();
+  });
   $('lpClick').addEventListener('click', () => { settings.click = !settings.click; save(); render(); });
   $('lpDrums').addEventListener('change', (e) => { settings.drums = e.target.value; save(); render(); });
   $('lpBeatVol').addEventListener('input', (e) => { settings.beatVol = Number(e.target.value); save(); applyBeatVol(); });
