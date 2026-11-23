@@ -101,6 +101,7 @@
           <div class="toggles">
             <button class="chip-btn" id="clickBtn" type="button" aria-pressed="true" title="Metronome (M)">Click</button>
             <button class="chip-btn" id="backBtn" type="button" aria-pressed="true" title="Drone or chords (D)" hidden>Backing</button>
+            <button class="chip-btn" id="mgBtn" type="button" title="Generate an AI backing track for this exercise">🎵 AI track</button>
           </div>
           <div class="nav-btns">
             <button class="btn btn-ghost" id="prevBtn" type="button" title="Previous exercise (P)" aria-label="Previous exercise">←</button>
@@ -157,6 +158,24 @@
         <button class="btn btn-mic" id="micBtn" type="button">Enable microphone</button>
         <p class="fine" id="micNote">Headphones help: the click and the backing are in the guitar’s range.</p>
       </div>
+    </section>
+
+    <section class="card mg-panel" id="mgPanel" hidden>
+      <div class="card-kicker">AI 伴奏 · Practice track</div>
+      <h3 class="tool-title">A groove for this exercise, from the on-device model</h3>
+      <p class="fine" id="mgStatus">MusicGen (Meta) runs on your device. First use downloads about 1 GB and caches it; the track is a jam track in this exercise's style and tempo — it will not be exactly in key or exactly at tempo. Use headphones: the track is in the guitar's range, like the built-in backing.</p>
+      <div class="timer-bar" id="mgProg" hidden><div class="timer-fill" id="mgProgBar"></div></div>
+      <div class="mg-controls">
+        <div class="seg" id="mgDur" data-name="mgdur" role="radiogroup" aria-label="Track length">
+          <button type="button" data-value="10">10 s</button>
+          <button type="button" data-value="20">20 s</button>
+        </div>
+        <button class="btn" id="mgGen" type="button">Generate</button>
+        <button class="btn" id="mgPlay" type="button" hidden>▶ Play</button>
+        <button class="btn btn-ghost" id="mgDl" type="button" hidden>Download WAV</button>
+        <button class="link-btn" id="mgClose" type="button">Close</button>
+      </div>
+      <p class="fine" id="mgPrompt"></p>
     </section>
 
     <section class="card board-card lane-card" id="laneCard" hidden>
@@ -320,6 +339,7 @@
   <script src="js/seqtab.js?v=3"></script>
   <script src="js/technique.js?v=1"></script>
   <script src="js/stand.js?v=1"></script>
+  <script src="js/musicgen.js?v=1"></script>
   <script src="js/session-app.js?v=6"></script>
 </body>
 </html>

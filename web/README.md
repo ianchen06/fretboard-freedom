@@ -538,6 +538,7 @@ Tips:
 | `js/pinyin-data.js`, `tools/gen-pinyin.swift` | Pinyin and tone for every common character, and the script that generates it |
 | `js/zh.js` | Mandarin lyric helpers: syllables, word readings, tone sandhi, 十三轍 rhyme groups and word banks, the tone/melody judge (no DOM) |
 | `js/llm.js`, `js/llm-worker.js` | In-browser lyric partner: Qwen2.5-1.5B-Instruct via Transformers.js in a module worker, prompt building, line cleaning, tone/rhyme/count scoring of drafted lines (scoring is pure, so the tests run it in Node) |
+| `js/musicgen.js`, `js/musicgen-worker.js` | In-browser backing tracks: MusicGen-small via Transformers.js in a module worker, prompt builders for the write page (style, key, tempo) and the session page (exercise skill, tempo, key), a one-clip player (play/stop/WAV download), 16-bit PCM WAV encoding (prompt building, token math and WAV encoding are pure, so the tests run them in Node) |
 | `js/songtheory.js` | 簡譜 chords, progressions, swaps, styles and song forms, the melody generator, quantizing, 簡譜 text, lead sheet (no DOM) |
 | `js/songband.js` | The song band: ballad, Mandopop and rock grooves, pad, guide voice (extends `band.js`) |
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |

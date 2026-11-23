@@ -64,6 +64,13 @@ Each option below is a new dependency or download, so each needs a deliberate ye
 - Whether ACE-Step's cover mode can be steered by the app's own guide-voice audio is untested.
 - The export format (an OpenUtau project or MIDI with lyrics) is to be settled when building.
 
+## 2b. In-browser music generation (checked 2026-11-23, built 2026-11-23)
+
+- **MusicGen small (Meta) via Transformers.js — BUILT.** `Xenova/musicgen-small` is the ONNX port, with documented Transformers.js use (`MusicgenForConditionalGeneration`, q8 weights ~1 GB) and a live in-browser demo (Xenova/musicgen-web). Text prompt in, instrumental audio out; 0.3B parameters, short clips, slow autoregressive generation. It invents from a prompt — it cannot play your chords or melody, and it has no vocals. The Hub lists no license on either the Xenova or the facebook repo; MusicGen's original release was non-commercial, so read the card before using outputs in a release. Same worker pattern as the lyric partner: `js/musicgen.js` + `js/musicgen-worker.js`, with a `Player` (play/stop/WAV download), prompt builders for the write page (style, key, tempo) and the session page (exercise skill, tempo, key), and `web/test/musicgen.test.js`. Wired into both pages: a 🎵 Backing track button on the write page (a sketch in the song's style and tempo) and a 🎵 AI track chip on the session page (a practice groove for the current exercise; playing it stops the built-in backing). The MusicGen Melody variant (an audio prompt that steers the melody) has **no ONNX port** — `Xenova/musicgen-melody` does not exist on the Hub (checked 2026-11-23) — so this build is text prompts only.
+- **Magenta.js (Google).** MusicVAE / MusicRNN (melody, trio, drums) in TensorFlow.js, small checkpoints, fast — but symbolic (MIDI), not audio; old and effectively unmaintained; trained on Western MIDI with no Mandarin tone awareness (already in "skipped" below). The rule generator in `songtheory.js` already does tone-correct melodies better for this app.
+
+What does not exist in-browser: full songs with vocals (ACE-Step, YuE, Suno need a GPU or an API) or singing your exact melody (DiffSinger is desktop).
+
 ## 3. Play along with real songs
 
 | Project | What it does | License | Runs |

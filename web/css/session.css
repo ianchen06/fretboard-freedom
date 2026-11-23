@@ -222,3 +222,8 @@
 /* ---------- stand mode: the session's parts (the shared layout is in style.css) ---------- */
 body.stand #prevBtn,
 body.stand .rate { display: none !important; }
+
+/* ---------- AI practice track (MusicGen) ---------- */
+.mg-panel { margin-top: 14px; }
+.mg-panel .timer-bar { margin: 10px 0 4px; }
+.mg-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }

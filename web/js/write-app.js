@@ -844,6 +844,93 @@
   $('aiMore').addEventListener('click', () => { if (aiState.line != null) aiWords(aiState.line); });
   $('aiClose').addEventListener('click', () => { $('aiPanel').hidden = true; });
 
+  // ---------- backing track (MusicGen) ----------
+  // A short instrumental sketch in the song's style, key and tempo. The model invents
+  // the track from a text prompt, so it will not follow the song's chords or melody.
+  let mgPlayer = null;
+  let mgBusy = false;
+  let mgSeconds = 10;
+  let mgTimer = null;
+
+  function mgSetPlayLabel() {
+    const b = $('mgPlay');
+    b.textContent = mgPlayer && mgPlayer.playing ? '■ Stop' : '▶ Play';
+  }
+  function mgStopTimer() { if (mgTimer) { clearInterval(mgTimer); mgTimer = null; } }
+
+  async function mgGenerate() {
+    if (mgBusy) { toast('The track is already generating — give it a moment.'); return; }
+    if (!window.MusicGen || !MusicGen.isSupported()) { toast('This browser cannot run the in-browser model.'); return; }
+    mgBusy = true;
+    const panel = $('mgPanel'), status = $('mgStatus'), prog = $('mgProg'), bar = $('mgProgBar');
+    panel.hidden = false;
+    $('mgPlay').hidden = true;
+    $('mgDl').hidden = true;
+    if (mgPlayer) mgPlayer.stop();
+    mgSetPlayLabel();
+    status.textContent = 'Starting the model…';
+    prog.hidden = true; bar.style.width = '0%';
+    $('mgPrompt').textContent = '';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const prompt = MusicGen.buildWritePrompt({ style: song.style, bpm: song.bpm, keyPc: keyPc() });
+    const startedAt = Date.now();
+    const onProgress = (p) => {
+      if (p.status === 'progress') {
+        prog.hidden = false;
+        bar.style.width = `${Math.round(p.progress || 0)}%`;
+        status.textContent = `Downloading the model (${Math.round(p.progress || 0)}%): ${p.file || ''} — about 1 GB on first use, cached after.`;
+      } else if (p.status === 'done') {
+        status.textContent = 'Model ready — generating the track…';
+      }
+    };
+    const onGenerating = () => {
+      prog.hidden = true;
+      status.textContent = `Generating ${mgSeconds} seconds of audio — this takes a while, about a minute on most machines.`;
+      mgStopTimer();
+      mgTimer = setInterval(() => {
+        const s = Math.floor((Date.now() - startedAt) / 1000);
+        status.textContent = `Generating ${mgSeconds} seconds of audio — ${s}s in, about a minute on most machines.`;
+      }, 1000);
+    };
+    try {
+      const track = await MusicGen.generate(prompt, { seconds: mgSeconds, onProgress, onGenerating });
+      mgStopTimer();
+      prog.hidden = true;
+      if (!mgPlayer) {
+        mgPlayer = new MusicGen.Player();
+        mgPlayer.onended = mgSetPlayLabel;
+      }
+      mgPlayer.setTrack(track);
+      $('mgPlay').hidden = false;
+      $('mgDl').hidden = false;
+      mgSetPlayLabel();
+      status.textContent = `Ready — ${mgSeconds} seconds, ${song.bpm} bpm. A sketch: it will not follow your chords or melody exactly.`;
+      $('mgPrompt').textContent = `Prompt: ${prompt}`;
+    } catch (err) {
+      mgStopTimer();
+      prog.hidden = true;
+      status.textContent = `The model could not run: ${err && err.message ? err.message : err}`;
+    } finally {
+      mgBusy = false;
+    }
+  }
+  $('mgBtn').addEventListener('click', mgGenerate);
+  $('mgGen').addEventListener('click', mgGenerate);
+  $('mgPlay').addEventListener('click', () => {
+    if (!mgPlayer) return;
+    if (mgPlayer.playing) { mgPlayer.stop(); mgSetPlayLabel(); return; }
+    stop(); // the band would clash with the track.
+    mgPlayer.play();
+    mgSetPlayLabel();
+  });
+  $('mgDl').addEventListener('click', () => {
+    if (!mgPlayer) return;
+    const slug = (song.title || 'backing-track').replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'backing-track';
+    mgPlayer.download(`${slug}.wav`);
+  });
+  $('mgClose').addEventListener('click', () => { if (mgPlayer) mgPlayer.stop(); $('mgPanel').hidden = true; });
+  bindSeg('mgdur', () => mgSeconds, (v) => { mgSeconds = Number(v); });
+
   // ---------- playback ----------
   // Bars to play, each with what the band needs: chords, the part's role, and where it sits.
   function barsFor(entries) {

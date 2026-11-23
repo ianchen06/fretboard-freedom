@@ -246,6 +246,8 @@
 
 /* ---------- AI lyric partner ---------- */
 .ai-panel { margin-top: 14px; }
+.mg-panel { margin-top: 14px; }
+.mg-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .ai-prog { height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; margin: 10px 0 4px; }
 .ai-prog-bar { height: 100%; width: 0%; background: var(--t2); transition: width .2s; }
 .ai-cands { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }

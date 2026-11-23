@@ -75,6 +75,7 @@
         <div class="transport">
           <button class="btn btn-start" id="playSong" type="button">Play the song <kbd>Space</kbd></button>
           <button class="btn btn-ghost" id="loopSection" type="button">Loop this section</button>
+          <button class="btn btn-ghost" id="mgBtn" type="button" title="Generate a short AI backing track in this song's style and tempo">🎵 Backing track</button>
           <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
           <div class="now-playing" id="nowPlaying"><span class="np-sec" id="npSec"></span><span class="np-chord" id="npChord"></span></div>
         </div>
@@ -205,6 +206,24 @@
           <button class="link-btn" id="aiClose" type="button">Close</button>
         </div>
       </div>
+
+      <div class="card panel mg-panel" id="mgPanel" hidden>
+        <div class="card-kicker">AI 伴奏 · Backing track</div>
+        <h3 class="tool-title">A band for this song, from the on-device model</h3>
+        <p class="fine" id="mgStatus">MusicGen (Meta) runs on your device. First use downloads about 1 GB and caches it; the track is a sketch in your song's style and tempo — it will not follow your chords or melody exactly.</p>
+        <div class="ai-prog" id="mgProg" hidden><div class="ai-prog-bar" id="mgProgBar"></div></div>
+        <div class="mg-controls">
+          <div class="seg seg-sm" id="mgDur" data-name="mgdur" role="radiogroup" aria-label="Track length">
+            <button type="button" data-value="10">10 s</button>
+            <button type="button" data-value="20">20 s</button>
+          </div>
+          <button class="btn btn-sm" id="mgGen" type="button">Generate</button>
+          <button class="btn btn-sm" id="mgPlay" type="button" hidden>▶ Play</button>
+          <button class="btn btn-sm btn-ghost" id="mgDl" type="button" hidden>Download WAV</button>
+          <button class="link-btn" id="mgClose" type="button">Close</button>
+        </div>
+        <p class="fine" id="mgPrompt"></p>
+      </div>
     </section>
 
     <section class="tools-row">
@@ -269,6 +288,7 @@
   <script src="js/chorddata.js?v=1"></script>
   <script src="js/chordgen.js?v=1"></script>
   <script src="js/llm.js?v=1"></script>
+  <script src="js/musicgen.js?v=1"></script>
   <script src="js/write-app.js?v=4"></script>
 </body>
 </html>
