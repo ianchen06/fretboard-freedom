@@ -984,6 +984,7 @@
   });
 
   // ---------- the input card ----------
+  const MIC_NOTE = $('micNote').innerHTML;
   const mic = window.MicPanel.setup(engine, {
     store,
     quietOption: false,
@@ -991,6 +992,11 @@
       if (kind) {
         try { await ensureAudio(); } catch (err) { say('bad', 'Audio', esc(err.message)); }
       }
+      // the shared card writes the practice pages' note about pitch grading here: put ours back
+      $('micNote').innerHTML = kind === 'mic'
+        ? '<b>Wear headphones.</b> A mic hears the loops coming out of the speakers, and each overdub would record them again.'
+        : kind ? 'A guitar straight into the interface records cleanest. Its loopback must be off, or the loops record themselves.'
+          : MIC_NOTE;
       applyMonitor();
       renderLat();
       sendLat();
