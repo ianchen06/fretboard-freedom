@@ -75,7 +75,7 @@ Build: `cd build && node build.js --deck theory` → `Fretboard-Freedom-Theory-I
 45. **The tritone engine**: 3 and ♭7 of V7 resolving inward
 46. **Root motion**: by 5th, by 3rd, by step
 47. **Cadences**: authentic, half, plagal, deceptive, plus rock cadences
-48. **Progression templates**: pop, rock, jazz and Mandopop (Roman numerals with 简谱 numbers)
+48. **Progression templates**: pop, rock, jazz and Mandopop (Roman numerals with 簡譜 numbers)
 49. **The blues: its own system**: dominant 7 tonic, 12-bar map, why the rules bend
 50. **Voice leading on the guitar**: common tones, steps, smallest motion
 51. **Exercises on paper** (light)

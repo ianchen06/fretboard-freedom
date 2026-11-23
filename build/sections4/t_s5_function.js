@@ -29,7 +29,7 @@ function numeralsIn(key, names) {
     return c.numeral;
   }).join('–');
 }
-// 简谱 digits to chord names in a key: digits('1564', 'A') -> 'A–E–F♯m–D'.
+// 簡譜 digits to chord names in a key: digits('1564', 'A') -> 'A–E–F♯m–D'.
 function digitsTo(key, digits, size = 3) {
   const ch = T.diatonicChords(key, 'major', size);
   return [...digits].map((d) => ch[Number(d) - 1].name).join('–');
@@ -70,7 +70,7 @@ In this part you will:
 • Sort chords by job, and see why chords that share notes share jobs.
 • Compare root motions: why falling 5ths sound strong and stepwise motion sounds fresh.
 • Learn the cadences, the punctuation marks of music.
-• Learn a set of progression templates, including the ones that drive Mandopop and J-pop ballads, in Roman numerals and 简谱 numbers.
+• Learn a set of progression templates, including the ones that drive Mandopop and J-pop ballads, in Roman numerals and 簡譜 numbers.
 • See why the blues breaks these rules and still works.
 • Voice-lead progressions on the top strings so the chords connect smoothly.
 
@@ -313,7 +313,7 @@ Common mistake: calling any ending on I "authentic". F → C is plagal and B♭ 
       kicker: K, title: 'Progression templates',
       notes: `Most songs reuse a small set of progression templates. Learn them as numbers, not chord names, and you can play them in any key on the spot.
 
-Two number systems are on this slide. Roman numerals (I, ii, IV...) show quality: upper case is major, lower case is minor. 简谱 (jianpu) numbers are what Chinese-speaking musicians use: the chord is named by its scale degree, 1 to 7, and the quality is understood from the key. "6415" means vi–IV–I–V. Nashville numbers work the same way. When a bandmate says "4536251 in G", you should be able to play it without thinking.
+Two number systems are on this slide. Roman numerals (I, ii, IV...) show quality: upper case is major, lower case is minor. 簡譜 (jianpu) numbers are what Chinese-speaking musicians use: the chord is named by its scale degree, 1 to 7, and the quality is understood from the key. "6415" means vi–IV–I–V. Nashville numbers work the same way. When a bandmate says "4536251 in G", you should be able to play it without thinking.
 
 The pop and rock templates:
 • 1564 (I–V–vi–IV) and its rotation 6415 (vi–IV–I–V): the same four chords. Starting on vi makes it sound sadder.
@@ -322,9 +322,9 @@ The pop and rock templates:
 • 251 (ii–V–I): the jazz cadence, the strongest pull home.
 
 The Mandopop and J-pop templates:
-• 王道进行, the "royal road" (IV–V–iii–vi): starts away from home and never lands on I. That's the yearning sound of many choruses.
+• 王道進行, the "royal road" (IV–V–iii–vi): starts away from home and never lands on I. That's the yearning sound of many choruses.
 • 4536251 (IV–V–iii–vi–ii–V–I): the royal road continued by a circle of 5ths (vi–ii–V–I) until it finally resolves. It's a chorus workhorse.
-• 卡农进行, the Canon (I–V–vi–iii–IV–I–IV–V): from Pachelbel's Canon. The bass walks down by steps, which makes it great for ballads.
+• 卡農進行, the Canon (I–V–vi–iii–IV–I–IV–V): from Pachelbel's Canon. The bass walks down by steps, which makes it great for ballads.
 
 Notice the colors. The royal road begins on predominant chords and ends on tonic vi, never on I. The Canon is mostly tonic and dominant, so it feels settled.
 
@@ -341,11 +341,11 @@ Try it now: play 4536251 in C (top row), then in G and D, saying the numbers alo
       ['50s ballad', '1645', 'Classic, nostalgic'],
       ['Three-chord rock', '145', 'Blues, punk, country'],
       ['Jazz cadence (7ths)', '251', 'The strongest pull home'],
-      ['Royal road 王道进行', '4536', 'Yearning, never on I'],
+      ['Royal road 王道進行', '4536', 'Yearning, never on I'],
       ['4536251', '4536251', 'Royal road, resolved'],
-      ['Canon 卡农进行', '15634145', 'Stepwise bass; ballads'],
+      ['Canon 卡農進行', '15634145', 'Stepwise bass; ballads'],
     ];
-    const rows = [['Template', 'Numerals', '简谱', 'In C', 'Sound']];
+    const rows = [['Template', 'Numerals', '簡譜', 'In C', 'Sound']];
     for (const [name, dg, feel] of tmpl) {
       const size = name.includes('7ths') ? 4 : 3;
       const chs = T.diatonicChords('C', 'major', size);

@@ -79,7 +79,7 @@ On an M-series Mac a tip takes about 9–12 s; in the simulator, about 30 s. It 
 
 1. **Weekly review.** Foundation Models with a `Tool` that reads the learner model and practice log: what improved, what's stuck, and what to change.
 2. **Hands-free control.** On-device speech (`SpeechAnalyzer`) for "slower", "again" and "next box" while both hands are on the guitar.
-3. **Lyric partner for 写歌.** Foundation Models suggests lines; the tone and rhyme checker (a port of `zh.js`) filters them, as in `AI-OPTIONS.md`.
+3. **Lyric partner for 寫歌.** Foundation Models suggests lines; the tone and rhyme checker (a port of `zh.js`) filters them, as in `AI-OPTIONS.md`.
 4. **Hearing chords.** Spotify's Basic Pitch (Apache-2.0) converted to Core ML on the Neural Engine, to check strummed chords on the Rhythm page.
 5. **Watching your hands.** Vision's hand-pose request (built in, no MediaPipe) on the front camera: thumb creeping over the neck, fingers lifting far off the strings.
 6. **Neural amp.** The NAM core (C++, MIT) compiled natively in place of the WebAssembly build.

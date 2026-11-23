@@ -16,7 +16,7 @@ enum PracticeModule: String, CaseIterable, Identifiable, Hashable {
     case .licks: "Call & response"
     case .rhythm: "Rhythm"
     case .session: "Daily session"
-    case .songwriting: "Song writing 写歌"
+    case .songwriting: "Song writing 寫歌"
     }
   }
 
