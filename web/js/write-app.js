@@ -23,6 +23,33 @@
   const savePrefs = () => store.set('ff.write', prefs);
 
   const lib = store.get('ff.songs', null) || { current: null, songs: {} };
+
+  // One-time migration: the demo song created before the Simplified→Traditional
+  // conversion (2026-11-23) was saved to this browser with Simplified lyrics.
+  // Swap those exact demo lines to Traditional; anything the user wrote is left
+  // alone. Idempotent: after the swap nothing matches anymore.
+  const DEMO_S2T = {
+    '路灯一盏一盏 亮起来': '路燈一盞一盞 亮起來',
+    '我在老地方 等你回来': '我在老地方 等你回來',
+    '风吹过空荡荡的站台': '風吹過空蕩蕩的站臺',
+    '说好的明天 还在不在': '說好的明天 還在不在',
+    '如果时间 可以倒带': '如果時間 可以倒帶',
+    '我会不会 勇敢一点说爱': '我會不會 勇敢一點說愛',
+    '在你听不见的 角落': '在你聽不見的 角落',
+    '舍不得': '捨不得',
+  };
+  let demoMigrated = false;
+  for (const s of Object.values(lib.songs || {})) {
+    for (const sec of Object.values(s.sections || {})) {
+      for (const ln of sec.lines || []) {
+        (ln.lyrics || []).forEach((w, i) => {
+          if (w && DEMO_S2T[w]) { ln.lyrics[i] = DEMO_S2T[w]; demoMigrated = true; }
+        });
+      }
+    }
+  }
+  if (demoMigrated) store.set('ff.songs', lib);
+
   const uid = () => Math.random().toString(36).slice(2, 10);
   let saveTimer = null;
   function save() {
