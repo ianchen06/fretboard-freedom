@@ -34,7 +34,10 @@
       sensitivity: shared.sensitivity, deviceId: shared.deviceId, channel: shared.channel, outputId: shared.outputId, a4: shared.a4, quiet: shared.quiet,
     });
     engine.channel = shared.channel;
-    engine.setQuiet(shared.quiet);
+    // Quiet mode is the practice pages' setting. A page without the switch (quietOption false: the
+    // Tuner, the Looper, Pickup height) always hears the plain input; shared.quiet is kept for the others.
+    const quietOn = () => quietOption && shared.quiet;
+    engine.setQuiet(quietOn());
     engine.outputId = engine.canPickOutput ? shared.outputId : '';
 
     const applySensitivity = () => {
@@ -55,7 +58,7 @@
     async function setQuiet(on) {
       shared.quiet = !!on;
       save();
-      engine.setQuiet(shared.quiet);
+      engine.setQuiet(quietOn());
       if (has('quietChk')) $('quietChk').checked = shared.quiet;
       root.dispatchEvent(new CustomEvent('ff:quiet', { detail: shared.quiet }));
       if (engine.micOn) await autoCalibrate();
@@ -218,7 +221,7 @@
       btn.disabled = true;
       const noise = await engine.measureNoise(0.8);
       // A quiet guitar is only a few dB over the (filtered) hiss; its pitch checks are what keep noise out.
-      const gate = Math.min(-32, Math.max(-68, noise + (shared.quiet ? root.Pitch.QUIET : root.Pitch.NORMAL).gateMargin));
+      const gate = Math.min(-32, Math.max(-68, noise + (quietOn() ? root.Pitch.QUIET : root.Pitch.NORMAL).gateMargin));
       shared.sensitivity = gateToSens(gate);
       $('sens').value = shared.sensitivity;
       save();
@@ -451,7 +454,7 @@
       return shared.a4;
     };
 
-    return { enable, disable, inputKind, show, a4: () => shared.a4, setA4, A4_MIN, A4_MAX, quiet: () => shared.quiet, setQuiet };
+    return { enable, disable, inputKind, show, a4: () => shared.a4, setA4, A4_MIN, A4_MAX, quiet: quietOn, setQuiet };
   }
 
   root.MicPanel = { setup, kindOf };

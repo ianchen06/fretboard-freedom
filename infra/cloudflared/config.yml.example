@@ -1,8 +1,0 @@
-# Copy to ~/.cloudflared/config.yml after creating the tunnel (see infra/README.md).
-# Never commit the real file or the tunnel credentials (~/.cloudflared/*.json).
-tunnel: <TUNNEL_ID>
-credentials-file: /home/ubuntu/.cloudflared/<TUNNEL_ID>.json
-ingress:
-  - hostname: ai.<your-domain>
-    service: http://127.0.0.1:8000
-  - service: http_status:404

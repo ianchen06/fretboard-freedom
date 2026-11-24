@@ -96,11 +96,11 @@
   function applyDetector() {
     if (!onsetReady) return;
     const p = { threshold: hitThreshold() };
-    if (engine.tracker) { p.gateDb = engine.tracker.gateDb; lastGate = p.gateDb; }
+    if (engine.tracker) { p.gateDb = engine.onsetGateDb(); lastGate = p.gateDb; }
     if (cur) p.refractory = refractoryFor(cur.pattern, run ? run.bpm : cur.bpm);
     engine.setOnsetParams(p);
   }
-  setInterval(() => { if (onsetReady && engine.tracker && engine.tracker.gateDb !== lastGate) applyDetector(); }, 500);
+  setInterval(() => { if (onsetReady && engine.tracker && engine.onsetGateDb() !== lastGate) applyDetector(); }, 500);
 
   // ---------- timing offset (latency) ----------
   const estLatency = () => (engine.ctx ? (engine.ctx.outputLatency || engine.ctx.baseLatency || 0.01) + 0.015 : 0.03);

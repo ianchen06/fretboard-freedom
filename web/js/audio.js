@@ -341,6 +341,15 @@
     // Detector settings: { gateDb, threshold, refractory, reset }.
     setOnsetParams(p) { if (this.onsetNode) this.onsetNode.port.postMessage(p); }
 
+    // The Hearing card's noise gate for the onset detector. The tracker's gate is set on pitchIn, which in
+    // quiet mode is a band-passed copy boosted by QUIET.boostDb; the onset detector hears the untouched
+    // input, so it gets the gate without the boost. (Passing the tracker's gate as it is put the onset
+    // gate ~20 dB over a quiet guitar, and every attack was dropped as too quiet.)
+    onsetGateDb() {
+      if (!this.tracker) return null;
+      return this.tracker.gateDb - (this.quiet ? QUIET.boostDb : 0);
+    }
+
     // Average input level over `seconds`, in dBFS: used to set the noise gate above the room's hiss.
     measureNoise(seconds = 0.6) {
       return new Promise((resolve) => {
