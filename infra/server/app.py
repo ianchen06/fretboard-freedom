@@ -249,7 +249,8 @@ class MusicGenONNX:
                 **past,
             }
             if use_cache_name is not None:
-                feed[use_cache_name] = np.array(use_cache, dtype=bool)
+                # The merged model expects a rank-1 bool (shape [1]).
+                feed[use_cache_name] = np.array([use_cache], dtype=bool)
             if not past:
                 # First step: no KV cache yet. The graph still requires its
                 # past_key_values inputs, so feed empty (seq_len 0) tensors.
