@@ -129,7 +129,7 @@
       if (!s) return;
       const y = this.y(s);
       const { bx, labelW, hasOpen } = this.geom;
-      el('rect', { x: hasOpen ? labelW : bx, y: y - this.geom.sp / 2 + 3, width: 1000 - 8 - (hasOpen ? labelW : bx), height: this.geom.sp - 6, class: 'fb-band', rx: 4 }, this.highlightLayer);
+      el('rect', { x: hasOpen ? labelW : bx, y: y - this.geom.sp / 2 + 3, width: this.width - 8 - (hasOpen ? labelW : bx), height: this.geom.sp - 6, class: 'fb-band', rx: 4 }, this.highlightLayer);
       el('line', { x1: hasOpen ? labelW + 4 : bx, y1: y, x2: this.width - 8, y2: y, class: 'fb-glow', filter: 'url(#glow)' }, this.highlightLayer);
     }
 

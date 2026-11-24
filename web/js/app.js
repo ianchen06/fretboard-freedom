@@ -24,7 +24,9 @@
   };
   const settings = { ...DEFAULTS, ...store.get('ff.settings', {}) };
   // The input settings in ff.settings belong to the Hearing card (micpanel.js): keep its values.
-  const INPUT_KEYS = ['sensitivity', 'deviceId', 'channel', 'outputId'];
+  // These are every key micpanel.js saves; `settings` holds the copies from page load, which go stale
+  // as soon as the card changes one (Unplugged guitar, the A4 reference).
+  const INPUT_KEYS = ['sensitivity', 'deviceId', 'channel', 'outputId', 'a4', 'quiet'];
   const saveSettings = () => {
     const saved = store.get('ff.settings', {});
     const out = { ...saved, ...settings };

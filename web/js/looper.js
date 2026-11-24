@@ -336,7 +336,7 @@
       for (let h = 1; h <= 5; h++) sc += 0.84 ** (h - 1) * at(h * f0);
       if (!best || sc > best.sc) { if (best) second = Math.max(second, best.sc); best = { m, sc }; } else second = Math.max(second, sc);
     }
-    if (!best || !best.sc || best.sc < 1.1 * second) return best && best.sc ? mod12(best.m) : null;
+    if (!best || !best.sc || best.sc < 1.1 * second) return null; // no clear winner: no tie-break for findKey
     return mod12(best.m);
   }
 

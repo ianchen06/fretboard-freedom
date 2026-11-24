@@ -481,7 +481,7 @@
   }
   // The attack detector listens above the Input card's noise gate (Auto-set puts it just over the room).
   function applyTrigger() {
-    if (onsetsOn && engine.tracker) engine.setOnsetParams({ gateDb: engine.tracker.gateDb, refractory: 0.05 });
+    if (onsetsOn && engine.tracker) engine.setOnsetParams({ gateDb: engine.onsetGateDb(), refractory: 0.05 });
   }
   setInterval(applyTrigger, 500);
 

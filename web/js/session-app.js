@@ -38,11 +38,38 @@
   const settings = { ...DEFAULTS, ...store.get('ff.session.settings', {}) };
   const saveSettings = () => store.set('ff.session.settings', settings);
 
-  let learner = new G.Learner(store.get('ff.learner', {}), { start: settings.start });
-  const saveLearner = () => store.set('ff.learner', learner.toJSON());
+  // The skill model and the day log are shared with the Scales page, which reads, changes and writes
+  // them back (scales-app.js withLearner, logDay). This page does the same: each change starts from the
+  // stored copy and adds only this page's own change, so practice logged on the Scales page or in
+  // another tab while this page sat open (or waited in the back/forward cache) isn't overwritten.
+  const loadLearner = () => new G.Learner(store.get('ff.learner', {}), { start: settings.start });
+  let learner = loadLearner();
+  const saveLearner = () => store.set('ff.learner', learner.toJSON()); // replaces it: restore and reset
+  function changeLearner(fn) {
+    learner = loadLearner();
+    fn(learner);
+    saveLearner();
+  }
   let days = store.get('ff.days', {});
-  const saveDays = () => store.set('ff.days', days);
+  let unsavedSec = {}; // date -> seconds practised on this page and not yet written to ff.days
   const dayLog = (date) => (days[date] = days[date] || { sec: 0, items: {} });
+  const addTime = (date, sec) => { dayLog(date).sec += sec; unsavedSec[date] = (unsavedSec[date] || 0) + sec; };
+  function reloadDays() {
+    days = store.get('ff.days', {});
+    for (const [date, sec] of Object.entries(unsavedSec)) dayLog(date).sec += sec;
+  }
+  // Write the stored log back with this page's unsaved time added, and `change` (a result) applied.
+  function saveDays(change) {
+    reloadDays();
+    unsavedSec = {};
+    if (change) change();
+    store.set('ff.days', days);
+  }
+  function replaceDays(next) { // restore and reset: the log becomes `next`, whatever is stored
+    days = next;
+    unsavedSec = {};
+    store.set('ff.days', days);
+  }
 
   // ---------- the plan ----------
   let plan = null;
@@ -211,16 +238,17 @@
     const r = cur.rating;
     if (micScore == null && r == null) return;
     const score = micScore != null && r != null ? 0.7 * micScore + 0.3 * r : micScore != null ? micScore : r;
-    learner.update(cur.ex.skill, score, plan.date, cur.item.desc);
-    if (cur.ex.tempoKey && (g instanceof G.SeqGrader || g instanceof G.RhythmGrade || cur.ex.grade === 'tech') && g.passes.length && !cur.ex.fixedBpm) {
-      learner.saveTempo(cur.ex.tempoKey, { bpm: cur.bpm, cleanBpm: cur.cleanBpm, struggled: cur.struggled && !cur.cleanBpm });
-    }
-    saveLearner();
+    changeLearner((L) => {
+      L.update(cur.ex.skill, score, plan.date, cur.item.desc);
+      if (cur.ex.tempoKey && (g instanceof G.SeqGrader || g instanceof G.RhythmGrade || cur.ex.grade === 'tech') && g.passes.length && !cur.ex.fixedBpm) {
+        L.saveTempo(cur.ex.tempoKey, { bpm: cur.bpm, cleanBpm: cur.cleanBpm, struggled: cur.struggled && !cur.cleanBpm });
+      }
+    });
     plan.results[cur.item.uid] = { score, bpm: cur.bpm, mic: micScore, rating: r };
     savePlan();
-    const log = dayLog(plan.date);
-    log.items[`${plan.seed}:${cur.item.uid}`] = { title: cur.ex.title, block: cur.item.block, skill: cur.ex.skill, score: Math.round(score * 100) / 100, bpm: cur.ex.fixedBpm ? null : cur.bpm };
-    saveDays();
+    saveDays(() => {
+      dayLog(plan.date).items[`${plan.seed}:${cur.item.uid}`] = { title: cur.ex.title, block: cur.item.block, skill: cur.ex.skill, score: Math.round(score * 100) / 100, bpm: cur.ex.fixedBpm ? null : cur.bpm };
+    });
     cur.recorded = true;
     renderProgress();
   }
@@ -251,7 +279,7 @@
     if (cur.ex.onsets) {
       try {
         await engine.enableOnsets('js/onset.js?v=1');
-        engine.setOnsetParams({ threshold: 4.5, gateDb: engine.tracker.gateDb, refractory: 0.06 });
+        engine.setOnsetParams({ threshold: 4.5, gateDb: engine.onsetGateDb(), refractory: 0.06 });
       } catch (err) { say('bad', 'Audio', err.message); return; }
     }
     if (cur.ex.grade === 'rhythm') { if (!(await startRhythm())) return; } else startClock(true);
@@ -280,7 +308,7 @@
     const p = Rh.byId(cur.ex.rhythm.id);
     engine.setOnsetParams({
       threshold: 9 - 0.065 * (rs.hitSens != null ? rs.hitSens : 70),
-      gateDb: engine.tracker.gateDb,
+      gateDb: engine.onsetGateDb(),
       refractory: Math.min(0.09, Math.max(0.03, 0.45 * Rh.minGapBeats(p) * (60 / cur.bpm))),
     });
   }
@@ -720,7 +748,7 @@
     if (!cur || cur.state !== 'run') return;
     const uid = cur.item.uid;
     plan.played[uid] = (plan.played[uid] || 0) + dt;
-    dayLog(plan.date).sec += dt;
+    addTime(plan.date, dt);
     sinceSave += dt;
     if (sinceSave > 5) { sinceSave = 0; savePlan(); saveDays(); }
     renderTimer();
@@ -1165,7 +1193,7 @@
       if (!b) return;
       const name = seg.dataset.name;
       settings[name] = name === 'minutes' ? Number(b.dataset.value) : b.dataset.value;
-      if (name === 'start') learner = new G.Learner(learner.toJSON(), { start: settings.start });
+      if (name === 'start') learner = loadLearner();
       saveSettings();
       syncSegs();
       renderPlan();
@@ -1225,8 +1253,7 @@
       saveSettings();
       learner = new G.Learner(data.learner, { start: settings.start });
       saveLearner();
-      days = data.days;
-      saveDays();
+      replaceDays(data.days);
       syncSegs();
       renderProgress();
       renderPlan();
@@ -1239,8 +1266,7 @@
     if (!window.confirm('Reset your skill map, tempos and practice history in this browser? This can’t be undone (back up first if you might want it).')) return;
     learner = new G.Learner({}, { start: settings.start });
     saveLearner();
-    days = {};
-    saveDays();
+    replaceDays({});
     rebuild();
     renderProgress();
   });
@@ -1256,6 +1282,10 @@
     else if ((e.key === 'd' || e.key === 'D') && !$('backBtn').hidden) $('backBtn').click();
   });
   window.addEventListener('pagehide', () => { if (cur) finish(); savePlan(); saveDays(); });
+  // Another tab, or the Scales page before Back brought this page out of the cache, may have changed them.
+  function reloadShared() { learner = loadLearner(); reloadDays(); renderProgress(); }
+  window.addEventListener('storage', (e) => { if (e.key === 'ff.learner' || e.key === 'ff.days' || e.key === null) reloadShared(); });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) reloadShared(); });
 
   // ---------- go ----------
   const saved = store.get('ff.plan', null);

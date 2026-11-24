@@ -982,8 +982,8 @@
 
   // ---------- spark ----------
   const SPARK = {
-    場景: ['末班地鐵', '凌晨的便利店', '下雨的公交站', '老房子的陽臺', '機場出發大廳', '海邊的防波堤', '畢業後的空教室', '城市天台', '高速公路休息站', '夏夜的天橋', '舊書店', '回老家的火車', '演唱會散場後', '十字路口的紅燈', '搬家那天', '醫院走廊'],
-    物件: ['舊耳機', '沒寄出的信', '一把吉他', '褪色的照片', '一把傘', '一串鑰匙', '船票', '打火機', '圍巾', '未讀消息', '冷掉的咖啡', '車票根', '手錶', '風箏', '錄音帶', '紙飛機'],
+    場景: ['末班捷運', '凌晨的便利店', '下雨的公車站', '老房子的陽臺', '機場出發大廳', '海邊的防波堤', '畢業後的空教室', '城市天台', '高速公路休息站', '夏夜的天橋', '舊書店', '回老家的火車', '演唱會散場後', '十字路口的紅燈', '搬家那天', '醫院走廊'],
+    物件: ['舊耳機', '沒寄出的信', '一把吉他', '褪色的照片', '一把傘', '一串鑰匙', '船票', '打火機', '圍巾', '未讀訊息', '冷掉的咖啡', '車票根', '手錶', '風箏', '錄音帶', '紙飛機'],
     情緒: ['釋懷', '不甘', '想念', '倔強', '溫柔', '後悔', '期待', '孤獨', '感激', '憤怒', '自由', '迷茫', '心動', '告別'],
     寫法: ['寫給十年前的自己', '全程用“你”說話', '讓物件開口說話', '只寫一個晚上發生的事', '副歌只有一句，反覆唱', '先寫最後一句，再往回寫', '整首歌不用“愛”這個字', '用天氣寫心情', '一問一答的對話', '從結局倒著講', '寫給一座城市', '寫給已經離開的人'],
   };
@@ -1041,5 +1041,15 @@
   }
   renderAll();
   newSpark();
-  window.addEventListener('beforeunload', () => store.set('ff.songs', lib));
+  // Write any edit still waiting on the save timer when the page goes away. iOS Safari and the iPad app
+  // (WKWebView) don't fire beforeunload; pagehide and a hidden page are what they do fire.
+  const flush = () => {
+    const pending = saveTimer;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    store.set('ff.songs', lib);
+    if (pending) { renderSheet(); renderSongSelect(); } // what the timer would have done
+  };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 })();
