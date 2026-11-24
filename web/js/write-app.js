@@ -868,6 +868,24 @@
   let mgSeconds = 10;
   let mgTimer = null;
 
+  // Server mode (default) drafts on the music server; On-device runs the model
+  // in the browser. The toggle lives in the panel; the mode is shared with the
+  // session page through localStorage.
+  const MG_MODE_TEXT = {
+    server: 'Drafted by the music server (ai.0x1.tw, MusicGen-small). Your prompt is sent to your own server to draft; nothing else leaves the browser.',
+    browser: 'MusicGen (Meta) runs on your device. First use downloads about 1 GB and caches it; the track is a sketch in your song\'s style and tempo — it will not follow your chords or melody exactly.',
+  };
+  function syncMgModeText() {
+    if (!window.MusicGen) return;
+    const st = $('mgStatus');
+    if (st && !mgBusy) st.textContent = MG_MODE_TEXT[MusicGen.getMode()] || MG_MODE_TEXT.server;
+  }
+  const syncMgMode = bindSeg('mgMode', () => (window.MusicGen ? MusicGen.getMode() : 'server'), (v) => {
+    if (window.MusicGen) MusicGen.setMode(v);
+    syncMgModeText();
+  });
+  syncMgModeText();
+
   function mgSetPlayLabel() {
     const b = $('mgPlay');
     b.textContent = mgPlayer && mgPlayer.playing ? '■ Stop' : '▶ Play';
@@ -876,7 +894,7 @@
 
   async function mgGenerate() {
     if (mgBusy) { toast('The track is already generating — give it a moment.'); return; }
-    if (!window.MusicGen || !MusicGen.isSupported()) { toast('This browser cannot run the in-browser model.'); return; }
+    if (!window.MusicGen || !MusicGen.isSupported()) { toast('The backing-track partner is not available in this browser.'); return; }
     mgBusy = true;
     const panel = $('mgPanel'), status = $('mgStatus'), prog = $('mgProg'), bar = $('mgProgBar');
     panel.hidden = false;
@@ -884,7 +902,7 @@
     $('mgDl').hidden = true;
     if (mgPlayer) mgPlayer.stop();
     mgSetPlayLabel();
-    status.textContent = 'Starting the model…';
+    status.textContent = window.MusicGen && MusicGen.getMode() === 'server' ? 'Asking the server…' : 'Starting the model…';
     prog.hidden = true; bar.style.width = '0%';
     $('mgPrompt').textContent = '';
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -901,11 +919,16 @@
     };
     const onGenerating = () => {
       prog.hidden = true;
-      status.textContent = `Generating ${mgSeconds} seconds of audio — this takes a while, about a minute on most machines.`;
+      const server = window.MusicGen && MusicGen.getMode() === 'server';
+      status.textContent = server
+        ? `Generating ${mgSeconds} seconds of audio on the server — about 20 seconds for a 10-second track.`
+        : `Generating ${mgSeconds} seconds of audio — this takes a while, about a minute on most machines.`;
       mgStopTimer();
       mgTimer = setInterval(() => {
         const s = Math.floor((Date.now() - startedAt) / 1000);
-        status.textContent = `Generating ${mgSeconds} seconds of audio — ${s}s in, about a minute on most machines.`;
+        status.textContent = server
+          ? `Generating ${mgSeconds} seconds of audio on the server — ${s}s in.`
+          : `Generating ${mgSeconds} seconds of audio — ${s}s in, about a minute on most machines.`;
       }, 1000);
     };
     try {

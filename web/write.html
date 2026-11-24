@@ -216,8 +216,15 @@
 
       <div class="card panel mg-panel" id="mgPanel" hidden>
         <div class="card-kicker">AI 伴奏 · Backing track</div>
-        <h3 class="tool-title">A band for this song, from the on-device model</h3>
-        <p class="fine" id="mgStatus">MusicGen (Meta) runs on your device. First use downloads about 1 GB and caches it; the track is a sketch in your song's style and tempo — it will not follow your chords or melody exactly.</p>
+        <h3 class="tool-title">A band for this song</h3>
+        <div class="field">
+          <div class="field-label">Model</div>
+          <div class="seg seg-sm" data-name="mgMode" role="radiogroup" aria-label="Backing track model">
+            <button type="button" data-value="server">Server</button>
+            <button type="button" data-value="browser">On-device</button>
+          </div>
+        </div>
+        <p class="fine" id="mgStatus">Drafted by the music server (ai.0x1.tw, MusicGen-small). Your prompt is sent to your own server to draft; nothing else leaves the browser.</p>
         <div class="ai-prog" id="mgProg" hidden><div class="ai-prog-bar" id="mgProgBar"></div></div>
         <div class="mg-controls">
           <div class="seg seg-sm" id="mgDur" data-name="mgdur" role="radiogroup" aria-label="Track length">
@@ -295,7 +302,7 @@
   <script src="js/chorddata.js?v=1"></script>
   <script src="js/chordgen.js?v=1"></script>
   <script src="js/llm.js?v=2"></script>
-  <script src="js/musicgen.js?v=1"></script>
-  <script src="js/write-app.js?v=5"></script>
+  <script src="js/musicgen.js?v=2"></script>
+  <script src="js/write-app.js?v=6"></script>
 </body>
 </html>

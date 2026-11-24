@@ -162,8 +162,15 @@
 
     <section class="card mg-panel" id="mgPanel" hidden>
       <div class="card-kicker">AI 伴奏 · Practice track</div>
-      <h3 class="tool-title">A groove for this exercise, from the on-device model</h3>
-      <p class="fine" id="mgStatus">MusicGen (Meta) runs on your device. First use downloads about 1 GB and caches it; the track is a jam track in this exercise's style and tempo — it will not be exactly in key or exactly at tempo. Use headphones: the track is in the guitar's range, like the built-in backing.</p>
+      <h3 class="tool-title">A groove for this exercise</h3>
+      <div class="field">
+        <div class="field-label">Model</div>
+        <div class="seg seg-sm" data-name="mgMode" role="radiogroup" aria-label="Backing track model">
+          <button type="button" data-value="server">Server</button>
+          <button type="button" data-value="browser">On-device</button>
+        </div>
+      </div>
+      <p class="fine" id="mgStatus">Drafted by the music server (ai.0x1.tw, MusicGen-small). Your prompt is sent to your own server to draft; nothing else leaves the browser.</p>
       <div class="timer-bar" id="mgProg" hidden><div class="timer-fill" id="mgProgBar"></div></div>
       <div class="mg-controls">
         <div class="seg" id="mgDur" data-name="mgdur" role="radiogroup" aria-label="Track length">
@@ -339,7 +346,7 @@
   <script src="js/seqtab.js?v=3"></script>
   <script src="js/technique.js?v=1"></script>
   <script src="js/stand.js?v=1"></script>
-  <script src="js/musicgen.js?v=1"></script>
-  <script src="js/session-app.js?v=6"></script>
+  <script src="js/musicgen.js?v=2"></script>
+  <script src="js/session-app.js?v=7"></script>
 </body>
 </html>

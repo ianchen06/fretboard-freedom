@@ -1,11 +1,24 @@
-// In-browser backing tracks with Meta's MusicGen-small (Transformers.js, Xenova/musicgen-small).
+// Backing tracks with Meta's MusicGen-small. Two modes, both producing the same
+// { audio: Float32Array, sampling_rate } clip from an English text prompt:
+//
+//   server  (default) — POSTs to the backing-track server on the Oracle A1
+//             (https://ai.0x1.tw/api/musicgen, ONNX MusicGen-small). No model
+//             downloads, so it works on phones whose browsers cannot hold the
+//             1 GB in-browser weights. The prompt (and only the prompt) leaves
+//             the device; the server keeps no history. A 10 s track takes ~20 s.
+//   browser — the model in a module worker (js/musicgen-worker.js) via
+//             Transformers.js. The weights download from the Hugging Face Hub on
+//             first use (~1 GB, q8) and are cached by the browser afterwards.
+//             Nothing the user writes leaves the device.
+//
+// The mode is stored in localStorage ('ff.musicgenMode') and switched from the
+// write and session pages' backing-track panels; the default is server.
 //
 // The model takes an English text prompt and invents a short instrumental clip. It cannot
 // play the user's chords or melody and it cannot hit an exact tempo, so the tracks here are
-// sketches to write or practise against, not a render of the song. The weights (~1 GB, q8)
-// download from the Hugging Face Hub on first use and are cached by the browser afterwards.
-// The MusicGen Melody variant (an audio prompt that steers the melody) has no ONNX port
-// (checked 2026-11-23), so this build is text prompts only.
+// sketches to write or practise against, not a render of the song. The MusicGen Melody
+// variant (an audio prompt that steers the melody) has no ONNX port (checked 2026-11-23),
+// so this build is text prompts only.
 //
 // UMD: window.MusicGen in the browser, module.exports under Node (for the tests).
 (function (root, factory) {
@@ -24,7 +37,28 @@
   const TOKEN_RATE = 50; // the model generates 50 tokens per second of audio.
   const MAX_TOKENS = 1500; // 30 seconds, the model's positional limit.
   const WORKER_URL = 'js/musicgen-worker.js';
+  const SERVER_URL = 'https://ai.0x1.tw';
+  const MODE_KEY = 'ff.musicgenMode';
   const PC_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+  let serverUrl = SERVER_URL;
+  let mode = 'server';
+  try {
+    const saved = typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY);
+    if (saved === 'server' || saved === 'browser') mode = saved;
+  } catch { /* storage unavailable (private mode, Node) — keep the default */ }
+
+  function getMode() { return mode; }
+  function setMode(next) {
+    if (next !== 'server' && next !== 'browser') throw new Error(`Unknown MusicGen mode: ${next}`);
+    if (next === mode) return mode;
+    mode = next;
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, mode); } catch { /* ignore */ }
+    device = null;
+    return mode;
+  }
+  function getServerUrl() { return serverUrl; }
+  function setServerUrl(url) { serverUrl = String(url || SERVER_URL); return serverUrl; }
 
   let worker = null;
   let seq = 0;
@@ -32,7 +66,108 @@
   const pending = new Map(); // id -> { resolve, reject, onProgress, onGenerating }
 
   function isSupported() {
+    if (mode === 'server') return typeof fetch !== 'undefined';
     return typeof Worker !== 'undefined';
+  }
+
+  async function serverHealth() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(`${serverUrl}/health`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`server answered ${res.status}`);
+    } catch (err) {
+      if (err && err.name === 'AbortError') throw new Error(`Music server at ${serverUrl} did not answer in time`);
+      throw new Error(`Music server unreachable at ${serverUrl} — check the connection, or switch to On-device.`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Warm up (or download) the model. Reports download progress; resolves with
+  // 'webgpu', 'wasm' (browser mode) or 'server' (server mode, after a health check).
+  function load(onProgress) {
+    if (mode === 'server') {
+      if (!isSupported()) return Promise.reject(new Error('This browser cannot reach the music server (no fetch).'));
+      return serverHealth().then(() => {
+        device = 'server';
+        return 'server';
+      });
+    }
+    return call('load', {}, { onProgress });
+  }
+
+  // Generate a clip. seconds is the clip length (5-30, default 10); guidance_scale 3 is
+  // the value from the model's own example. Resolves with { audio: Float32Array, sampling_rate }.
+  // In server mode the prompt is POSTed to /api/musicgen and the returned WAV is decoded.
+  function generate(prompt, opts) {
+    const o = opts || {};
+    const seconds = Math.max(1, Math.min(30, Math.round(o.seconds == null ? 10 : o.seconds)));
+    if (mode === 'server') {
+      if (o.onGenerating) o.onGenerating();
+      return (async () => {
+        let res;
+        try {
+          res = await fetch(`${serverUrl}/api/musicgen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, duration: seconds }),
+          });
+        } catch {
+          throw new Error(`Music server unreachable at ${serverUrl} — check the connection, or switch to On-device.`);
+        }
+        if (!res.ok) throw new Error(`Music server answered ${res.status} — try again, or switch to On-device.`);
+        const buf = await res.arrayBuffer();
+        return decodeWav(buf);
+      })();
+    }
+    return call('generate', {
+      prompt,
+      max_new_tokens: durationToTokens(seconds),
+      guidance_scale: o.guidance_scale || 3,
+    }, { onProgress: o.onProgress, onGenerating: o.onGenerating });
+  }
+
+  // Decode a 16-bit PCM WAV (mono or multi-channel, first channel kept) into
+  // { audio: Float32Array, sampling_rate }. Pure, so the tests can run it in Node.
+  function decodeWav(arrayBuffer) {
+    const v = new DataView(arrayBuffer);
+    const str = (off, n) => String.fromCharCode(...new Uint8Array(arrayBuffer, off, n));
+    if (v.byteLength < 44 || str(0, 4) !== 'RIFF' || str(8, 4) !== 'WAVE') {
+      throw new Error('Not a WAV file');
+    }
+    let offset = 12;
+    let fmt = null;
+    let dataOff = -1;
+    let dataLen = 0;
+    while (offset + 8 <= v.byteLength) {
+      const id = str(offset, 4);
+      const size = v.getUint32(offset + 4, true);
+      const body = offset + 8;
+      if (id === 'fmt ') {
+        fmt = {
+          format: v.getUint16(body, true),
+          channels: v.getUint16(body + 2, true),
+          sampleRate: v.getUint32(body + 4, true),
+          bits: v.getUint16(body + 14, true),
+        };
+      } else if (id === 'data') {
+        dataOff = body;
+        dataLen = size;
+        break;
+      }
+      offset = body + size + (size % 2);
+    }
+    if (!fmt) throw new Error('WAV has no fmt chunk');
+    if (fmt.format !== 1) throw new Error(`WAV is not PCM (format ${fmt.format})`);
+    if (fmt.bits !== 16) throw new Error(`WAV is not 16-bit (${fmt.bits}-bit)`);
+    if (dataOff < 0) throw new Error('WAV has no data chunk');
+    const frames = Math.floor(dataLen / 2 / Math.max(1, fmt.channels));
+    const audio = new Float32Array(frames);
+    for (let i = 0; i < frames; i++) {
+      audio[i] = v.getInt16(dataOff + i * fmt.channels * 2, true) / 32768;
+    }
+    return { audio, sampling_rate: fmt.sampleRate };
   }
 
   function loadWorker() {
@@ -72,23 +207,6 @@
       pending.set(id, { resolve, reject, onProgress: handlers && handlers.onProgress, onGenerating: handlers && handlers.onGenerating });
       w.postMessage({ type, id, ...payload });
     });
-  }
-
-  // Warm up (or download) the model. Reports download progress; resolves with 'webgpu' or 'wasm'.
-  function load(onProgress) {
-    return call('load', {}, { onProgress });
-  }
-
-  // Generate a clip. seconds is the clip length (5-30, default 10); guidance_scale 3 is
-  // the value from the model's own example. Resolves with { audio: Float32Array, sampling_rate }.
-  function generate(prompt, opts) {
-    const o = opts || {};
-    const seconds = Math.max(1, Math.min(30, Math.round(o.seconds == null ? 10 : o.seconds)));
-    return call('generate', {
-      prompt,
-      max_new_tokens: durationToTokens(seconds),
-      guidance_scale: o.guidance_scale || 3,
-    }, { onProgress: o.onProgress, onGenerating: o.onGenerating });
   }
 
   // MusicGen generates 50 tokens per second of audio; the model caps at 1500 tokens (30 s).
@@ -225,6 +343,7 @@
     SAMPLE_RATE,
     TOKEN_RATE,
     MAX_TOKENS,
+    SERVER_URL,
     isSupported,
     load,
     generate,
@@ -232,8 +351,13 @@
     buildWritePrompt,
     buildSessionPrompt,
     encodeWav,
+    decodeWav,
     toAudioBuffer,
     Player,
+    getMode,
+    setMode,
+    getServerUrl,
+    setServerUrl,
     get device() { return device; },
   };
 });
