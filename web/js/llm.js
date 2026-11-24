@@ -3,7 +3,7 @@
 // syllable count. Two modes, both drafting the same way and scored the same way:
 //
 //   server  (default) — POSTs to the lyric server on the Oracle A1
-//             (https://ai.0x1.tw/api/lyrics, qwen2.5:0.5b via Ollama). No model
+//             (https://ai.0x1.tw/api/lyrics, qwen2.5:1.5b via Ollama). No model
 //             downloads, so it works on phones whose browsers cannot hold the
 //             1 GB in-browser weights. The prompt (and only the prompt) leaves
 //             the device; the server keeps no history.
@@ -177,8 +177,8 @@
       `寫一句${secName}的歌詞。`,
       title ? `歌名：${title}` : '',
       prev.length ? `前面的歌詞：\n${prev.map((l) => `「${l}」`).join('\n')}` : '這是第一句。',
-      `要求：約 ${syllables || 7} 個字。`,
-      rhymeGroup ? `最後一個字押${rhymeGroup.zh}轍（${rhymeGroup.sound}韻，例如：${rhymeWords}）。` : '',
+      `要求：必須正好 ${syllables || 7} 個字，不要多也不要少。`,
+      rhymeGroup ? `最後一個字必須押${rhymeGroup.zh}轍，必須是${rhymeGroup.sound}韻的字，例如：${rhymeWords}。` : '',
       style ? `風格：${style}。` : '',
       '只回那一句歌詞，不要解釋，不要加引號，不要編號。',
     ].filter(Boolean).join('\n');

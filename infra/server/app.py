@@ -4,7 +4,7 @@ Serves the Fretboard Freedom web app's server mode (the in-browser AI has the
 same features, but the phone's browser can't hold the 1 GB models):
 
   GET  /health        -> service + dependency status
-  POST /api/lyrics    -> lyric-line candidates from Ollama (qwen2.5:0.5b)
+  POST /api/lyrics    -> lyric-line candidates from Ollama (qwen2.5:1.5b)
   POST /api/musicgen  -> backing-track WAV from MusicGen-small
 
 MusicGen backends (env MUSICGEN_BACKEND, default "onnx"):
@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 log = logging.getLogger("fretboard-ai")
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:0.5b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
 MODEL_DIR = Path(os.environ.get(
     "MODEL_DIR", "/opt/fretboard-ai/models/musicgen-small"))
 MUSICGEN_BACKEND = os.environ.get("MUSICGEN_BACKEND", "onnx").lower()
@@ -76,18 +76,32 @@ class LyricsResponse(BaseModel):
 def lyrics(req: LyricsRequest):
     """One lyric line per candidate, from Ollama. The web app ranks them
     (tone fit / rhyme group / syllable count) exactly as it does in-browser."""
+    # qwen2.5 is an Instruct model: the prompt must arrive in its ChatML
+    # template, or it behaves like a base model and rambles or repeats the
+    # prompt back (a 0.5b raw prompt came back as one title repeated eight
+    # times). The client sends the flattened prompt (system line first, then
+    # the request); it goes in as the user turn, with the same instruction as
+    # the system turn, exactly as the tested config.
+    chat_prompt = (
+        "<|im_start|>system\n"
+        "你是一位華語流行歌詞作者。只寫繁體中文歌詞，每次只回一句。"
+        "<|im_end|>\n"
+        "<|im_start|>user\n" + req.prompt + "<|im_end|>\n"
+        "<|im_start|>assistant\n"
+    )
     candidates: list[str] = []
     for _ in range(req.count):
         try:
             r = _http.post(f"{OLLAMA_URL}/api/generate", json={
                 "model": OLLAMA_MODEL,
-                "prompt": req.prompt,
+                "prompt": chat_prompt,
                 "stream": False,
                 "seed": random.randint(0, 2**31 - 1),
                 "stop": ["\n"],
                 "options": {
                     "temperature": req.temperature,
                     "num_predict": 80,
+                    "repeat_penalty": 1.1,
                 },
             })
             r.raise_for_status()

@@ -228,7 +228,7 @@
       `${styleWords} backing track`,
       key ? `in ${key} major` : '',
       o.bpm ? `${o.bpm} bpm` : '',
-      'soft piano and acoustic guitar, gentle drums, no vocals',
+      'bright acoustic guitar and sparkling piano, crisp hi-hats, gentle drums, clear high melody, no vocals',
     ].filter(Boolean).join(', ');
   }
 
@@ -256,7 +256,7 @@
       SKILL_WORDS[fam] || 'melodic guitar practice groove',
       key ? `in ${key} major` : '',
       o && o.bpm ? `${o.bpm} bpm` : '',
-      'no vocals',
+      'bright lead guitar, crisp hi-hats and snare, clear high melody, no vocals',
     ].filter(Boolean).join(', ');
   }
 
