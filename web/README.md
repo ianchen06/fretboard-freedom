@@ -178,7 +178,7 @@ How good is it? On synthetic notes that follow string physics, with realistic fl
 
 The exercises have to be exactly right. A shape with one wrong dot teaches the wrong thing, and theory can compute every shape and check it. A language model would have to be checked by the same theory anyway, and it would need a network connection. Learning a generator from data would need a large set of graded practice sessions, which don't exist. The part that has to adapt to you, *what* to practice and *how fast*, is the learner model: a small knowledge-tracing and spaced-repetition model fed by your mic grades.
 
-That reasoning is about exercise content. For where AI models could still help (lyrics, a sung demo, real songs), see [AI-OPTIONS.md](AI-OPTIONS.md).
+That reasoning is about exercise content. For where AI models could still help (a sung demo, real songs), see [AI-OPTIONS.md](AI-OPTIONS.md). An LLM lyric partner and MusicGen backing tracks were built there and removed a day later. Measured on the demo song, the lyric drafts had the right syllable count 7% of the time. The backing tracks couldn't follow the song's chords or key, and they needed a server, which broke the app's no-network promise. The results are in [Tried and removed](AI-OPTIONS.md#tried-and-removed-2026-11-24).
 
 The backing pad sits in the guitar's range. Use headphones, or an audio interface, so the mic doesn't hear it.
 
@@ -523,7 +523,7 @@ Tips:
 | `js/micpanel.js` | The Hearing card shared by every page: input device and channel, output device, interface tips, sensitivity, tuner (and its precise mode) |
 | `js/licks-app.js` | Call & response UI wiring |
 | `vendor/nam/` | Neural Amp Modeler engine (third-party, MIT) |
-| `AI-OPTIONS.md` | Survey of AI models and open-source projects that could be added, with a recommendation (nothing in it is built yet) |
+| `AI-OPTIONS.md` | Survey of AI models and open-source projects that could be added, with a recommendation, and the measurements behind removing the lyric partner and MusicGen (nothing in it is in the app now) |
 | `rhythm.html`, `css/rhythm.css`, `js/rhythm-app.js` | Rhythm page, styles and UI wiring: scheduler, lane, timing offset, report |
 | `js/rhythm.js` | Rhythm patterns and their prerequisites, step timing and swing, click and drum parts, the timing grader, statistics, tips, tempo ladder (no DOM) |
 | `js/rhythmplay.js` | The lane, the recent-hits strip, and a run (count-in, click or drums, grading, passes, ladder): shared by the Rhythm page and the Daily session |
@@ -537,8 +537,6 @@ Tips:
 | `write.html`, `css/write.css`, `js/write-app.js` | Song writing page, styles and UI wiring |
 | `js/pinyin-data.js`, `tools/gen-pinyin.swift` | Pinyin and tone for every common character, and the script that generates it |
 | `js/zh.js` | Mandarin lyric helpers: syllables, word readings, tone sandhi, 十三轍 rhyme groups and word banks, the tone/melody judge (no DOM) |
-| `js/llm.js`, `js/llm-worker.js` | In-browser lyric partner: Qwen2.5-1.5B-Instruct via Transformers.js in a module worker, prompt building, line cleaning, tone/rhyme/count scoring of drafted lines (scoring is pure, so the tests run it in Node) |
-| `js/musicgen.js`, `js/musicgen-worker.js` | In-browser backing tracks: MusicGen-small via Transformers.js in a module worker, prompt builders for the write page (style, key, tempo) and the session page (exercise skill, tempo, key), a one-clip player (play/stop/WAV download), 16-bit PCM WAV encoding (prompt building, token math and WAV encoding are pure, so the tests run them in Node) |
 | `js/songtheory.js` | 簡譜 chords, progressions, swaps, styles and song forms, the melody generator, quantizing, 簡譜 text, lead sheet (no DOM) |
 | `js/songband.js` | The song band: ballad, Mandopop and rock grooves, pad, guide voice (extends `band.js`) |
 | `test/songwriter.test.js` | Pinyin, sandhi, rhymes, tone judge, chords, melody generator: `node web/test/songwriter.test.js` |
@@ -551,3 +549,4 @@ Tips:
 | `test/polytune.test.js` | Strum all six: every string within 2¢ from one synthetic strum, shared harmonics, far-off strings, drop D, A4 = 442, noise: `node web/test/polytune.test.js` |
 | `test/quiet.test.js` | Unplugged-guitar mode for note detection: quiet strings in hiss, unheard normally, heard as their notes; nothing on hiss alone: `node web/test/quiet.test.js` |
 | `test/tuneguide.test.js` | The Tuner page's logic: string choice, direction, holds, guided order, end to end: `node web/test/tuneguide.test.js` |
+| `test/pages.test.js` | Every page's scripts exist, and every element its own script dereferences (`$('id').…`) is on the page, so a page can't throw at load: `node web/test/pages.test.js` |

@@ -1,8 +1,0 @@
-# Tunnel credentials and any other secrets — never commit these.
-cloudflared/*.json
-cloudflared/config.yml
-*.pem
-*.key
-# Python bytecode
-__pycache__/
-*.pyc

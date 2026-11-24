@@ -75,7 +75,6 @@
         <div class="transport">
           <button class="btn btn-start" id="playSong" type="button">Play the song <kbd>Space</kbd></button>
           <button class="btn btn-ghost" id="loopSection" type="button">Loop this section</button>
-          <button class="btn btn-ghost" id="mgBtn" type="button" title="Generate a short AI backing track in this song's style and tempo">🎵 Backing track</button>
           <div class="beats" id="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
           <div class="now-playing" id="nowPlaying"><span class="np-sec" id="npSec"></span><span class="np-chord" id="npChord"></span></div>
         </div>
@@ -122,7 +121,6 @@
           <p class="fine" id="micNote">Only needed to record a melody. Wear headphones, or record over drums only.</p>
         </div>
       </div>
-
     </section>
 
     <section class="card panel editor" id="editor">
@@ -194,50 +192,6 @@
           </div>
         </label>
       </div>
-
-      <div class="card panel ai-panel" id="aiPanel" hidden>
-        <div class="card-kicker">AI 寫詞 · Lyric partner</div>
-        <h3 class="tool-title">Lines from the lyric partner</h3>
-        <div class="field">
-          <div class="field-label">Model</div>
-          <div class="seg seg-sm" data-name="aiMode" role="radiogroup" aria-label="Lyric model">
-            <button type="button" data-value="server">Server</button>
-            <button type="button" data-value="browser">On-device</button>
-          </div>
-        </div>
-        <p class="fine" id="aiStatus">Drafted by the lyric server (ai.0x1.tw, Qwen2.5-0.5B). Your prompt is sent to your own server to draft; nothing else leaves the browser.</p>
-        <div class="ai-prog" id="aiProg" hidden><div class="ai-prog-bar" id="aiProgBar"></div></div>
-        <ol class="ai-cands" id="aiCands"></ol>
-        <div class="ai-foot">
-          <button class="btn btn-sm btn-ghost" id="aiMore" type="button" hidden>↻ More lines</button>
-          <button class="link-btn" id="aiClose" type="button">Close</button>
-        </div>
-      </div>
-
-      <div class="card panel mg-panel" id="mgPanel" hidden>
-        <div class="card-kicker">AI 伴奏 · Backing track</div>
-        <h3 class="tool-title">A band for this song</h3>
-        <div class="field">
-          <div class="field-label">Model</div>
-          <div class="seg seg-sm" data-name="mgMode" role="radiogroup" aria-label="Backing track model">
-            <button type="button" data-value="server">Server</button>
-            <button type="button" data-value="browser">On-device</button>
-          </div>
-        </div>
-        <p class="fine" id="mgStatus">Drafted by the music server (ai.0x1.tw, MusicGen-small). Your prompt is sent to your own server to draft; nothing else leaves the browser.</p>
-        <div class="ai-prog" id="mgProg" hidden><div class="ai-prog-bar" id="mgProgBar"></div></div>
-        <div class="mg-controls">
-          <div class="seg seg-sm" id="mgDur" data-name="mgdur" role="radiogroup" aria-label="Track length">
-            <button type="button" data-value="10">10 s</button>
-            <button type="button" data-value="20">20 s</button>
-          </div>
-          <button class="btn btn-sm" id="mgGen" type="button">Generate</button>
-          <button class="btn btn-sm" id="mgPlay" type="button" hidden>▶ Play</button>
-          <button class="btn btn-sm btn-ghost" id="mgDl" type="button" hidden>Download WAV</button>
-          <button class="link-btn" id="mgClose" type="button">Close</button>
-        </div>
-        <p class="fine" id="mgPrompt"></p>
-      </div>
     </section>
 
     <section class="tools-row">
@@ -293,7 +247,7 @@
   <script src="js/pitch.js?v=7"></script>
   <script src="js/tunerengine.js?v=1"></script>
   <script src="js/audio.js?v=10"></script>
-  <script src="js/band.js?v=3"></script>
+  <script src="js/band.js?v=4"></script>
   <script src="js/micpanel.js?v=8"></script>
   <script src="js/pinyin-data.js?v=1"></script>
   <script src="js/zh.js?v=1"></script>
@@ -301,8 +255,6 @@
   <script src="js/songband.js?v=2"></script>
   <script src="js/chorddata.js?v=1"></script>
   <script src="js/chordgen.js?v=1"></script>
-  <script src="js/llm.js?v=5"></script>
-  <script src="js/musicgen.js?v=4"></script>
-  <script src="js/write-app.js?v=6"></script>
+  <script src="js/write-app.js?v=7"></script>
 </body>
 </html>
