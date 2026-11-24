@@ -224,26 +224,24 @@ class MusicGenONNX:
         present_names = [o.name for o in self.decoder.get_outputs()
                          if o.name.startswith("present")]
         logits_name = self._output(self.decoder, "logits")
-        # The merged decoder selects its cache branch with use_cache_branch:
-        # False on the first step (no cache exists yet), True afterwards.
-        # A plain decoder_with_past model has no such input and takes the
-        # cache directly, so the flag is only fed when the model declares it.
+        # The merged decoder flattens the codebooks into the batch dim:
+        # input_ids is [batch * num_codebooks, seq] and logits are
+        # [batch * num_codebooks, seq, vocab] — one row per codebook. There is
+        # no decoder attention_mask input, only encoder_attention_mask.
         use_cache_name = next(
             (n for n in dec_in_names if n == "use_cache_branch"), None)
 
         # Generation runs in the delayed space: at step s the decoder sees one
-        # new column; the sampled column becomes the next input column.
+        # new token per codebook; the sampled column becomes the next input.
         max_new = duration * self.FRAME_RATE + self.num_codebooks - 1
-        delayed = np.full((1, self.num_codebooks, 1), self.start_token,
+        delayed = np.full((self.num_codebooks, 1), self.start_token,
                           dtype=np.int64)
         columns = [delayed.copy()]
         past: dict = {}
-        dec_mask = np.ones((1, 1), dtype=np.int64)
         use_cache = False
         for _ in range(max_new):
             feed = {
                 self._input(self.decoder, "input_ids"): delayed,
-                self._input(self.decoder, "attention_mask"): dec_mask,
                 self._input(self.decoder, "encoder_hidden_states"): hidden,
                 self._input(self.decoder, "encoder_attention_mask"): attn,
                 **past,
@@ -254,6 +252,8 @@ class MusicGenONNX:
             if not past:
                 # First step: no KV cache yet. The graph still requires its
                 # past_key_values inputs, so feed empty (seq_len 0) tensors.
+                # Decoder past is [batch, heads, seq, dim]; encoder past is
+                # [batch, heads, enc_seq, dim] once computed — both start empty.
                 for p_name in past_names:
                     feed[p_name] = np.zeros(
                         (1, self.num_heads, 0, self.head_dim),
@@ -261,19 +261,18 @@ class MusicGenONNX:
             outs = self.decoder.run(None, feed)
             by_name = dict(zip(
                 [o.name for o in self.decoder.get_outputs()], outs))
-            logits = by_name[logits_name]  # [1, codebooks, 1, vocab]
-            nxt = np.argmax(logits[:, :, -1, :], axis=-1)  # [1, codebooks]
-            nxt = np.expand_dims(nxt, axis=2)  # [1, codebooks, 1]
+            logits = by_name[logits_name]  # [codebooks, 1, vocab]
+            nxt = np.argmax(logits[:, -1, :], axis=-1)  # [codebooks]
+            nxt = np.expand_dims(nxt, axis=1)  # [codebooks, 1]
             columns.append(nxt.copy())
             delayed = nxt
-            dec_mask = np.ones((1, dec_mask.shape[1] + 1), dtype=np.int64)
             past = {}
             for p_name, q_name in zip(past_names, present_names):
                 past[p_name] = by_name[q_name]
             use_cache = True
 
         # Remove the delay pattern: audio code for frame t is column t + c.
-        cols = np.concatenate(columns, axis=2)[0]  # [codebooks, L]
+        cols = np.concatenate(columns, axis=1)  # [codebooks, L]
         n_frames = cols.shape[1] - (self.num_codebooks - 1)
         codes = np.stack(
             [cols[c, c:c + n_frames] for c in range(self.num_codebooks)],
