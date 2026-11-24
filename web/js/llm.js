@@ -178,7 +178,7 @@
       title ? `歌名：${title}` : '',
       prev.length ? `前面的歌詞：\n${prev.map((l) => `「${l}」`).join('\n')}` : '這是第一句。',
       `要求：必須正好 ${syllables || 7} 個字，不要多也不要少。`,
-      rhymeGroup ? `最後一個字必須押${rhymeGroup.zh}轍，必須是${rhymeGroup.sound}韻的字，例如：${rhymeWords}。` : '',
+      rhymeGroup ? `最後一個字必須押${rhymeGroup.zh}轍，例如：${rhymeWords}。` : '',
       style ? `風格：${style}。` : '',
       '只回那一句歌詞，不要解釋，不要加引號，不要編號。',
     ].filter(Boolean).join('\n');
@@ -188,13 +188,18 @@
     ];
   }
 
-  // Small models wrap lines in numbering, quotes or explanations: keep the first real line.
+  // Small models copy the rhyme's pinyin out of the prompt and append it
+  // (a line ending in "_ai", "ai" or " ai"): lyrics are Traditional Chinese
+  // only, so a trailing Latin token is always pollution, never part of the
+  // line. Stripping it also fixes the rhyme score, which otherwise reads the
+  // appended "ai" as the line's last syllable.
   function cleanLine(raw) {
     const lines = String(raw || '').replace(/```/g, '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     let line = lines[0] || '';
     line = line.replace(/^(?:\d+[.、）)]|[-*•>])\s*/, '');
     line = line.replace(/^歌詞[：:]\s*/, '');
     line = line.replace(/^["'「『（(]+|["'」』）)]+$/g, '');
+    line = line.replace(/[\s_]*[A-Za-z]+$/, '');
     return line.trim();
   }
 

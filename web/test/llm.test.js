@@ -23,6 +23,7 @@ const msgs = L.buildPrompt({
 check(msgs[0].role === 'system' && /繁體中文/.test(msgs[0].content), 'system prompt asks for Traditional Chinese');
 const user = msgs[1].content;
 check(/副歌/.test(user) && /7 個字/.test(user) && /江陽轍/.test(user), `prompt carries section, syllable target and rhyme (got: ${user})`);
+check(!/[a-z]+韻/.test(user), 'rhyme instruction carries no pinyin for the model to copy');
 check(/月亮升起的時候/.test(user) && /月光/.test(user), 'prompt carries previous lines and title');
 check(/只回那一句歌詞/.test(user), 'prompt asks for one line only');
 
@@ -32,6 +33,9 @@ check(L.cleanLine('1. 月亮代表我的心') === '月亮代表我的心', 'stri
 check(L.cleanLine('「月亮代表我的心」') === '月亮代表我的心', 'strips quotes');
 check(L.cleanLine('歌詞：月亮代表我的心\n這是一句很好的歌詞。') === '月亮代表我的心', 'strips label, takes first line');
 check(L.cleanLine('```\n月亮代表我的心\n```') === '月亮代表我的心', 'strips code fences');
+check(L.cleanLine('等待你的未來來_ai') === '等待你的未來來', 'strips trailing _ai');
+check(L.cleanLine('等待在那老地方ai') === '等待在那老地方', 'strips trailing ai');
+check(L.cleanLine('等你回來我懷緋 ai') === '等你回來我懷緋', 'strips trailing space + ai');
 check(L.cleanLine('') === '', 'empty stays empty');
 check(L.cleanLine('   ') === '', 'blank stays blank');
 
