@@ -140,6 +140,23 @@ def _find_onnx(model_dir: Path, *needles: str) -> Path:
         f"(found: {[f.name for f in files]})")
 
 
+def _sample_tokens(logits: np.ndarray, temperature: float,
+                   top_k: int) -> np.ndarray:
+    """Sample one token per row from [rows, vocab] logits (temperature + top-k).
+    Returns int64 [rows, 1]."""
+    l = logits.astype(np.float64)
+    if 0 < top_k < l.shape[1]:
+        kth = np.partition(l, -top_k, axis=1)[:, -top_k][:, None]
+        l = np.where(l < kth, -np.inf, l)
+    l = l / max(temperature, 1e-6)
+    l = l - l.max(axis=1, keepdims=True)
+    p = np.exp(l)
+    p = p / p.sum(axis=1, keepdims=True)
+    u = np.random.random_sample(l.shape[0])
+    idx = (np.cumsum(p, axis=1) < u[:, None]).sum(axis=1)
+    return idx[:, None].astype(np.int64)
+
+
 class MusicGenONNX:
     """MusicGen-small via ONNX Runtime, following the MusicGen delay pattern.
 
@@ -164,6 +181,17 @@ class MusicGenONNX:
         # model the pad id is the vocab size (2048), not the start token (0).
         self.pad_token = int(config.get("decoder", {}).get("pad_token_id",
                                                           2048))
+        # Sampling follows the model's own generation config (facebook /
+        # Xenova musicgen-small): classifier-free guidance 3.0, temperature
+        # 1.0, top_k 250. Greedy decoding collapses the model to a single
+        # repeated token — a steady low tone, not music.
+        gen_cfg = {}
+        gen_path = model_dir / "generation_config.json"
+        if gen_path.exists():
+            gen_cfg = json.loads(gen_path.read_text())
+        self.guidance_scale = float(gen_cfg.get("guidance_scale", 3.0))
+        self.temperature = float(gen_cfg.get("temperature", 1.0))
+        self.top_k = int(gen_cfg.get("top_k", 250))
         self.num_codebooks = int(config.get("num_codebooks", self.NUM_CODEBOOKS))
         # KV-cache geometry for the decoder's past_key_values inputs:
         # [batch, num_heads, seq_len, head_dim]. Needed for the first
@@ -212,16 +240,31 @@ class MusicGenONNX:
             f"{[o.name for o in session.get_outputs()]}")
 
     def generate(self, prompt: str, duration: int) -> bytes:
-        enc = self.tokenizer.encode(prompt)
-        input_ids = np.array([enc.ids], dtype=np.int64)
-        attn = np.array([enc.attention_mask], dtype=np.int64)
+        # Classifier-free guidance, as transformers.js runs it: the decoder
+        # sees a batch of two — the prompt and an empty prompt — and the
+        # logits combine as uncond + guidance * (cond - uncond). The two
+        # prompt tokenizations are padded to the same length.
+        enc_cond = self.tokenizer.encode(prompt)
+        enc_uncond = self.tokenizer.encode("")
+        seq_len = max(len(enc_cond.ids), len(enc_uncond.ids), 1)
+
+        def _pad(enc):
+            ids = list(enc.ids) + [0] * (seq_len - len(enc.ids))
+            mask = list(enc.attention_mask) + [0] * (
+                seq_len - len(enc.attention_mask))
+            return ids, mask
+
+        ids_c, mask_c = _pad(enc_cond)
+        ids_u, mask_u = _pad(enc_uncond)
+        input_ids = np.array([ids_c, ids_u], dtype=np.int64)
+        attn = np.array([mask_c, mask_u], dtype=np.int64)
 
         enc_in = {
             self._input(self.encoder, "input_ids"): input_ids,
             self._input(self.encoder, "attention_mask"): attn,
         }
         enc_out_name = self._output(self.encoder, "last_hidden_state")
-        hidden = self.encoder.run([enc_out_name], enc_in)[0]  # [1, T, H]
+        hidden = self.encoder.run([enc_out_name], enc_in)[0]  # [2, T, H]
 
         dec_in_names = [i.name for i in self.decoder.get_inputs()]
         past_names = [n for n in dec_in_names if n.startswith("past_key_values")]
@@ -230,7 +273,9 @@ class MusicGenONNX:
         logits_name = self._output(self.decoder, "logits")
         # The merged decoder flattens the codebooks into the batch dim:
         # input_ids is [batch * num_codebooks, seq] and logits are
-        # [batch * num_codebooks, seq, vocab] — one row per codebook. There is
+        # [batch * num_codebooks, seq, vocab] — one row per codebook. With
+        # guidance the batch is 2 (conditional + unconditional), so the
+        # decoder sees 8 rows: 0-3 conditional, 4-7 unconditional. There is
         # no decoder attention_mask input, only encoder_attention_mask.
         use_cache_name = next(
             (n for n in dec_in_names if n == "use_cache_branch"), None)
@@ -240,11 +285,13 @@ class MusicGenONNX:
         # codebook c and every position j <= c is fed the pad token, so
         # codebook c's first real token enters the model at step c + 1 — and
         # removed from the output afterwards. The sampled columns are stored
-        # unmasked; only the fed input is masked.
+        # unmasked; only the fed input is masked. Both guidance branches see
+        # the same input tokens; they differ only in the encoder hidden states.
         max_new = duration * self.FRAME_RATE + self.num_codebooks - 1
-        delayed = np.full((self.num_codebooks, 1), self.pad_token,
+        delayed = np.full((2 * self.num_codebooks, 1), self.pad_token,
                           dtype=np.int64)
-        columns = [delayed.copy()]
+        columns = [np.full((self.num_codebooks, 1), self.pad_token,
+                           dtype=np.int64)]
         past: dict = {}
         use_cache = False
         for step in range(max_new):
@@ -261,28 +308,34 @@ class MusicGenONNX:
                 # First step: no KV cache yet. The graph still requires its
                 # past_key_values inputs, so feed empty (seq_len 0) tensors.
                 # Decoder past is [batch, heads, seq, dim]; encoder past is
-                # [batch, heads, enc_seq, dim] once computed — both start empty.
-                # (The batch dim here does not matter: the probe showed 0, 1
-                # and 4 all behave identically on step 1.)
+                # [batch, heads, enc_seq, dim] once computed — both start
+                # empty. (The batch dim here does not matter: the probe
+                # showed 0, 1 and 4 all behave identically on step 1.)
                 for p_name in past_names:
                     feed[p_name] = np.zeros(
-                        (1, self.num_heads, 0, self.head_dim),
+                        (2, self.num_heads, 0, self.head_dim),
                         dtype=np.float32)
             outs = self.decoder.run(None, feed)
             by_name = dict(zip(
                 [o.name for o in self.decoder.get_outputs()], outs))
-            logits = by_name[logits_name]  # [codebooks, 1, vocab]
-            nxt = np.argmax(logits[:, -1, :], axis=-1)  # [codebooks]
-            nxt = np.expand_dims(nxt, axis=1)  # [codebooks, 1]
+            logits = by_name[logits_name]  # [2 * codebooks, 1, vocab]
+            cond = logits[:self.num_codebooks, -1, :]
+            uncond = logits[self.num_codebooks:, -1, :]
+            guided = uncond + self.guidance_scale * (cond - uncond)
+            # Sample, don't argmax: greedy decoding collapses MusicGen to a
+            # single repeated token, which EnCodec turns into a steady low
+            # tone (a 20 s demo came back as one 110 Hz tone at -30 dBFS).
+            nxt = _sample_tokens(guided, self.temperature, self.top_k)
             columns.append(nxt.copy())
-            # Next step's input: mask the delayed positions with pad.
+            # Next step's input: mask the delayed positions with pad, then
+            # tile the same tokens to both guidance branches.
             # At step s the fed column is position s, masked where codebook
             # >= s, so the next input (step + 1) masks codebook >= step + 1.
             masked = nxt.copy()
             for c in range(self.num_codebooks):
                 if c >= step + 1:
                     masked[c, 0] = self.pad_token
-            delayed = masked
+            delayed = np.concatenate([masked, masked], axis=0)
             # Update the cache. The decoder KV comes from the latest present
             # (healthy, sequence growing). The encoder KV must NOT: on the
             # cache branch the model returns a degenerate present encoder KV
@@ -317,6 +370,11 @@ class MusicGenONNX:
             audio_codes = codes[np.newaxis, :, :]  # [1,C,T]
         audio = self.encodec.run(None, {enc_in_name: audio_codes})[0]
         samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+        # MusicGen's raw level varies wildly by prompt (the demo peaked at
+        # -30 dBFS); peak-normalize so every track comes back audible.
+        peak = float(np.abs(samples).max()) if samples.size else 0.0
+        if peak > 0:
+            samples = samples * (0.95 / peak)
         return _wav_bytes(samples, self.sample_rate)
 
 
