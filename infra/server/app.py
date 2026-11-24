@@ -161,6 +161,13 @@ class MusicGenONNX:
             config.get("audio_encoder", {}).get("sampling_rate", 24000))
         self.start_token = int(config.get("decoder_start_token_id", 0))
         self.num_codebooks = int(config.get("num_codebooks", self.NUM_CODEBOOKS))
+        # KV-cache geometry for the decoder's past_key_values inputs:
+        # [batch, num_heads, seq_len, head_dim]. Needed for the first
+        # generation step, which has no cache yet (empty seq_len).
+        dec_cfg = config.get("decoder", {})
+        self.num_heads = int(dec_cfg.get("num_attention_heads", 16))
+        hidden_size = int(dec_cfg.get("hidden_size", 1024))
+        self.head_dim = max(1, hidden_size // self.num_heads)
 
         tok_path = model_dir / "tokenizer.json"
         if not tok_path.exists():
@@ -217,6 +224,12 @@ class MusicGenONNX:
         present_names = [o.name for o in self.decoder.get_outputs()
                          if o.name.startswith("present")]
         logits_name = self._output(self.decoder, "logits")
+        # The merged decoder selects its cache branch with use_cache_branch:
+        # False on the first step (no cache exists yet), True afterwards.
+        # A plain decoder_with_past model has no such input and takes the
+        # cache directly, so the flag is only fed when the model declares it.
+        use_cache_name = next(
+            (n for n in dec_in_names if n == "use_cache_branch"), None)
 
         # Generation runs in the delayed space: at step s the decoder sees one
         # new column; the sampled column becomes the next input column.
@@ -226,6 +239,7 @@ class MusicGenONNX:
         columns = [delayed.copy()]
         past: dict = {}
         dec_mask = np.ones((1, 1), dtype=np.int64)
+        use_cache = False
         for _ in range(max_new):
             feed = {
                 self._input(self.decoder, "input_ids"): delayed,
@@ -234,6 +248,15 @@ class MusicGenONNX:
                 self._input(self.decoder, "encoder_attention_mask"): attn,
                 **past,
             }
+            if use_cache_name is not None:
+                feed[use_cache_name] = np.array(use_cache, dtype=bool)
+            if not past:
+                # First step: no KV cache yet. The graph still requires its
+                # past_key_values inputs, so feed empty (seq_len 0) tensors.
+                for p_name in past_names:
+                    feed[p_name] = np.zeros(
+                        (1, self.num_heads, 0, self.head_dim),
+                        dtype=np.float32)
             outs = self.decoder.run(None, feed)
             by_name = dict(zip(
                 [o.name for o in self.decoder.get_outputs()], outs))
@@ -246,6 +269,7 @@ class MusicGenONNX:
             past = {}
             for p_name, q_name in zip(past_names, present_names):
                 past[p_name] = by_name[q_name]
+            use_cache = True
 
         # Remove the delay pattern: audio code for frame t is column t + c.
         cols = np.concatenate(columns, axis=2)[0]  # [codebooks, L]
