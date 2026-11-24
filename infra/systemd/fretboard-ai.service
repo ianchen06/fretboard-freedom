@@ -9,7 +9,7 @@ User=ubuntu
 WorkingDirectory=/opt/fretboard-ai
 Environment=MODEL_DIR=/opt/fretboard-ai/models/musicgen-small
 Environment=OLLAMA_URL=http://127.0.0.1:11434
-Environment=OLLAMA_MODEL=qwen2.5:1.5b
+Environment=OLLAMA_MODEL=qwen2.5:3b
 Environment=MUSICGEN_BACKEND=onnx
 Environment=ALLOWED_ORIGINS=https://ianchen06.github.io
 ExecStart=/opt/fretboard-ai/venv/bin/uvicorn server.app:app --host 127.0.0.1 --port 8000

@@ -13,7 +13,7 @@ INFRA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_USER="${SUDO_USER:-ubuntu}"
 INSTALL_ROOT="/opt/fretboard-ai"
 MODEL_DIR="$INSTALL_ROOT/models/musicgen-small"
-OLLAMA_MODEL="qwen2.5:1.5b"
+OLLAMA_MODEL="qwen2.5:3b"
 
 log() { echo "==> $*"; }
 warn() { echo "!! $*" >&2; }
@@ -52,7 +52,7 @@ curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || {
 if ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
   log "Ollama model $OLLAMA_MODEL already present"
 else
-  log "Pulling Ollama model $OLLAMA_MODEL (~1 GB)..."
+  log "Pulling Ollama model $OLLAMA_MODEL (~2 GB)..."
   ollama pull "$OLLAMA_MODEL"
 fi
 

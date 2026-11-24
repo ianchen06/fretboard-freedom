@@ -4,7 +4,7 @@ Serves the Fretboard Freedom web app's server mode (the in-browser AI has the
 same features, but the phone's browser can't hold the 1 GB models):
 
   GET  /health        -> service + dependency status
-  POST /api/lyrics    -> lyric-line candidates from Ollama (qwen2.5:1.5b)
+  POST /api/lyrics    -> lyric-line candidates from Ollama (qwen2.5:3b)
   POST /api/musicgen  -> backing-track WAV from MusicGen-small
 
 MusicGen backends (env MUSICGEN_BACKEND, default "onnx"):
@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 log = logging.getLogger("fretboard-ai")
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:3b")
 MODEL_DIR = Path(os.environ.get(
     "MODEL_DIR", "/opt/fretboard-ai/models/musicgen-small"))
 MUSICGEN_BACKEND = os.environ.get("MUSICGEN_BACKEND", "onnx").lower()

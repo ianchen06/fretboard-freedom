@@ -3,7 +3,7 @@
 // syllable count. Two modes, both drafting the same way and scored the same way:
 //
 //   server  (default) — POSTs to the lyric server on the Oracle A1
-//             (https://ai.0x1.tw/api/lyrics, qwen2.5:1.5b via Ollama). No model
+//             (https://ai.0x1.tw/api/lyrics, qwen2.5:3b via Ollama). No model
 //             downloads, so it works on phones whose browsers cannot hold the
 //             1 GB in-browser weights. The prompt (and only the prompt) leaves
 //             the device; the server keeps no history.

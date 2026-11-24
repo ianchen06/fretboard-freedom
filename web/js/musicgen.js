@@ -228,7 +228,7 @@
       `${styleWords} backing track`,
       key ? `in ${key} major` : '',
       o.bpm ? `${o.bpm} bpm` : '',
-      'bright acoustic guitar and sparkling piano, crisp hi-hats, gentle drums, clear high melody, no vocals',
+      'bright acoustic guitar, sparkling piano, hi-hats, clear high melody, no vocals',
     ].filter(Boolean).join(', ');
   }
 
