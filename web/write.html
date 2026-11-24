@@ -197,8 +197,15 @@
 
       <div class="card panel ai-panel" id="aiPanel" hidden>
         <div class="card-kicker">AI 寫詞 · Lyric partner</div>
-        <h3 class="tool-title">Lines from the on-device model</h3>
-        <p class="fine" id="aiStatus">Runs on your device with Qwen2.5-1.5B (Transformers.js). First use downloads about 1.1 GB and caches it; nothing you write leaves the browser.</p>
+        <h3 class="tool-title">Lines from the lyric partner</h3>
+        <div class="field">
+          <div class="field-label">Model</div>
+          <div class="seg seg-sm" data-name="aiMode" role="radiogroup" aria-label="Lyric model">
+            <button type="button" data-value="server">Server</button>
+            <button type="button" data-value="browser">On-device</button>
+          </div>
+        </div>
+        <p class="fine" id="aiStatus">Drafted by the lyric server (ai.0x1.tw, Qwen2.5-0.5B). Your prompt is sent to your own server to draft; nothing else leaves the browser.</p>
         <div class="ai-prog" id="aiProg" hidden><div class="ai-prog-bar" id="aiProgBar"></div></div>
         <ol class="ai-cands" id="aiCands"></ol>
         <div class="ai-foot">
@@ -287,8 +294,8 @@
   <script src="js/songband.js?v=2"></script>
   <script src="js/chorddata.js?v=1"></script>
   <script src="js/chordgen.js?v=1"></script>
-  <script src="js/llm.js?v=1"></script>
+  <script src="js/llm.js?v=2"></script>
   <script src="js/musicgen.js?v=1"></script>
-  <script src="js/write-app.js?v=4"></script>
+  <script src="js/write-app.js?v=5"></script>
 </body>
 </html>

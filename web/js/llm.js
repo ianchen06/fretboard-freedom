@@ -1,18 +1,53 @@
-// In-browser lyric partner: Qwen2.5-1.5B-Instruct running in a module worker (js/llm-worker.js)
-// via Transformers.js. The model drafts lines; js/zh.js and js/songtheory.js score them, so a
+// Lyric partner: Qwen drafting lines, scored by js/zh.js and js/songtheory.js so a
 // line is only offered when it fits the melody's tones, the section's rhyme group and the
-// syllable count. The weights download from the Hugging Face Hub on first use (~1.1 GB) and
-// are cached by the browser afterwards. Nothing the user writes leaves the device.
+// syllable count. Two modes, both drafting the same way and scored the same way:
+//
+//   server  (default) — POSTs to the lyric server on the Oracle A1
+//             (https://ai.0x1.tw/api/lyrics, qwen2.5:0.5b via Ollama). No model
+//             downloads, so it works on phones whose browsers cannot hold the
+//             1 GB in-browser weights. The prompt (and only the prompt) leaves
+//             the device; the server keeps no history.
+//   browser — Qwen2.5-1.5B-Instruct in a module worker (js/llm-worker.js) via
+//             Transformers.js. The weights download from the Hugging Face Hub on
+//             first use (~1.1 GB) and are cached by the browser afterwards.
+//             Nothing the user writes leaves the device.
+//
+// The mode is stored in localStorage ('ff.lyricMode') and switched from the write page's
+// AI panel; the default is server. MusicGen stays in-browser until its server endpoint
+// is fixed (see infra/server/app.py).
 //
 // The scoring and cleaning are pure (no DOM, no Worker), so the tests can run this file in Node.
-// Loading and generation need a browser: isSupported() is false in Node, and load() rejects.
+// Loading and generation need a browser: isSupported() is false in Node for browser mode,
+// and server mode needs fetch. load() rejects when the chosen mode cannot run.
 (function (root) {
   'use strict';
 
   const MODEL_ID = 'onnx-community/Qwen2.5-1.5B-Instruct';
   const MODEL_MB = 1165; // q4f16 weights, first use only; the browser cache keeps them after.
   const WORKER_URL = 'js/llm-worker.js';
+  const SERVER_URL = 'https://ai.0x1.tw';
+  const MODE_KEY = 'ff.lyricMode';
   const DEFAULT_COUNT = 3;
+
+  let serverUrl = SERVER_URL;
+  let mode = 'server';
+  try {
+    const saved = typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY);
+    if (saved === 'server' || saved === 'browser') mode = saved;
+  } catch { /* storage unavailable (private mode, Node) — keep the default */ }
+
+  function getMode() { return mode; }
+  function setMode(next) {
+    if (next !== 'server' && next !== 'browser') throw new Error(`Unknown lyric mode: ${next}`);
+    if (next === mode) return mode;
+    mode = next;
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, mode); } catch { /* ignore */ }
+    readyPromise = null;
+    readyDevice = null;
+    return mode;
+  }
+  function getServerUrl() { return serverUrl; }
+  function setServerUrl(url) { serverUrl = String(url || SERVER_URL); return serverUrl; }
 
   let worker = null;
   let nextId = 1;
@@ -21,7 +56,87 @@
   let readyDevice = null;
 
   function isSupported() {
+    if (mode === 'server') return typeof fetch !== 'undefined';
     return typeof Worker !== 'undefined';
+  }
+
+  // The server takes one plain prompt, not chat messages: system instruction first,
+  // then the request, separated by a blank line.
+  function messagesToPrompt(messages) {
+    return (messages || []).map((m) => String((m && m.content) || '').trim())
+      .filter(Boolean).join('\n\n');
+  }
+
+  async function serverHealth() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(`${serverUrl}/health`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`server answered ${res.status}`);
+    } catch (err) {
+      if (err && err.name === 'AbortError') throw new Error(`Lyric server at ${serverUrl} did not answer in time`);
+      throw new Error(`Lyric server unreachable at ${serverUrl} — check the connection, or switch to On-device.`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Load the model (downloading it on first use, browser mode) or check the server
+  // answers (server mode). Resolves { device: 'webgpu' | 'wasm' | 'server' }.
+  // Rejects on browsers without module workers (browser mode), or when the download,
+  // the model, or the server fails.
+  function load(onProgress) {
+    if (readyPromise) return readyPromise;
+    if (mode === 'server') {
+      if (!isSupported()) return Promise.reject(new Error('This browser cannot reach the lyric server (no fetch).'));
+      readyPromise = serverHealth().then(() => {
+        readyDevice = 'server';
+        return { device: 'server' };
+      });
+      readyPromise.catch(() => { readyPromise = null; });
+      return readyPromise;
+    }
+    if (!isSupported()) return Promise.reject(new Error('This browser cannot run the in-browser model (no module worker).'));
+    readyPromise = new Promise((resolve, reject) => {
+      const id = nextId++;
+      pending.set(id, {
+        kind: 'load',
+        resolve: (msg) => { readyDevice = msg.device; resolve({ device: msg.device }); },
+        reject,
+        onProgress,
+      });
+      ensureWorker().postMessage({ type: 'load', id });
+    });
+    readyPromise.catch(() => { readyPromise = null; });
+    return readyPromise;
+  }
+
+  // One generation. Messages use the model's chat template in browser mode; in server
+  // mode they are flattened to one prompt for POST /api/lyrics. Returns the raw text.
+  function generate(messages, { max_new_tokens = 80, temperature = 0.8, top_p = 0.9, repetition_penalty = 1.1, onToken, onProgress } = {}) {
+    if (mode === 'server') {
+      return load(onProgress).then(async () => {
+        let res;
+        try {
+          res = await fetch(`${serverUrl}/api/lyrics`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: messagesToPrompt(messages), count: 1, temperature }),
+          });
+        } catch {
+          throw new Error(`Lyric server unreachable at ${serverUrl} — check the connection, or switch to On-device.`);
+        }
+        if (!res.ok) throw new Error(`Lyric server answered ${res.status} — try again, or switch to On-device.`);
+        const data = await res.json();
+        const cands = (data && data.candidates) || [];
+        return cands.length ? String(cands[0]) : '';
+      });
+    }
+    return load(onProgress).then(() => new Promise((resolve, reject) => {
+      const id = nextId++;
+      pending.set(id, { kind: 'generate', resolve: (msg) => resolve(msg.text || ''), reject, onToken });
+      ensureWorker().postMessage({ type: 'generate', id, messages, max_new_tokens, temperature, top_p, repetition_penalty });
+    }));
   }
 
   function ensureWorker() {
@@ -50,34 +165,6 @@
       readyPromise = null;
     };
     return worker;
-  }
-
-  // Load the model (downloading it on first use). Resolves { device: 'webgpu' | 'wasm' }.
-  // Rejects on browsers without module workers, or when the download or the model fails.
-  function load(onProgress) {
-    if (readyPromise) return readyPromise;
-    if (!isSupported()) return Promise.reject(new Error('This browser cannot run the in-browser model (no module worker).'));
-    readyPromise = new Promise((resolve, reject) => {
-      const id = nextId++;
-      pending.set(id, {
-        kind: 'load',
-        resolve: (msg) => { readyDevice = msg.device; resolve({ device: msg.device }); },
-        reject,
-        onProgress,
-      });
-      ensureWorker().postMessage({ type: 'load', id });
-    });
-    readyPromise.catch(() => { readyPromise = null; });
-    return readyPromise;
-  }
-
-  // One generation. Messages use the model's chat template. Returns the raw generated text.
-  function generate(messages, { max_new_tokens = 80, temperature = 0.8, top_p = 0.9, repetition_penalty = 1.1, onToken, onProgress } = {}) {
-    return load(onProgress).then(() => new Promise((resolve, reject) => {
-      const id = nextId++;
-      pending.set(id, { kind: 'generate', resolve: (msg) => resolve(msg.text || ''), reject, onToken });
-      ensureWorker().postMessage({ type: 'generate', id, messages, max_new_tokens, temperature, top_p, repetition_penalty });
-    }));
   }
 
   // The prompt: Traditional Chinese only, one line, with the constraints the checker will test.
@@ -150,8 +237,9 @@
   }
 
   const api = {
-    MODEL_ID, MODEL_MB,
+    MODEL_ID, MODEL_MB, SERVER_URL,
     isSupported, load, generate, buildPrompt, cleanLine, scoreCandidate, suggestCandidates,
+    getMode, setMode, getServerUrl, setServerUrl, messagesToPrompt,
     device: () => readyDevice,
   };
   root.LyricAI = api;

@@ -60,11 +60,60 @@ check(tooLong.score < good.score, 'over-long line scores below the fitting line'
 const noMelody = L.scoreCandidate('天天天天天光光', [], 'jiangyang', Zh, S);
 check(noMelody.tone === null && noMelody.score === 75, `no melody: tone neutral, rhyme decides (got ${noMelody.score})`);
 
+// ---------- server mode ----------
+console.log('server mode');
+check(L.getMode() === 'server', `default mode is server (got ${L.getMode()})`);
+check(L.SERVER_URL === 'https://ai.0x1.tw', `server url (got ${L.SERVER_URL})`);
+check(L.messagesToPrompt([
+  { role: 'system', content: '你是一位華語流行歌詞作者。' },
+  { role: 'user', content: '寫一句歌詞。' },
+]) === '你是一位華語流行歌詞作者。\n\n寫一句歌詞。', 'messages flatten to one prompt, system first');
+check(L.messagesToPrompt([{ role: 'user', content: '' }, { role: 'user', content: '寫一句歌詞。' }]) === '寫一句歌詞。', 'empty messages are skipped');
+L.setMode('browser');
+check(L.getMode() === 'browser', 'setMode browser');
+L.setMode('server');
+check(L.getMode() === 'server', 'setMode server');
+let threw = false;
+try { L.setMode('bogus'); } catch { threw = true; }
+check(threw && L.getMode() === 'server', 'setMode rejects an unknown mode');
+
 // ---------- environment ----------
 console.log('env');
-check(L.isSupported() === false, 'no module worker in Node');
+check(L.isSupported() === true, 'server mode needs only fetch, so it is supported in Node');
+L.setMode('browser');
+check(L.isSupported() === false, 'browser mode needs a module worker, none in Node');
+L.setMode('server');
 check(L.MODEL_ID === 'onnx-community/Qwen2.5-1.5B-Instruct', 'model id');
 check(L.MODEL_MB === 1165, `model size note (got ${L.MODEL_MB} MB)`);
 
-console.log(failures ? `${failures} failure(s)` : 'ok');
-process.exit(failures ? 1 : 0);
+// ---------- server generate (stubbed fetch) ----------
+console.log('server generate');
+(async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (String(url).endsWith('/health')) return { ok: true, json: async () => ({ status: 'ok' }) };
+    if (String(url).endsWith('/api/lyrics')) {
+      const body = JSON.parse(opts.body);
+      check(body.count === 1, 'server generate asks for one line per call');
+      check(typeof body.prompt === 'string' && /寫一句/.test(body.prompt), 'server generate sends the flattened prompt');
+      return { ok: true, json: async () => ({ candidates: ['月亮代表我的心'] }) };
+    }
+    return { ok: false, status: 404 };
+  };
+  try {
+    const text = await L.generate(L.buildPrompt({ section: { zh: '副歌', name: 'Chorus' }, syllables: 7 }));
+    check(text === '月亮代表我的心', `server generate returns the candidate (got ${text})`);
+    check(L.device() === 'server', `device reports server (got ${L.device()})`);
+    // A dead server rejects with a clear message, not a bare TypeError.
+    globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+    L.setMode('browser'); L.setMode('server'); // reset the cached ready state
+    let failed = false;
+    try { await L.generate(L.buildPrompt({ section: null, syllables: 7 })); } catch (err) { failed = /unreachable/.test(err.message); }
+    check(failed, 'dead server rejects as unreachable');
+  } finally {
+    globalThis.fetch = realFetch;
+    L.setMode('server');
+  }
+  console.log(failures ? `${failures} failure(s)` : 'ok');
+  process.exit(failures ? 1 : 0);
+})();

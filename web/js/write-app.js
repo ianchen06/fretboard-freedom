@@ -507,7 +507,7 @@
         <div class="line-foot">
           <div class="line-actions">
             <button class="btn btn-sm" type="button" data-act="suggest" data-line="${i}" title="Set these words to a melody that follows their tones">✨ Suggest</button>
-            <button class="btn btn-sm" type="button" data-act="aiwords" data-line="${i}" title="Ask the on-device model for a line that fits this melody and rhyme">✨ AI words</button>
+            <button class="btn btn-sm" type="button" data-act="aiwords" data-line="${i}" title="Ask the lyric partner for a line that fits this melody and rhyme">✨ AI words</button>
             <button class="btn btn-sm btn-rec" type="button" data-act="record" data-line="${i}" title="Play or hum the line over the band; the app writes it down">● Record</button>
             <button class="btn btn-sm btn-ghost" type="button" data-act="play" data-line="${i}">▶ Play</button>
             <button class="link-btn" type="button" data-act="clear" data-line="${i}">Clear tune</button>
@@ -768,9 +768,25 @@
   });
 
   // ---------- AI lyric partner ----------
-  // The model drafts lines in the browser; zh.js and songtheory.js score them, so only lines
-  // that fit the melody, the rhyme and the syllable count are offered.
+  // The model drafts lines; zh.js and songtheory.js score them, so only lines
+  // that fit the melody, the rhyme and the syllable count are offered. Server mode
+  // (default) drafts on the lyric server; On-device runs the model in the browser.
   let aiState = { line: null, cands: [], busy: false };
+  const AI_MODE_TEXT = {
+    server: 'Drafted by the lyric server (ai.0x1.tw, Qwen2.5-0.5B). Your prompt is sent to your own server to draft; nothing else leaves the browser.',
+    browser: 'Runs on your device with Qwen2.5-1.5B (Transformers.js). First use downloads about 1.1 GB and caches it; nothing you write leaves the browser.',
+  };
+  function syncAiModeText() {
+    if (!window.LyricAI) return;
+    const m = LyricAI.getMode();
+    const st = $('aiStatus');
+    if (st && !aiState.busy) st.textContent = AI_MODE_TEXT[m] || AI_MODE_TEXT.server;
+  }
+  const syncAiMode = bindSeg('aiMode', () => (window.LyricAI ? LyricAI.getMode() : 'server'), (v) => {
+    if (window.LyricAI) LyricAI.setMode(v);
+    syncAiModeText();
+  });
+  syncAiModeText();
   function aiTargetSyllables(ln) {
     if (ln.notes.length) return ln.notes.length;
     const counts = sec().lines.map((l) => analyze(l).length).filter((n) => n > 0);
@@ -780,13 +796,13 @@
   async function aiWords(i) {
     const ln = sec().lines[i];
     if (aiState.busy) { toast('The model is already writing — give it a moment.'); return; }
-    if (!window.LyricAI || !LyricAI.isSupported()) { toast('This browser cannot run the in-browser model.'); return; }
+    if (!window.LyricAI || !LyricAI.isSupported()) { toast('The lyric partner is not available in this browser.'); return; }
     aiState = { line: i, cands: [], busy: true };
     const panel = $('aiPanel'), status = $('aiStatus'), prog = $('aiProg'), bar = $('aiProgBar'), list = $('aiCands');
     panel.hidden = false;
     $('aiMore').hidden = true;
     list.innerHTML = '';
-    status.textContent = 'Starting the model…';
+    status.textContent = window.LyricAI && LyricAI.getMode() === 'server' ? 'Asking the server…' : 'Starting the model…';
     prog.hidden = true; bar.style.width = '0%';
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     const prevLines = sec().lines.slice(0, i).map((l) => l.lyrics[ui.take]).filter(Boolean);
