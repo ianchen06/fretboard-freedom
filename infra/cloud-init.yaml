@@ -1,0 +1,15 @@
+#cloud-config
+# Fretboard Freedom AI server — paste as user_data when launching a fresh
+# Oracle A1 instance from the Ubuntu 22.04 platform image (Canonical).
+# On first boot it clones this repo and runs infra/setup.sh.
+# Progress: /var/log/cloud-init-output.log
+# Note: the OCI console injects your SSH key at launch; cloud-init runs as root.
+package_update: true
+packages:
+  - curl
+  - git
+  - python3
+  - python3-pip
+runcmd:
+  - git clone https://github.com/ianchen06/fretboard-freedom.git /opt/fretboard-freedom || (cd /opt/fretboard-freedom && git pull --ff-only)
+  - bash /opt/fretboard-freedom/infra/setup.sh

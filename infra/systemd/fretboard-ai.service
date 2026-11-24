@@ -1,0 +1,20 @@
+[Unit]
+Description=Fretboard Freedom AI server (lyrics + MusicGen)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/fretboard-ai
+Environment=MODEL_DIR=/opt/fretboard-ai/models/musicgen-small
+Environment=OLLAMA_URL=http://127.0.0.1:11434
+Environment=OLLAMA_MODEL=qwen2.5:0.5b
+Environment=MUSICGEN_BACKEND=onnx
+Environment=ALLOWED_ORIGINS=https://ianchen06.github.io
+ExecStart=/opt/fretboard-ai/venv/bin/uvicorn server.app:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
