@@ -160,6 +160,10 @@ class MusicGenONNX:
         self.sample_rate = int(
             config.get("audio_encoder", {}).get("sampling_rate", 24000))
         self.start_token = int(config.get("decoder_start_token_id", 0))
+        # The delay pattern masks early positions with the pad token; for this
+        # model the pad id is the vocab size (2048), not the start token (0).
+        self.pad_token = int(config.get("decoder", {}).get("pad_token_id",
+                                                          2048))
         self.num_codebooks = int(config.get("num_codebooks", self.NUM_CODEBOOKS))
         # KV-cache geometry for the decoder's past_key_values inputs:
         # [batch, num_heads, seq_len, head_dim]. Needed for the first
@@ -231,15 +235,19 @@ class MusicGenONNX:
         use_cache_name = next(
             (n for n in dec_in_names if n == "use_cache_branch"), None)
 
-        # Generation runs in the delayed space: at step s the decoder sees one
-        # new token per codebook; the sampled column becomes the next input.
+        # Generation runs in the delayed space, exactly as transformers.js
+        # does it: the delay pattern is applied to the INPUT — row c is
+        # codebook c and every position j <= c is fed the pad token, so
+        # codebook c's first real token enters the model at step c + 1 — and
+        # removed from the output afterwards. The sampled columns are stored
+        # unmasked; only the fed input is masked.
         max_new = duration * self.FRAME_RATE + self.num_codebooks - 1
-        delayed = np.full((self.num_codebooks, 1), self.start_token,
+        delayed = np.full((self.num_codebooks, 1), self.pad_token,
                           dtype=np.int64)
         columns = [delayed.copy()]
         past: dict = {}
         use_cache = False
-        for _ in range(max_new):
+        for step in range(max_new):
             feed = {
                 self._input(self.decoder, "input_ids"): delayed,
                 self._input(self.decoder, "encoder_hidden_states"): hidden,
@@ -254,6 +262,8 @@ class MusicGenONNX:
                 # past_key_values inputs, so feed empty (seq_len 0) tensors.
                 # Decoder past is [batch, heads, seq, dim]; encoder past is
                 # [batch, heads, enc_seq, dim] once computed — both start empty.
+                # (The batch dim here does not matter: the probe showed 0, 1
+                # and 4 all behave identically on step 1.)
                 for p_name in past_names:
                     feed[p_name] = np.zeros(
                         (1, self.num_heads, 0, self.head_dim),
@@ -265,17 +275,37 @@ class MusicGenONNX:
             nxt = np.argmax(logits[:, -1, :], axis=-1)  # [codebooks]
             nxt = np.expand_dims(nxt, axis=1)  # [codebooks, 1]
             columns.append(nxt.copy())
-            delayed = nxt
-            past = {}
+            # Next step's input: mask the delayed positions with pad.
+            # At step s the fed column is position s, masked where codebook
+            # >= s, so the next input (step + 1) masks codebook >= step + 1.
+            masked = nxt.copy()
+            for c in range(self.num_codebooks):
+                if c >= step + 1:
+                    masked[c, 0] = self.pad_token
+            delayed = masked
+            # Update the cache. The decoder KV comes from the latest present
+            # (healthy, sequence growing). The encoder KV must NOT: on the
+            # cache branch the model returns a degenerate present encoder KV
+            # (batch 0), and feeding it back breaks the next step's
+            # cross-attention reshape. transformers.js reuses the step-1
+            # encoder KV verbatim instead — the prompt never changes, so the
+            # encoder KV is constant — and so do we.
+            new_past: dict = {}
             for p_name, q_name in zip(past_names, present_names):
-                past[p_name] = by_name[q_name]
+                if ".encoder." in p_name and p_name in past:
+                    new_past[p_name] = past[p_name]
+                else:
+                    new_past[p_name] = by_name[q_name]
+            past = new_past
             use_cache = True
 
-        # Remove the delay pattern: audio code for frame t is column t + c.
+        # Remove the delay pattern: frame t of codebook c is column c + 1 + t
+        # (positions <= c are warm-up and are dropped, as in transformers.js).
         cols = np.concatenate(columns, axis=1)  # [codebooks, L]
-        n_frames = cols.shape[1] - (self.num_codebooks - 1)
+        n_frames = cols.shape[1] - self.num_codebooks
         codes = np.stack(
-            [cols[c, c:c + n_frames] for c in range(self.num_codebooks)],
+            [cols[c, c + 1:c + 1 + n_frames]
+             for c in range(self.num_codebooks)],
             axis=0)  # [codebooks, frames]
 
         # EnCodec decode: codes -> waveform.
